@@ -10,8 +10,8 @@ app.use(cors());
 app.use(express.json());
 
 // ─── Definición de rutas ────────────────────────────────────────────
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/roles', require('./routes/role.routes'));
+
+app.use('/api/roles', require('./routes/roles.routes'));
 
 const PORT = process.env.PORT || 3000;
 
