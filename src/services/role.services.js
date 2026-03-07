@@ -51,7 +51,62 @@ const createRole = (data) => {
  */
 const getRoles = () => roleRepository.getAll();
 
+
+/**
+ * Editar un rol existente
+ *
+ * Regla de negocio:
+ * - El rol debe existir
+ * - El nombre del rol no puede duplicarse
+ *
+ * @function editRole
+ * @memberof module:rolesService
+ *
+ * @param {number} id - ID del rol a editar
+ * @param {Object} data - Nuevos datos del rol
+ * @param {string} data.nombre_rol - Nuevo nombre del rol
+ *
+ * @returns {Object} Rol actualizado
+ * @throws {Error} Si el rol no existe
+ * @throws {Error} Si el nombre del rol ya existe
+ */
+const editRole = (id, data) => {
+  const roleExisting = roleRepository.getById(id);
+  if (!roleExisting) {
+    throw new Error("El rol no existe");
+  }
+  const duplicateRole = roleRepository.getByName(data.nombre_rol);
+  if (duplicateRole && duplicateRole.id_rol !== id) {
+    throw new Error("Ya existe un rol con ese nombre");
+  }
+  return roleRepository.editById(id, data);
+};
+
+/**
+ * Eliminar un rol por su ID
+ *
+ * Regla de negocio:
+ * - El rol debe existir antes de eliminarse
+ *
+ * @function deleteRoleById
+ * @memberof module:rolesService
+ *
+ * @param {number} id - ID del rol a eliminar
+ * @returns {Object} Rol eliminado
+ * @throws {Error} Si el rol no existe
+ */
+
+const deleteRoleById = (id) => {
+  const roleExisting = roleRepository.getById(id);
+  if (!roleExisting) {
+    throw new Error("El rol no existe");
+  }
+  return roleRepository.deleteById(id);
+};
+
 module.exports = {
   createRole,
-  getRoles
+  getRoles,
+  editRole,
+  deleteRoleById
 };
