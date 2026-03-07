@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: rolesService</title>
+    <title>JSDoc: Module: rolesRepository</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: rolesService</h1>
+    <h1 class="page-title">Module: rolesRepository</h1>
 
     
 
@@ -38,16 +38,10 @@
     <div class="container-overview">
     
         
-            <div class="description">Service encargado de manejar la lógica de negocio de los roles
-dentro de la arquitectura MVC.
+            <div class="description">Repository encargado de gestionar el acceso a los datos de los roles.
+En este caso los datos se almacenan en memoria usando un arreglo.
 
-Responsabilidades:
-- Aplicar reglas de negocio
-- Validar datos antes de enviarlos al repositorio
-- Comunicarse con el Repository para acceder a la base de datos
-
-Flujo:
-Controller → Service → Repository → Base de Datos</div>
+En una aplicación real, esta capa se conectaría a una base de datos.</div>
         
 
         
@@ -96,7 +90,7 @@ Controller → Service → Repository → Base de Datos</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_role.services.js.html">services/role.services.js</a>, <a href="services_role.services.js.html#line1">line 1</a>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -153,7 +147,7 @@ Controller → Service → Repository → Base de Datos</div>
     
 
     
-    <h4 class="name" id=".createRole"><span class="type-signature">(static) </span>createRole<span class="signature">(data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".create"><span class="type-signature">(static) </span>create<span class="signature">(roleData)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -161,10 +155,9 @@ Controller → Service → Repository → Base de Datos</div>
 
 
 <div class="description">
-    Crear un nuevo rol
+    Crea un nuevo rol
 
-Regla de negocio:
-No se puede crear un rol con un nombre que ya exista.
+Genera automáticamente un ID y guarda el rol en memoria.
 </div>
 
 
@@ -200,7 +193,7 @@ No se puede crear un rol con un nombre que ya exista.
 
         <tr>
             
-                <td class="name"><code>data</code></td>
+                <td class="name"><code>roleData</code></td>
             
 
             <td class="type">
@@ -216,7 +209,7 @@ No se puede crear un rol con un nombre que ya exista.
 
             
 
-            <td class="description last">Datos del rol a crear
+            <td class="description last">Datos del rol
                 <h6>Properties</h6>
                 
 
@@ -306,7 +299,7 @@ No se puede crear un rol con un nombre que ya exista.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_role.services.js.html">services/role.services.js</a>, <a href="services_role.services.js.html#line19">line 19</a>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line45">line 45</a>
     </li></ul></dd>
     
 
@@ -329,35 +322,6 @@ No se puede crear un rol con un nombre que ya exista.
 
 
 
-<h5>Throws:</h5>
-
-        
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el rol ya existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-
-    
 
 
 <h5>Returns:</h5>
@@ -393,7 +357,7 @@ No se puede crear un rol con un nombre que ya exista.
     
 
     
-    <h4 class="name" id=".deleteRoleById"><span class="type-signature">(static) </span>deleteRoleById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".editById"><span class="type-signature">(static) </span>editById<span class="signature">(id, roleData)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
     
 
     
@@ -401,10 +365,677 @@ No se puede crear un rol con un nombre que ya exista.
 
 
 <div class="description">
-    Eliminar un rol por su ID
+    Edita un rol existente por su ID
 
-Regla de negocio:
-- El rol debe existir antes de eliminarse
+Busca un rol en la lista y actualiza sus datos.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">ID del rol a editar</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>roleData</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Datos nuevos del rol
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>nombre_rol</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Nuevo nombre del rol</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line63">line 63</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Rol actualizado o null si no se encuentra
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getAll"><span class="type-signature">(static) </span>getAll<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Obtiene todos los roles almacenados
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Lista de roles
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Array.&lt;Object></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getById"><span class="type-signature">(static) </span>getById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|undefined}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca un rol por su ID
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Identificador del rol</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line25">line 25</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Rol encontrado o undefined si no existe
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">undefined</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getByName"><span class="type-signature">(static) </span>getByName<span class="signature">(name)</span><span class="type-signature"> &rarr; {Object|undefined}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca un rol por su nombre
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Nombre del rol</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line35">line 35</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Rol encontrado o undefined si no existe
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">undefined</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~deleteById"><span class="type-signature">(inner) </span>deleteById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Elimina un rol por su ID
 </div>
 
 
@@ -497,437 +1128,7 @@ Regla de negocio:
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_role.services.js.html">services/role.services.js</a>, <a href="services_role.services.js.html#line85">line 85</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Throws:</h5>
-
-        
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el rol no existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-
-    
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Rol eliminado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".editRole"><span class="type-signature">(static) </span>editRole<span class="signature">(id, data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Editar un rol existente
-
-Regla de negocio:
-- El rol debe existir
-- El nombre del rol no puede duplicarse
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">ID del rol a editar</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>data</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Nuevos datos del rol
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>nombre_rol</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Nuevo nombre del rol</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_role.services.js.html">services/role.services.js</a>, <a href="services_role.services.js.html#line55">line 55</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Throws:</h5>
-<ul>
-        <li>
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el rol no existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-</li>
-    
-        <li>
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el nombre del rol ya existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-</li>
-    </ul>
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Rol actualizado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getRoles"><span class="type-signature">(static) </span>getRoles<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Obtener todos los roles
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_role.services.js.html">services/role.services.js</a>, <a href="services_role.services.js.html#line44">line 44</a>
+        <a href="repositories_roles.repository.js.html">repositories/roles.repository.js</a>, <a href="repositories_roles.repository.js.html#line93">line 93</a>
     </li></ul></dd>
     
 
@@ -956,7 +1157,7 @@ Regla de negocio:
 
         
 <div class="param-desc">
-    Lista de roles
+    Rol eliminado o null si no existe
 </div>
 
 
@@ -967,7 +1168,10 @@ Regla de negocio:
     </dt>
     <dd>
         
-<span class="param-type">Array.&lt;Object></span>
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
