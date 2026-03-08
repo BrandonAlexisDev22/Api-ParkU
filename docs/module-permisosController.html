@@ -373,7 +373,7 @@ Endpoint: DELETE /permisos/:id
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line82">line 82</a>
+        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line112">line 112</a>
     </li></ul></dd>
     
 
@@ -557,7 +557,7 @@ Endpoint: PUT /permisos/:id
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line54">line 54</a>
+        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line84">line 84</a>
     </li></ul></dd>
     
 
@@ -794,6 +794,310 @@ Endpoint: GET /permisos
 
 
         
+            
+
+    
+
+    
+    <h4 class="name" id=".getPermisosById"><span class="type-signature">(static) </span>getPermisosById<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object|Object}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Controlador encargado de manejar la petición HTTP para obtener
+un permiso específico según su identificador.
+
+Flujo:
+Request → Controller → Service → Repository → Base de Datos
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>req</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Objeto de solicitud HTTP de Express
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>params</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Parámetros de la ruta
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">ID del permiso a buscar</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>res</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Objeto de respuesta HTTP de Express</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line54">line 54</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+<ul>
+        <li>
+<div class="param-desc">
+    200 - Permiso encontrado
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    400 - Error en la solicitud
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+</li>
+    </ul>
+
+
+
+
+
+        
     
 
     
@@ -809,13 +1113,13 @@ Endpoint: GET /permisos
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-PermisoModels.html">PermisoModels</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li></ul><h3>Classes</h3><ul><li><a href="module-PermisoModels-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosRoutes.html">permisosRoutes</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li></ul><h3>Classes</h3><ul><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Sat Mar 07 2026 20:02:08 GMT-0500 (Colombia Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Sat Mar 07 2026 20:38:53 GMT-0500 (Colombia Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>
