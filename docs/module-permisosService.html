@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: rolesController</title>
+    <title>JSDoc: Module: permisosService</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: rolesController</h1>
+    <h1 class="page-title">Module: permisosService</h1>
 
     
 
@@ -38,12 +38,16 @@
     <div class="container-overview">
     
         
-            <div class="description">Controller encargado de manejar las peticiones HTTP relacionadas con los roles.
-Recibe las solicitudes del cliente, llama al Service correspondiente
-y devuelve la respuesta HTTP.
+            <div class="description">Service encargado de manejar la lógica de negocio de los permisos
+dentro de la arquitectura MVC.
+
+Responsabilidades:
+- Aplicar reglas de negocio
+- Validar datos antes de enviarlos al repositorio
+- Comunicarse con el Repository para acceder a los datos
 
 Flujo:
-Cliente → Controller → Service → Repository → Datos</div>
+Controller → Service → Repository → Base de Datos</div>
         
 
         
@@ -92,7 +96,7 @@ Cliente → Controller → Service → Repository → Datos</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_roles.controller.js.html">controllers/roles.controller.js</a>, <a href="controllers_roles.controller.js.html#line1">line 1</a>
+        <a href="services_permisos.services.js.html">services/permisos.services.js</a>, <a href="services_permisos.services.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -149,7 +153,7 @@ Cliente → Controller → Service → Repository → Datos</div>
     
 
     
-    <h4 class="name" id=".createRole"><span class="type-signature">(static) </span>createRole<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".createPermiso"><span class="type-signature">(static) </span>createPermiso<span class="signature">(data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -157,9 +161,10 @@ Cliente → Controller → Service → Repository → Datos</div>
 
 
 <div class="description">
-    Crear un nuevo rol
+    Crear un nuevo permiso
 
-Endpoint: POST /roles
+Regla de negocio:
+No se puede crear un permiso con un nombre que ya exista.
 </div>
 
 
@@ -195,7 +200,7 @@ Endpoint: POST /roles
 
         <tr>
             
-                <td class="name"><code>req</code></td>
+                <td class="name"><code>data</code></td>
             
 
             <td class="type">
@@ -211,20 +216,39 @@ Endpoint: POST /roles
 
             
 
-            <td class="description last">Request de Express</td>
-        </tr>
+            <td class="description last">Datos del permiso a crear
+                <h6>Properties</h6>
+                
 
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
     
 
         <tr>
             
-                <td class="name"><code>res</code></td>
+                <td class="name"><code>nombre_permiso</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">string</span>
 
 
             
@@ -234,7 +258,14 @@ Endpoint: POST /roles
 
             
 
-            <td class="description last">Response de Express</td>
+            <td class="description last">Nombre del permiso</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
         </tr>
 
     
@@ -275,7 +306,7 @@ Endpoint: POST /roles
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_roles.controller.js.html">controllers/roles.controller.js</a>, <a href="controllers_roles.controller.js.html#line14">line 14</a>
+        <a href="services_permisos.services.js.html">services/permisos.services.js</a>, <a href="services_permisos.services.js.html#line19">line 19</a>
     </li></ul></dd>
     
 
@@ -298,13 +329,42 @@ Endpoint: POST /roles
 
 
 
+<h5>Throws:</h5>
+
+        
+
+<dl>
+    <dt>
+        <div class="param-desc">
+        Si el permiso ya existe
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl>
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">Error</span>
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+
+    
 
 
 <h5>Returns:</h5>
 
         
 <div class="param-desc">
-    Rol creado
+    Permiso creado
 </div>
 
 
@@ -333,7 +393,7 @@ Endpoint: POST /roles
     
 
     
-    <h4 class="name" id=".deleteRole"><span class="type-signature">(static) </span>deleteRole<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".deletePermisoById"><span class="type-signature">(static) </span>deletePermisoById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -341,9 +401,10 @@ Endpoint: POST /roles
 
 
 <div class="description">
-    Eliminar un rol existente
+    Eliminar un permiso por su ID
 
-Endpoint: DELETE /roles/:id
+Regla de negocio:
+- El permiso debe existir antes de eliminarse
 </div>
 
 
@@ -356,90 +417,6 @@ Endpoint: DELETE /roles/:id
 
     <h5>Parameters:</h5>
     
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>params</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
-                
 
 <table class="params">
     <thead>
@@ -479,44 +456,7 @@ Endpoint: DELETE /roles/:id
 
             
 
-            <td class="description last">ID del rol a eliminar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
+            <td class="description last">ID del permiso a eliminar</td>
         </tr>
 
     
@@ -557,7 +497,7 @@ Endpoint: DELETE /roles/:id
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_roles.controller.js.html">controllers/roles.controller.js</a>, <a href="controllers_roles.controller.js.html#line78">line 78</a>
+        <a href="services_permisos.services.js.html">services/permisos.services.js</a>, <a href="services_permisos.services.js.html#line91">line 91</a>
     </li></ul></dd>
     
 
@@ -580,13 +520,42 @@ Endpoint: DELETE /roles/:id
 
 
 
+<h5>Throws:</h5>
+
+        
+
+<dl>
+    <dt>
+        <div class="param-desc">
+        Si el permiso no existe
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl>
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">Error</span>
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+
+    
 
 
 <h5>Returns:</h5>
 
         
 <div class="param-desc">
-    Rol eliminado
+    Permiso eliminado
 </div>
 
 
@@ -615,7 +584,7 @@ Endpoint: DELETE /roles/:id
     
 
     
-    <h4 class="name" id=".editRole"><span class="type-signature">(static) </span>editRole<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".editPermiso"><span class="type-signature">(static) </span>editPermiso<span class="signature">(id, data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -623,9 +592,11 @@ Endpoint: DELETE /roles/:id
 
 
 <div class="description">
-    Editar un rol existente
+    Editar un permiso existente
 
-Endpoint: PUT /roles/:id
+Reglas de negocio:
+- El permiso debe existir
+- El nombre del permiso no puede duplicarse
 </div>
 
 
@@ -661,13 +632,13 @@ Endpoint: PUT /roles/:id
 
         <tr>
             
-                <td class="name"><code>req</code></td>
+                <td class="name"><code>id</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">number</span>
 
 
             
@@ -677,14 +648,14 @@ Endpoint: PUT /roles/:id
 
             
 
-            <td class="description last">Request de Express</td>
+            <td class="description last">ID del permiso a editar</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>res</code></td>
+                <td class="name"><code>data</code></td>
             
 
             <td class="type">
@@ -700,7 +671,56 @@ Endpoint: PUT /roles/:id
 
             
 
-            <td class="description last">Response de Express</td>
+            <td class="description last">Nuevos datos del permiso
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>nombre_permiso</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Nuevo nombre del permiso</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
         </tr>
 
     
@@ -741,7 +761,7 @@ Endpoint: PUT /roles/:id
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_roles.controller.js.html">controllers/roles.controller.js</a>, <a href="controllers_roles.controller.js.html#line54">line 54</a>
+        <a href="services_permisos.services.js.html">services/permisos.services.js</a>, <a href="services_permisos.services.js.html#line55">line 55</a>
     </li></ul></dd>
     
 
@@ -764,13 +784,69 @@ Endpoint: PUT /roles/:id
 
 
 
+<h5>Throws:</h5>
+<ul>
+        <li>
+
+<dl>
+    <dt>
+        <div class="param-desc">
+        Si el permiso no existe
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl>
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">Error</span>
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+</li>
+    
+        <li>
+
+<dl>
+    <dt>
+        <div class="param-desc">
+        Si el nombre del permiso ya existe
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl>
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">Error</span>
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+</li>
+    </ul>
 
 
 <h5>Returns:</h5>
 
         
 <div class="param-desc">
-    Rol actualizado
+    Permiso actualizado
 </div>
 
 
@@ -799,7 +875,7 @@ Endpoint: PUT /roles/:id
     
 
     
-    <h4 class="name" id=".getRoles"><span class="type-signature">(static) </span>getRoles<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    <h4 class="name" id=".getPermisos"><span class="type-signature">(static) </span>getPermisos<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
     
 
     
@@ -807,9 +883,7 @@ Endpoint: PUT /roles/:id
 
 
 <div class="description">
-    Obtener todos los roles
-
-Endpoint: GET /roles
+    Obtener todos los permisos
 </div>
 
 
@@ -818,78 +892,6 @@ Endpoint: GET /roles
 
 
 
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
 
 
 
@@ -925,7 +927,7 @@ Endpoint: GET /roles
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_roles.controller.js.html">controllers/roles.controller.js</a>, <a href="controllers_roles.controller.js.html#line36">line 36</a>
+        <a href="services_permisos.services.js.html">services/permisos.services.js</a>, <a href="services_permisos.services.js.html#line44">line 44</a>
     </li></ul></dd>
     
 
@@ -954,7 +956,7 @@ Endpoint: GET /roles
 
         
 <div class="param-desc">
-    Lista de roles
+    Lista de permisos
 </div>
 
 

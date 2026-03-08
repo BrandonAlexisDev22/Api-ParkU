@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: models/roles.models.js</title>
+    <title>JSDoc: Source: models/permisos.models.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: models/roles.models.js</h1>
+    <h1 class="page-title">Source: models/permisos.models.js</h1>
 
     
 
@@ -27,31 +27,33 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module RoleModel
+ * @module PermisoModels
  * @description
  * Clase que representa la entidad Role dentro del sistema ParkU.
- * Modela la estructura de un rol en la aplicación.
+ * Modela la estructura de un permiso en la aplicación.
  */
 
 /**
- * Representa un rol dentro del sistema.
+ * Representa un permiso dentro del sistema.
  *
- * @class Role
- * @param {number} id - Identificador único del rol
- * @param {string} nombre_rol - Nombre del rol
- * @param {Array&lt;string>} permisos - Lista de permisos asociados al rol
+ * @class Permiso
+ * @param {number} id - Identificador único del permisos
+ * @param {string} rol_id - id del rol asociado
+ * @param {Array&lt;string>} permisos - Lista de modulos asociados al permiso
  * @param {boolean} [estado=true] - Estado del rol (activo o inactivo)
  */
-class Role {
-  constructor(id, nombre_rol, permisos, estado = true) {
-    this.id_rol = id;
-    this.nombre_rol = nombre_rol;
-    this.permisos = permisos;
-    this.estado = estado;
-  }
+
+class Permiso {
+    constructor(id_permiso,rol_id,modulo,estado){
+        this.id_permiso = id_permiso;
+        this.rol_id = rol_id,
+        this.modulo = modulo,
+        this.estado = estado
+    }
 }
 
-module.exports = Role;</code></pre>
+
+module.exports = Permiso;</code></pre>
         </article>
     </section>
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: controllers/roles.controller.js</title>
+    <title>JSDoc: Source: controllers/permisos.controller.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: controllers/roles.controller.js</h1>
+    <h1 class="page-title">Source: controllers/permisos.controller.js</h1>
 
     
 
@@ -27,9 +27,9 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesController
+ * @module permisosController
  * @description
- * Controller encargado de manejar las peticiones HTTP relacionadas con los roles.
+ * Controller encargado de manejar las peticiones HTTP relacionadas con los permisos.
  * Recibe las solicitudes del cliente, llama al Service correspondiente
  * y devuelve la respuesta HTTP.
  *
@@ -37,103 +37,111 @@
  * Cliente → Controller → Service → Repository → Datos
  */
 
-const roleService = require('../services/role.services');
+const permisoService = require('../services/permiso.services');
 
 /**
  * Crear un nuevo rol
  *
  * Endpoint: POST /roles
  *
- * @function createRole
- * @memberof module:rolesController
+ * @function createPermiso
+ * @memberof module:permisoController
  *
  * @param {Object} req - Request de Express
  * @param {Object} res - Response de Express
  *
- * @returns {Object} Rol creado
+ * @returns {Object} Permiso creado
  */
-const createRole = (req, res) => {
+const createPermiso = (req, res) => {
   try {
-    const role = roleService.createRole(req.body);
-    res.status(201).json(role);
+    const permiso = permisoService.createPermiso(req.body);
+    res.status(201).json(permiso);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
 /**
- * Obtener todos los roles
+ * Obtener todos los permisos
  *
- * Endpoint: GET /roles
+ * Endpoint: GET /permisos
  *
- * @function getRoles
- * @memberof module:rolesController
+ * @function getPermisos
+ * @memberof module:permisosController
  *
  * @param {Object} req - Request de Express
  * @param {Object} res - Response de Express
  *
  * @returns {Array&lt;Object>} Lista de roles
  */
-const getRoles = (req, res) => {
-  const roles = roleService.getRoles();
-  res.json(roles);
+const getPermisos = (req, res) => {
+  const permisos = roleService.getPermisos();
+  res.json(permisos);
 };
 
 /**
- * Editar un rol existente
+ * Editar un permiso existente
  *
- * Endpoint: PUT /roles/:id
+ * Endpoint: PUT /permisos/:id
  *
- * @function editRole
- * @memberof module:rolesController
+ * @function editPermiso
+ * @memberof module:permisosController
  *
  * @param {Object} req - Request de Express
  * @param {Object} res - Response de Express
  *
- * @returns {Object} Rol actualizado
+ * @returns {Object} Permiso actualizado
  */
-const editRole = (req, res) => {
+const editPermiso = (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const data = req.body;
-    const updatedRole = roleService.editRole(id, data);
-    res.json(updatedRole);
+
+    const updatedPermiso = permisoService.editPermiso(id, data);
+
+    res.json(updatedPermiso);
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
+
 /**
- * Eliminar un rol existente
+ * Eliminar un permiso existente
  *
- * Endpoint: DELETE /roles/:id
+ * Endpoint: DELETE /permisos/:id
  *
- * @function deleteRole
- * @memberof module:rolesController
+ * @function deletePermiso
+ * @memberof module:permisosController
  *
  * @param {Object} req - Request de Express
  * @param {Object} req.params - Parámetros de la ruta
- * @param {number} req.params.id - ID del rol a eliminar
+ * @param {number} req.params.id - ID del permiso a eliminar
  *
  * @param {Object} res - Response de Express
  *
- * @returns {Object} Rol eliminado
+ * @returns {Object} Permiso eliminado
  */
-const deleteRole = (req, res) => {
+const deletePermiso = (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const deletedRole = roleService.deleteRoleById(id);
-    res.json(deletedRole);
+
+    const deletedPermiso = permisoService.deletePermisoById(id);
+
+    res.json(deletedPermiso);
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
+
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRole
+  createPermiso,
+  getPermisos,
+  editPermiso,
+  deletePermiso
 };</code></pre>
         </article>
     </section>
