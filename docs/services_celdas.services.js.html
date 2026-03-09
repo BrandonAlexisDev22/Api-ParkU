@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/celdas.services.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/celdas.services.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module celdasService
+ * @description
+ * Service encargado de manejar la lógica de negocio de las celdas.
+ *
+ * Responsabilidades:
+ * - Validar datos
+ * - Aplicar reglas de negocio
+ * - Comunicarse con el repository
+ *
+ * Flujo:
+ * Controller → Service → Repository → Datos
+ */
+
+const celdaRepository = require('../repositories/celdas.repository');
+
+/**
+ * Crear una nueva celda
+ *
+ * Regla de negocio:
+ * No se pueden repetir números de celda.
+ *
+ * @function createCelda
+ * @memberof module:celdasService
+ *
+ * @param {Object} data - Datos de la celda
+ *
+ * @returns {Object} Celda creada
+ *
+ * @throws {Error} Si la celda ya existe
+ */
+const createCelda = (data) => {
+
+  const existing = celdaRepository.getByNumero(data.numero);
+
+  if (existing) {
+    throw new Error("La celda ya existe");
+  }
+
+  return celdaRepository.create(data);
+};
+
+/**
+ * Obtener todas las celdas
+ *
+ * @function getCeldas
+ * @memberof module:celdasService
+ *
+ * @returns {Array&lt;Object>} Lista de celdas
+ */
+const getCeldas = () => celdaRepository.getAll();
+
+/**
+ * Obtener una celda por ID
+ *
+ * @function getCeldaById
+ * @memberof module:celdasService
+ *
+ * @param {number} id - ID de la celda
+ *
+ * @returns {Object} Celda encontrada
+ */
+const getCeldaById = (id) => celdaRepository.getById(id);
+
+/**
+ * Editar una celda existente
+ *
+ * @function editCelda
+ * @memberof module:celdasService
+ *
+ * @param {number} id - ID de la celda
+ * @param {Object} data - Nuevos datos
+ *
+ * @returns {Object} Celda actualizada
+ *
+ * @throws {Error} Si la celda no existe
+ * @throws {Error} Si el número ya está en uso
+ */
+const editCelda = (id, data) => {
+
+  const existing = celdaRepository.getById(id);
+
+  if (!existing) {
+    throw new Error("La celda no existe");
+  }
+
+  const duplicate = celdaRepository.getByNumero(data.numero);
+
+  if (duplicate &amp;&amp; duplicate.id_celda !== id) {
+    throw new Error("Ya existe una celda con ese número");
+  }
+
+  return celdaRepository.editById(id, data);
+};
+
+/**
+ * Eliminar una celda
+ *
+ * @function deleteCeldaById
+ * @memberof module:celdasService
+ *
+ * @param {number} id - ID de la celda
+ *
+ * @returns {Object} Celda eliminada
+ *
+ * @throws {Error} Si la celda no existe
+ */
+const deleteCeldaById = (id) => {
+
+  const existing = celdaRepository.getById(id);
+
+  if (!existing) {
+    throw new Error("La celda no existe");
+  }
+
+  return celdaRepository.deleteById(id);
+};
+
+module.exports = {
+  createCelda,
+  getCeldas,
+  getCeldaById,
+  editCelda,
+  deleteCeldaById
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-celdasController.html">celdasController</a></li><li><a href="module-celdasRepository.html">celdasRepository</a></li><li><a href="module-celdasService.html">celdasService</a></li><li><a href="module-incidentesController.html">incidentesController</a></li><li><a href="module-incidentesRepository.html">incidentesRepository</a></li><li><a href="module-incidentesRoutes.html">incidentesRoutes</a></li><li><a href="module-incidentesService.html">incidentesService</a></li><li><a href="module-parqueaderosController.html">parqueaderosController</a></li><li><a href="module-parqueaderosService.html">parqueaderosService</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosRoutes.html">permisosRoutes</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-reconocimientoModel.html">reconocimientoModel</a></li><li><a href="module-reconocimientoRepository.html">reconocimientoRepository</a></li><li><a href="module-reconocimientoRoutes.html">reconocimientoRoutes</a></li><li><a href="module-reconocimientoService.html">reconocimientoService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li><li><a href="module-usuariosController.html">usuariosController</a></li><li><a href="module-usuariosRepository.html">usuariosRepository</a></li><li><a href="module-usuariosService.html">usuariosService</a></li></ul><h3>Classes</h3><ul><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-reconocimientoModel-Reconocimiento.html">Reconocimiento</a></li></ul><h3>Global</h3><ul><li><a href="global.html#PORT">PORT</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 09 2026 17:31:12 GMT-0500 (Colombia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

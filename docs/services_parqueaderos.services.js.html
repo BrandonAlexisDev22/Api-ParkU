@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/parqueaderos.services.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/parqueaderos.services.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module parqueaderosService
+ * @description
+ * Service encargado de manejar la lógica de negocio de los parqueaderos
+ * dentro de la arquitectura MVC.
+ *
+ * Responsabilidades:
+ * - Aplicar reglas de negocio
+ * - Validar datos antes de enviarlos al repositorio
+ * - Comunicarse con el Repository para acceder a los datos
+ *
+ * Flujo:
+ * Controller → Service → Repository → Base de Datos
+ */
+
+// Importa el repository encargado del acceso a datos
+const parqueaderoRepository = require('../repositories/parqueaderos.repository');
+
+
+/**
+ * Crear un nuevo parqueadero
+ *
+ * Regla de negocio:
+ * No se puede crear un parqueadero con un nombre que ya exista.
+ *
+ * @function createParqueadero
+ * @memberof module:parqueaderosService
+ *
+ * @param {Object} data - Datos del parqueadero
+ * @param {string} data.nombre - Nombre del parqueadero
+ * @param {number} data.capacidad - Cantidad de espacios
+ * @param {string} data.ubicacion - Ubicación del parqueadero
+ * @param {boolean} data.estado - Estado del parqueadero
+ *
+ * @returns {Object} Parqueadero creado
+ * @throws {Error} Si el parqueadero ya existe
+ */
+const createParqueadero = (data) => {
+
+  const existing = parqueaderoRepository.getByName(data.nombre);
+
+  if (existing) {
+    throw new Error('El parqueadero ya existe');
+  }
+
+  return parqueaderoRepository.create(data);
+};
+
+
+/**
+ * Obtener todos los parqueaderos
+ *
+ * @function getParqueaderos
+ * @memberof module:parqueaderosService
+ *
+ * @returns {Array&lt;Object>} Lista de parqueaderos
+ */
+const getParqueaderos = () => parqueaderoRepository.getAll();
+
+
+/**
+ * Obtener un parqueadero por ID
+ *
+ * @function getParqueaderoById
+ * @memberof module:parqueaderosService
+ *
+ * @param {number} id - ID del parqueadero
+ * @returns {Object} Parqueadero encontrado
+ */
+const getParqueaderoById = (id) => parqueaderoRepository.getById(id);
+
+
+/**
+ * Editar un parqueadero existente
+ *
+ * Reglas de negocio:
+ * - El parqueadero debe existir
+ * - El nombre del parqueadero no puede duplicarse
+ *
+ * @function editParqueadero
+ * @memberof module:parqueaderosService
+ *
+ * @param {number} id - ID del parqueadero
+ * @param {Object} data - Nuevos datos del parqueadero
+ *
+ * @returns {Object} Parqueadero actualizado
+ * @throws {Error} Si el parqueadero no existe
+ * @throws {Error} Si el nombre ya está en uso
+ */
+const editParqueadero = (id, data) => {
+
+  const parqueaderoExisting = parqueaderoRepository.getById(id);
+
+  if (!parqueaderoExisting) {
+    throw new Error("El parqueadero no existe");
+  }
+
+  const duplicateParqueadero = parqueaderoRepository.getByName(data.nombre);
+
+  if (duplicateParqueadero &amp;&amp; duplicateParqueadero.id_parqueadero !== id) {
+    throw new Error("Ya existe un parqueadero con ese nombre");
+  }
+
+  return parqueaderoRepository.editById(id, data);
+};
+
+
+/**
+ * Eliminar un parqueadero por su ID
+ *
+ * Regla de negocio:
+ * - El parqueadero debe existir antes de eliminarse
+ *
+ * @function deleteParqueaderoById
+ * @memberof module:parqueaderosService
+ *
+ * @param {number} id - ID del parqueadero
+ * @returns {Object} Parqueadero eliminado
+ * @throws {Error} Si el parqueadero no existe
+ */
+const deleteParqueaderoById = (id) => {
+
+  const parqueaderoExisting = parqueaderoRepository.getById(id);
+
+  if (!parqueaderoExisting) {
+    throw new Error("El parqueadero no existe");
+  }
+
+  return parqueaderoRepository.deleteById(id);
+};
+
+
+module.exports = {
+  createParqueadero,
+  getParqueaderos,
+  getParqueaderoById,
+  editParqueadero,
+  deleteParqueaderoById
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-celdasController.html">celdasController</a></li><li><a href="module-celdasRepository.html">celdasRepository</a></li><li><a href="module-celdasService.html">celdasService</a></li><li><a href="module-incidentesController.html">incidentesController</a></li><li><a href="module-incidentesRepository.html">incidentesRepository</a></li><li><a href="module-incidentesRoutes.html">incidentesRoutes</a></li><li><a href="module-incidentesService.html">incidentesService</a></li><li><a href="module-parqueaderosController.html">parqueaderosController</a></li><li><a href="module-parqueaderosService.html">parqueaderosService</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosRoutes.html">permisosRoutes</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-reconocimientoModel.html">reconocimientoModel</a></li><li><a href="module-reconocimientoRepository.html">reconocimientoRepository</a></li><li><a href="module-reconocimientoRoutes.html">reconocimientoRoutes</a></li><li><a href="module-reconocimientoService.html">reconocimientoService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li><li><a href="module-usuariosController.html">usuariosController</a></li><li><a href="module-usuariosRepository.html">usuariosRepository</a></li><li><a href="module-usuariosService.html">usuariosService</a></li></ul><h3>Classes</h3><ul><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-reconocimientoModel-Reconocimiento.html">Reconocimiento</a></li></ul><h3>Global</h3><ul><li><a href="global.html#PORT">PORT</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 09 2026 17:31:12 GMT-0500 (Colombia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
