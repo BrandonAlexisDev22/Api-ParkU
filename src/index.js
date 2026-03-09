@@ -70,6 +70,13 @@ app.use('/api/celdas', require('./routes/celdas.routes'));
 
 
 /**
+ * Rutas del módulo de usuarios
+ * Prefijo: /api/usuarios
+ */
+app.use('/api/parqueaderos', require('./routes/parqueaderos.routes'));
+
+
+/**
  * ─────────────────────────────────────────
  * Configuración del puerto del servidor
  * ─────────────────────────────────────────
