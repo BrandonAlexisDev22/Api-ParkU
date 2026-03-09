@@ -62,6 +62,12 @@ app.use('/api/permisos', require('./routes/permisos.routes'));
  */
 app.use('/api/usuarios', require('./routes/usuarios.routes'));
 
+/**
+ * Rutas del módulo de usuarios
+ * Prefijo: /api/usuarios
+ */
+app.use('/api/celdas', require('./routes/celdas.routes'));
+
 
 /**
  * ─────────────────────────────────────────
