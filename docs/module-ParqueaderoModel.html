@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: routes/permisos.routes.js</title>
+    <title>JSDoc: Module: ParqueaderoModel</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,90 +17,140 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: routes/permisos.routes.js</h1>
+    <h1 class="page-title">Module: ParqueaderoModel</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>/**
- * @module permisosRoutes
- * @description
- * Define las rutas HTTP del módulo de permisos.
- * Estas rutas conectan las peticiones del cliente con el controller
- * encargado de manejar las operaciones relacionadas con los permisos.
- *
- * Flujo de la arquitectura:
- * Route → Controller → Service → Repository → Base de Datos
- */
+        
+            
+        
+    
+</header>
 
-const express = require('express');
-const router = express.Router();
-const permisoController = require('../controllers/permisos.controller');
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Clase que representa la entidad Parqueadero dentro del sistema ParkU.
+Modela la estructura de un parqueadero en la aplicación.</div>
+        
 
-/**
- * Crear un nuevo permiso
- *
- * @route POST /permisos/create
- * @group Permisos
- *
- * @param {string} nombre_permiso.body.required - Nombre del permiso
- *
- * @returns {Object} 201 - Permiso creado correctamente
- */
-router.post('/create', permisoController.createPermiso);
+        
+            
 
-/**
- * Editar un permiso existente
- *
- * @route PUT /permisos/edit/{id}
- * @group Permisos
- *
- * @param {number} id.path.required - ID del permiso
- * @param {string} nombre_permiso.body.required - Nuevo nombre del permiso
- *
- * @returns {Object} 200 - Permiso actualizado
- */
-router.put('/edit/:id', permisoController.editPermiso);
 
-/**
- * Eliminar un permiso
- *
- * @route DELETE /permisos/delete/{id}
- * @group Permisos
- *
- * @param {number} id.path.required - ID del permiso
- *
- * @returns {Object} 200 - Permiso eliminado
- */
-router.delete('/delete/:id', permisoController.deletePermiso);
 
-/**
- * Obtener todos los permisos
- *
- * @route GET /permisos
- * @group Permisos
- *
- * @returns {Array&lt;Object>} 200 - Lista de permisos
- */
-router.get('/', permisoController.getPermisos);
 
-/**
- * Obtener un permiso en especifico con el id
- *
- * @route GET /permisos/id
- * @group Permisos
- *
- * @returns {Array&lt;Object>} 200 - permiso especifico
- */
-router.get('/search/:id', permisoController.getPermisosById);
 
-module.exports = router;</code></pre>
-        </article>
-    </section>
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_parqueaderos.models.js.html">models/parqueaderos.models.js</a>, <a href="models_parqueaderos.models.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

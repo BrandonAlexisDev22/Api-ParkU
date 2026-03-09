@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: permisosController</title>
+    <title>JSDoc: Module: celdasRepository</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: permisosController</h1>
+    <h1 class="page-title">Module: celdasRepository</h1>
 
     
 
@@ -38,12 +38,15 @@
     <div class="container-overview">
     
         
-            <div class="description">Controller encargado de manejar las peticiones HTTP relacionadas con los permisos.
-Recibe las solicitudes del cliente, llama al Service correspondiente
-y devuelve la respuesta HTTP.
+            <div class="description">Repository encargado del acceso a datos de las celdas.
+Simula una base de datos en memoria.
+
+Responsabilidades:
+- CRUD de celdas
+- Manejo directo de datos
 
 Flujo:
-Cliente → Controller → Service → Repository → Datos</div>
+Service → Repository → Base de datos (simulada)</div>
         
 
         
@@ -92,7 +95,7 @@ Cliente → Controller → Service → Repository → Datos</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line1">line 1</a>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -149,7 +152,7 @@ Cliente → Controller → Service → Repository → Datos</div>
     
 
     
-    <h4 class="name" id=".deletePermiso"><span class="type-signature">(static) </span>deletePermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".create"><span class="type-signature">(static) </span>create<span class="signature">(celdaData)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -157,9 +160,7 @@ Cliente → Controller → Service → Repository → Datos</div>
 
 
 <div class="description">
-    Eliminar un permiso existente
-
-Endpoint: DELETE /permisos/:id
+    Crea una nueva celda
 </div>
 
 
@@ -195,7 +196,7 @@ Endpoint: DELETE /permisos/:id
 
         <tr>
             
-                <td class="name"><code>req</code></td>
+                <td class="name"><code>celdaData</code></td>
             
 
             <td class="type">
@@ -211,7 +212,7 @@ Endpoint: DELETE /permisos/:id
 
             
 
-            <td class="description last">Request de Express
+            <td class="description last">Datos de la celda
                 <h6>Properties</h6>
                 
 
@@ -237,13 +238,13 @@ Endpoint: DELETE /permisos/:id
 
         <tr>
             
-                <td class="name"><code>params</code></td>
+                <td class="name"><code>numero</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">string</span>
 
 
             
@@ -253,9 +254,202 @@ Endpoint: DELETE /permisos/:id
 
             
 
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
+            <td class="description last">Número de celda</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>tipo</code></td>
+            
+
+            <td class="type">
+            
                 
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Tipo de celda (carro, moto)</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>estado</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Estado de la celda</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>id_parqueadero</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">ID del parqueadero</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line55">line 55</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Celda creada
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".deleteById"><span class="type-signature">(static) </span>deleteById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Elimina una celda por su ID
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
 
 <table class="params">
     <thead>
@@ -295,44 +489,7 @@ Endpoint: DELETE /permisos/:id
 
             
 
-            <td class="description last">ID del permiso a eliminar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
+            <td class="description last">ID de la celda</td>
         </tr>
 
     
@@ -373,7 +530,7 @@ Endpoint: DELETE /permisos/:id
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line112">line 112</a>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line96">line 96</a>
     </li></ul></dd>
     
 
@@ -402,7 +559,7 @@ Endpoint: DELETE /permisos/:id
 
         
 <div class="param-desc">
-    Permiso eliminado
+    Celda eliminada o null si no existe
 </div>
 
 
@@ -414,6 +571,9 @@ Endpoint: DELETE /permisos/:id
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
@@ -431,7 +591,7 @@ Endpoint: DELETE /permisos/:id
     
 
     
-    <h4 class="name" id=".editPermiso"><span class="type-signature">(static) </span>editPermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".editById"><span class="type-signature">(static) </span>editById<span class="signature">(id, celdaData)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
     
 
     
@@ -439,9 +599,7 @@ Endpoint: DELETE /permisos/:id
 
 
 <div class="description">
-    Editar un permiso existente
-
-Endpoint: PUT /permisos/:id
+    Edita una celda existente
 </div>
 
 
@@ -454,460 +612,6 @@ Endpoint: PUT /permisos/:id
 
     <h5>Parameters:</h5>
     
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line84">line 84</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Permiso actualizado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getPermisos"><span class="type-signature">(static) </span>getPermisos<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Obtener todos los permisos
-
-Endpoint: GET /permisos
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line36">line 36</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Lista de roles
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Array.&lt;Object></span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getPermisosById"><span class="type-signature">(static) </span>getPermisosById<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object|Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Controlador encargado de manejar la petición HTTP para obtener
-un permiso específico según su identificador.
-
-Flujo:
-Request → Controller → Service → Repository → Base de Datos
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Objeto de solicitud HTTP de Express
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>params</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
-                
 
 <table class="params">
     <thead>
@@ -937,7 +641,7 @@ Request → Controller → Service → Repository → Base de Datos
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">number</span>
 
 
             
@@ -947,28 +651,14 @@ Request → Controller → Service → Repository → Base de Datos
 
             
 
-            <td class="description last">ID del permiso a buscar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
+            <td class="description last">ID de la celda</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>res</code></td>
+                <td class="name"><code>celdaData</code></td>
             
 
             <td class="type">
@@ -984,7 +674,7 @@ Request → Controller → Service → Repository → Base de Datos
 
             
 
-            <td class="description last">Objeto de respuesta HTTP de Express</td>
+            <td class="description last">Nuevos datos</td>
         </tr>
 
     
@@ -1025,7 +715,7 @@ Request → Controller → Service → Repository → Base de Datos
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line54">line 54</a>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line75">line 75</a>
     </li></ul></dd>
     
 
@@ -1051,10 +741,10 @@ Request → Controller → Service → Repository → Base de Datos
 
 
 <h5>Returns:</h5>
-<ul>
-        <li>
+
+        
 <div class="param-desc">
-    200 - Permiso encontrado
+    Celda actualizada o null si no existe
 </div>
 
 
@@ -1066,15 +756,267 @@ Request → Controller → Service → Repository → Base de Datos
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
 </dl>
-</li>
+
     
-        <li>
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getAll"><span class="type-signature">(static) </span>getAll<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Obtiene todas las celdas almacenadas
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line21">line 21</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
 <div class="param-desc">
-    400 - Error en la solicitud
+    Lista de celdas
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Array.&lt;Object></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getById"><span class="type-signature">(static) </span>getById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|undefined}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca una celda por su ID
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Identificador de la celda</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line31">line 31</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Celda encontrada o undefined
 </div>
 
 
@@ -1086,12 +1028,177 @@ Request → Controller → Service → Repository → Base de Datos
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">undefined</span>
 
 
     </dd>
 </dl>
-</li>
-    </ul>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".getByNumero"><span class="type-signature">(static) </span>getByNumero<span class="signature">(numero)</span><span class="type-signature"> &rarr; {Object|undefined}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca una celda por su número
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>numero</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Número de la celda</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_celdas.repository.js.html">repositories/celdas.repository.js</a>, <a href="repositories_celdas.repository.js.html#line43">line 43</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Celda encontrada
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">undefined</span>
+
+
+    </dd>
+</dl>
+
+    
 
 
 

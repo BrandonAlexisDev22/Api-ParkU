@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: Role</title>
+    <title>JSDoc: Class: Usuario</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: Role</h1>
+    <h1 class="page-title">Class: Usuario</h1>
 
     
 
@@ -29,7 +29,7 @@
 <header>
     
         <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-RoleModel.html">RoleModel</a>~</span>Role<span class="signature">(id, nombre_rol, permisos, estado<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h2>
+            <span class="ancestors"><a href="module-UsuarioModel.html">UsuarioModel</a>~</span>Usuario<span class="signature">(id, nombre, correo, password, rol_id, estado<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -42,7 +42,7 @@
     
 
     
-    <h4 class="name" id="Role"><span class="type-signature"></span>new Role<span class="signature">(id, nombre_rol, permisos, estado<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="Usuario"><span class="type-signature"></span>new Usuario<span class="signature">(id, nombre, correo, password, rol_id, estado<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
     
 
     
@@ -50,7 +50,7 @@
 
 
 <div class="description">
-    Representa un rol dentro del sistema.
+    Representa un usuario dentro del sistema.
 </div>
 
 
@@ -118,14 +118,14 @@
                 </td>
             
 
-            <td class="description last">Identificador único del rol</td>
+            <td class="description last">Identificador único del usuario</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>nombre_rol</code></td>
+                <td class="name"><code>nombre</code></td>
             
 
             <td class="type">
@@ -153,20 +153,20 @@
                 </td>
             
 
-            <td class="description last">Nombre del rol</td>
+            <td class="description last">Nombre del usuario</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>permisos</code></td>
+                <td class="name"><code>correo</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Array.&lt;string></span>
+<span class="param-type">string</span>
 
 
             
@@ -188,7 +188,77 @@
                 </td>
             
 
-            <td class="description last">Lista de permisos asociados al rol</td>
+            <td class="description last">Correo electrónico del usuario</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>password</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">Contraseña del usuario</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>rol_id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">ID del rol asociado al usuario</td>
         </tr>
 
     
@@ -227,7 +297,7 @@
                 </td>
             
 
-            <td class="description last">Estado del rol (activo o inactivo)</td>
+            <td class="description last">Estado del usuario (activo o inactivo)</td>
         </tr>
 
     
@@ -268,7 +338,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_roles.models.js.html">models/roles.models.js</a>, <a href="models_roles.models.js.html#line8">line 8</a>
+        <a href="models_usuarios.models.js.html">models/usuarios.models.js</a>, <a href="models_usuarios.models.js.html#line8">line 8</a>
     </li></ul></dd>
     
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: services/role.services.js</title>
+    <title>JSDoc: Source: repositories/parqueaderos.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: services/role.services.js</h1>
+    <h1 class="page-title">Source: repositories/parqueaderos.repository.js</h1>
 
     
 
@@ -26,117 +26,115 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>/**
- * @module rolesService
- * @description
- * Service encargado de manejar la lógica de negocio de los roles
- * dentro de la arquitectura MVC.
- *
- * Responsabilidades:
- * - Aplicar reglas de negocio
- * - Validar datos antes de enviarlos al repositorio
- * - Comunicarse con el Repository para acceder a la base de datos
- *
- * Flujo:
- * Controller → Service → Repository → Base de Datos
- */
+            <pre class="prettyprint source linenums"><code>// Arreglo que simula una base de datos en memoria
+let parqueaderos = [];
 
-// Importa el repository encargado del acceso a datos
-const roleRepository = require('../repositories/roles.repository');
+// Contador para generar IDs automáticamente
+let idCounter = 1;
 
 /**
- * Crear un nuevo rol
+ * Obtiene todos los parqueaderos almacenados
  *
- * Regla de negocio:
- * No se puede crear un rol con un nombre que ya exista.
- *
- * @function createRole
- * @memberof module:rolesService
- *
- * @param {Object} data - Datos del rol a crear
- * @param {string} data.nombre_rol - Nombre del rol
- * @returns {Object} Rol creado
- * @throws {Error} Si el rol ya existe
+ * @function getAll
+ * @memberof module:parqueaderosRepository
+ * @returns {Array&lt;Object>} Lista de parqueaderos
  */
-const createRole = (data) => {
+const getAll = () => parqueaderos;
 
-  const existing = roleRepository.getByName(data.nombre_rol);
+/**
+ * Busca un parqueadero por su ID
+ *
+ * @function getById
+ * @memberof module:parqueaderosRepository
+ * @param {number} id - Identificador del parqueadero
+ * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
+ */
+const getById = (id) => parqueaderos.find(p => p.id_parqueadero === id);
 
-  if (existing) {
-    throw new Error('El rol ya existe');
-  }
+/**
+ * Busca un parqueadero por su nombre
+ *
+ * @function getByName
+ * @memberof module:parqueaderosRepository
+ * @param {string} name - Nombre del parqueadero
+ * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
+ */
+const getByName = (name) => parqueaderos.find(p => p.nombre === name);
 
-  return roleRepository.create(data);
+/**
+ * Crea un nuevo parqueadero
+ *
+ * Genera automáticamente un ID y guarda el parqueadero en memoria.
+ *
+ * @function create
+ * @memberof module:parqueaderosRepository
+ *
+ * @param {Object} parqueaderoData - Datos del parqueadero
+ * @param {string} parqueaderoData.nombre - Nombre del parqueadero
+ * @param {string} parqueaderoData.direccion - Dirección del parqueadero
+ * @param {number} parqueaderoData.capacidad_total - Capacidad total del parqueadero
+ * @param {number} parqueaderoData.espacios_disponibles - Espacios disponibles
+ * @param {boolean} parqueaderoData.estado - Estado del parqueadero
+ *
+ * @returns {Object} Parqueadero creado
+ */
+const create = (parqueaderoData) => {
+  const newParqueadero = { id_parqueadero: idCounter++, ...parqueaderoData };
+  parqueaderos.push(newParqueadero);
+  return newParqueadero;
 };
 
 /**
- * Obtener todos los roles
+ * Edita un parqueadero existente por su ID
  *
- * @function getRoles
- * @memberof module:rolesService
+ * Busca un parqueadero en la lista y actualiza sus datos.
  *
- * @returns {Array&lt;Object>} Lista de roles
+ * @function editById
+ * @memberof module:parqueaderosRepository
+ *
+ * @param {number} id - ID del parqueadero a editar
+ * @param {Object} parqueaderoData - Nuevos datos del parqueadero
+ *
+ * @returns {Object|null} Parqueadero actualizado o null si no se encuentra
  */
-const getRoles = () => roleRepository.getAll();
+const editById = (id, parqueaderoData) => {
+  const parqueadero = parqueaderos.find(p => p.id_parqueadero === id);
 
+  if (!parqueadero) {
+    return null;
+  }
 
-/**
- * Editar un rol existente
- *
- * Regla de negocio:
- * - El rol debe existir
- * - El nombre del rol no puede duplicarse
- *
- * @function editRole
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a editar
- * @param {Object} data - Nuevos datos del rol
- * @param {string} data.nombre_rol - Nuevo nombre del rol
- *
- * @returns {Object} Rol actualizado
- * @throws {Error} Si el rol no existe
- * @throws {Error} Si el nombre del rol ya existe
- */
-const editRole = (id, data) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  const duplicateRole = roleRepository.getByName(data.nombre_rol);
-  if (duplicateRole &amp;&amp; duplicateRole.id_rol !== id) {
-    throw new Error("Ya existe un rol con ese nombre");
-  }
-  return roleRepository.editById(id, data);
+  Object.assign(parqueadero, parqueaderoData);
+  return parqueadero;
 };
 
 /**
- * Eliminar un rol por su ID
+ * Elimina un parqueadero por su ID
  *
- * Regla de negocio:
- * - El rol debe existir antes de eliminarse
+ * @function deleteById
+ * @memberof module:parqueaderosRepository
  *
- * @function deleteRoleById
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a eliminar
- * @returns {Object} Rol eliminado
- * @throws {Error} Si el rol no existe
+ * @param {number} id - ID del parqueadero a eliminar
+ * @returns {Object|null} Parqueadero eliminado o null si no existe
  */
+const deleteById = (id) => {
+  const index = parqueaderos.findIndex(p => p.id_parqueadero === id);
 
-const deleteRoleById = (id) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
+  if (index === -1) {
+    return null;
   }
-  return roleRepository.deleteById(id);
+
+  const deletedParqueadero = parqueaderos.splice(index, 1)[0];
+  return deletedParqueadero;
 };
 
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRoleById
+  getAll,
+  getById,
+  getByName,
+  create,
+  editById,
+  deleteById
 };</code></pre>
         </article>
     </section>

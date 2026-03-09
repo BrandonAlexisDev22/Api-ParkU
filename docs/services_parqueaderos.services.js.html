@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: services/role.services.js</title>
+    <title>JSDoc: Source: services/parqueaderos.services.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: services/role.services.js</h1>
+    <h1 class="page-title">Source: services/parqueaderos.services.js</h1>
 
     
 
@@ -27,116 +27,143 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesService
+ * @module parqueaderosService
  * @description
- * Service encargado de manejar la lógica de negocio de los roles
+ * Service encargado de manejar la lógica de negocio de los parqueaderos
  * dentro de la arquitectura MVC.
  *
  * Responsabilidades:
  * - Aplicar reglas de negocio
  * - Validar datos antes de enviarlos al repositorio
- * - Comunicarse con el Repository para acceder a la base de datos
+ * - Comunicarse con el Repository para acceder a los datos
  *
  * Flujo:
  * Controller → Service → Repository → Base de Datos
  */
 
 // Importa el repository encargado del acceso a datos
-const roleRepository = require('../repositories/roles.repository');
+const parqueaderoRepository = require('../repositories/parqueaderos.repository');
+
 
 /**
- * Crear un nuevo rol
+ * Crear un nuevo parqueadero
  *
  * Regla de negocio:
- * No se puede crear un rol con un nombre que ya exista.
+ * No se puede crear un parqueadero con un nombre que ya exista.
  *
- * @function createRole
- * @memberof module:rolesService
+ * @function createParqueadero
+ * @memberof module:parqueaderosService
  *
- * @param {Object} data - Datos del rol a crear
- * @param {string} data.nombre_rol - Nombre del rol
- * @returns {Object} Rol creado
- * @throws {Error} Si el rol ya existe
+ * @param {Object} data - Datos del parqueadero
+ * @param {string} data.nombre - Nombre del parqueadero
+ * @param {number} data.capacidad - Cantidad de espacios
+ * @param {string} data.ubicacion - Ubicación del parqueadero
+ * @param {boolean} data.estado - Estado del parqueadero
+ *
+ * @returns {Object} Parqueadero creado
+ * @throws {Error} Si el parqueadero ya existe
  */
-const createRole = (data) => {
+const createParqueadero = (data) => {
 
-  const existing = roleRepository.getByName(data.nombre_rol);
+  const existing = parqueaderoRepository.getByName(data.nombre);
 
   if (existing) {
-    throw new Error('El rol ya existe');
+    throw new Error('El parqueadero ya existe');
   }
 
-  return roleRepository.create(data);
+  return parqueaderoRepository.create(data);
 };
 
+
 /**
- * Obtener todos los roles
+ * Obtener todos los parqueaderos
  *
- * @function getRoles
- * @memberof module:rolesService
+ * @function getParqueaderos
+ * @memberof module:parqueaderosService
  *
- * @returns {Array&lt;Object>} Lista de roles
+ * @returns {Array&lt;Object>} Lista de parqueaderos
  */
-const getRoles = () => roleRepository.getAll();
+const getParqueaderos = () => parqueaderoRepository.getAll();
 
 
 /**
- * Editar un rol existente
+ * Obtener un parqueadero por ID
+ *
+ * @function getParqueaderoById
+ * @memberof module:parqueaderosService
+ *
+ * @param {number} id - ID del parqueadero
+ * @returns {Object} Parqueadero encontrado
+ */
+const getParqueaderoById = (id) => parqueaderoRepository.getById(id);
+
+
+/**
+ * Editar un parqueadero existente
+ *
+ * Reglas de negocio:
+ * - El parqueadero debe existir
+ * - El nombre del parqueadero no puede duplicarse
+ *
+ * @function editParqueadero
+ * @memberof module:parqueaderosService
+ *
+ * @param {number} id - ID del parqueadero
+ * @param {Object} data - Nuevos datos del parqueadero
+ *
+ * @returns {Object} Parqueadero actualizado
+ * @throws {Error} Si el parqueadero no existe
+ * @throws {Error} Si el nombre ya está en uso
+ */
+const editParqueadero = (id, data) => {
+
+  const parqueaderoExisting = parqueaderoRepository.getById(id);
+
+  if (!parqueaderoExisting) {
+    throw new Error("El parqueadero no existe");
+  }
+
+  const duplicateParqueadero = parqueaderoRepository.getByName(data.nombre);
+
+  if (duplicateParqueadero &amp;&amp; duplicateParqueadero.id_parqueadero !== id) {
+    throw new Error("Ya existe un parqueadero con ese nombre");
+  }
+
+  return parqueaderoRepository.editById(id, data);
+};
+
+
+/**
+ * Eliminar un parqueadero por su ID
  *
  * Regla de negocio:
- * - El rol debe existir
- * - El nombre del rol no puede duplicarse
+ * - El parqueadero debe existir antes de eliminarse
  *
- * @function editRole
- * @memberof module:rolesService
+ * @function deleteParqueaderoById
+ * @memberof module:parqueaderosService
  *
- * @param {number} id - ID del rol a editar
- * @param {Object} data - Nuevos datos del rol
- * @param {string} data.nombre_rol - Nuevo nombre del rol
- *
- * @returns {Object} Rol actualizado
- * @throws {Error} Si el rol no existe
- * @throws {Error} Si el nombre del rol ya existe
+ * @param {number} id - ID del parqueadero
+ * @returns {Object} Parqueadero eliminado
+ * @throws {Error} Si el parqueadero no existe
  */
-const editRole = (id, data) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
+const deleteParqueaderoById = (id) => {
+
+  const parqueaderoExisting = parqueaderoRepository.getById(id);
+
+  if (!parqueaderoExisting) {
+    throw new Error("El parqueadero no existe");
   }
-  const duplicateRole = roleRepository.getByName(data.nombre_rol);
-  if (duplicateRole &amp;&amp; duplicateRole.id_rol !== id) {
-    throw new Error("Ya existe un rol con ese nombre");
-  }
-  return roleRepository.editById(id, data);
+
+  return parqueaderoRepository.deleteById(id);
 };
 
-/**
- * Eliminar un rol por su ID
- *
- * Regla de negocio:
- * - El rol debe existir antes de eliminarse
- *
- * @function deleteRoleById
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a eliminar
- * @returns {Object} Rol eliminado
- * @throws {Error} Si el rol no existe
- */
-
-const deleteRoleById = (id) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  return roleRepository.deleteById(id);
-};
 
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRoleById
+  createParqueadero,
+  getParqueaderos,
+  getParqueaderoById,
+  editParqueadero,
+  deleteParqueaderoById
 };</code></pre>
         </article>
     </section>
