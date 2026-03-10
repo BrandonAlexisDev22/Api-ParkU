@@ -73,6 +73,12 @@ app.use('/api/celdas', require('./routes/celdas.routes'));
  * Prefijo: /api/incidentes
  */
 app.use('/api/incidentes', require('./routes/incidentes.routes'));
+
+/**
+ * Rutas del módulo de usuarios
+ * Prefijo: /api/incidentes
+ */
+app.use('/api/reconocimiento', require('./routes/reconocimiento.routes'));
 /**
  * Rutas del módulo de usuarios
  * Prefijo: /api/usuarios
