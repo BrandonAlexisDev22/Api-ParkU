@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: permisosController</title>
+    <title>JSDoc: Module: ConductorRepository</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: permisosController</h1>
+    <h1 class="page-title">Module: ConductorRepository</h1>
 
     
 
@@ -38,7 +38,7 @@
     <div class="container-overview">
     
         
-            <div class="description">Controller encargado de manejar las peticiones HTTP relacionadas con los permisos.Recibe las solicitudes del cliente, llama al Service correspondientey devuelve la respuesta HTTP.Flujo:Cliente → Controller → Service → Repository → Datos</div>
+            <div class="description">Repositorio encargado de gestionar las operaciones CRUDde los conductores dentro del sistema ParkU.</div>
         
 
         
@@ -87,7 +87,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line1">line 1</a>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -144,7 +144,7 @@
     
 
     
-    <h4 class="name" id=".deletePermiso"><span class="type-signature">(static) </span>deletePermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id="~create"><span class="type-signature">(inner) </span>create<span class="signature">(conductorData)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -152,7 +152,7 @@
 
 
 <div class="description">
-    Eliminar un permiso existenteEndpoint: DELETE /permisos/:id
+    Crea un nuevo conductor en el sistema.
 </div>
 
 
@@ -188,7 +188,7 @@
 
         <tr>
             
-                <td class="name"><code>req</code></td>
+                <td class="name"><code>conductorData</code></td>
             
 
             <td class="type">
@@ -204,7 +204,7 @@
 
             
 
-            <td class="description last">Request de Express
+            <td class="description last">Datos del conductor
                 <h6>Properties</h6>
                 
 
@@ -230,13 +230,13 @@
 
         <tr>
             
-                <td class="name"><code>params</code></td>
+                <td class="name"><code>nombre</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">string</span>
 
 
             
@@ -246,9 +246,248 @@
 
             
 
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
+            <td class="description last">Nombre del conductor</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>apellido</code></td>
+            
+
+            <td class="type">
+            
                 
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Apellido del conductor</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>numeroDocumento</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Número de documento</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>tipoDocumento</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Tipo de documento</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>telefono</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Número de teléfono</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>correo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Correo electrónico</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line37">line 37</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Conductor creado
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~deleteById"><span class="type-signature">(inner) </span>deleteById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Elimina un conductor por su ID.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
 
 <table class="params">
     <thead>
@@ -288,44 +527,7 @@
 
             
 
-            <td class="description last">ID del permiso a eliminar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
+            <td class="description last">Identificador del conductor</td>
         </tr>
 
     
@@ -366,7 +568,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line112">line 112</a>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line75">line 75</a>
     </li></ul></dd>
     
 
@@ -395,7 +597,7 @@
 
         
 <div class="param-desc">
-    Permiso eliminado
+    Conductor eliminado o null si no existe
 </div>
 
 
@@ -407,6 +609,9 @@
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
@@ -424,7 +629,7 @@
     
 
     
-    <h4 class="name" id=".editPermiso"><span class="type-signature">(static) </span>editPermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id="~editById"><span class="type-signature">(inner) </span>editById<span class="signature">(id, conductorData)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
     
 
     
@@ -432,7 +637,7 @@
 
 
 <div class="description">
-    Editar un permiso existenteEndpoint: PUT /permisos/:id
+    Edita un conductor existente por su ID.
 </div>
 
 
@@ -445,454 +650,6 @@
 
     <h5>Parameters:</h5>
     
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line84">line 84</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Permiso actualizado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getPermisos"><span class="type-signature">(static) </span>getPermisos<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Obtener todos los permisosEndpoint: GET /permisos
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Request de Express</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Response de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line36">line 36</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Lista de roles
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Array.&lt;Object></span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getPermisosById"><span class="type-signature">(static) </span>getPermisosById<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object|Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Controlador encargado de manejar la petición HTTP para obtenerun permiso específico según su identificador.Flujo:Request → Controller → Service → Repository → Base de Datos
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Objeto de solicitud HTTP de Express
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>params</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
-                
 
 <table class="params">
     <thead>
@@ -922,7 +679,7 @@
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">number</span>
 
 
             
@@ -932,28 +689,14 @@
 
             
 
-            <td class="description last">ID del permiso a buscar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
+            <td class="description last">Identificador del conductor</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>res</code></td>
+                <td class="name"><code>conductorData</code></td>
             
 
             <td class="type">
@@ -969,7 +712,7 @@
 
             
 
-            <td class="description last">Objeto de respuesta HTTP de Express</td>
+            <td class="description last">Datos a actualizar</td>
         </tr>
 
     
@@ -1010,7 +753,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line54">line 54</a>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line56">line 56</a>
     </li></ul></dd>
     
 
@@ -1036,10 +779,10 @@
 
 
 <h5>Returns:</h5>
-<ul>
-        <li>
+
+        
 <div class="param-desc">
-    200 - Permiso encontrado
+    Conductor actualizado o null si no existe
 </div>
 
 
@@ -1051,15 +794,267 @@
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
 </dl>
-</li>
+
     
-        <li>
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~getAll"><span class="type-signature">(inner) </span>getAll<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Obtiene todos los conductores registrados.
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line11">line 11</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
 <div class="param-desc">
-    400 - Error en la solicitud
+    Lista de conductores
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Array.&lt;Object></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~getById"><span class="type-signature">(inner) </span>getById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca un conductor por su ID.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Identificador único del conductor</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line19">line 19</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Conductor encontrado o null si no existe
 </div>
 
 
@@ -1071,12 +1066,177 @@
     <dd>
         
 <span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
 
 
     </dd>
 </dl>
-</li>
-    </ul>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~getByName"><span class="type-signature">(inner) </span>getByName<span class="signature">(nombre)</span><span class="type-signature"> &rarr; {Object|null}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Busca un conductor por su nombre.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>nombre</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Nombre del conductor</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="repositories_conductores.repository.js.html">repositories/conductores.repository.js</a>, <a href="repositories_conductores.repository.js.html#line28">line 28</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Conductor encontrado o null si no existe
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+|
+
+<span class="param-type">null</span>
+
+
+    </dd>
+</dl>
+
+    
 
 
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: services/permisos.services.js</title>
+    <title>JSDoc: Source: services/usuarios.services.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: services/permisos.services.js</h1>
+    <h1 class="page-title">Source: services/usuarios.services.js</h1>
 
     
 
@@ -27,136 +27,130 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module permisosService
+ * @module usuariosService
  * @description
- * Service encargado de manejar la lógica de negocio de los permisos
+ * Service encargado de manejar la lógica de negocio de los usuarios
  * dentro de la arquitectura MVC.
  *
  * Responsabilidades:
  * - Aplicar reglas de negocio
  * - Validar datos antes de enviarlos al repositorio
- * - Comunicarse con el Repository para acceder a los datos
+ * - Comunicarse con el Repository para acceder a la base de datos
  *
  * Flujo:
  * Controller → Service → Repository → Base de Datos
  */
 
 // Importa el repository encargado del acceso a datos
-const permisoRepository = require('../repositories/permisos.repository');
+const usuarioRepository = require('../repositories/usuarios.repository');
 
 /**
- * Crear un nuevo permiso
+ * Crear un nuevo usuario
  *
  * Regla de negocio:
- * No se puede crear un permiso con un nombre que ya exista.
+ * No se puede crear un usuario con un correo que ya exista.
  *
- * @function createPermiso
- * @memberof module:permisosService
+ * @function createUsuario
+ * @memberof module:usuariosService
  *
- * @param {Object} data - Datos del permiso a crear
- * @param {string} data.nombre_permiso - Nombre del permiso
- * @returns {Object} Permiso creado
- * @throws {Error} Si el permiso ya existe
+ * @param {Object} data - Datos del usuario a crear
+ * @param {string} data.nombre - Nombre del usuario
+ * @param {string} data.correo - Correo del usuario
+ * @param {string} data.password - Contraseña del usuario
+ * @param {number} data.rol_id - ID del rol del usuario
+ *
+ * @returns {Object} Usuario creado
+ * @throws {Error} Si el correo ya existe
  */
-const createPermiso = (data) => {
+const createUsuario = (data) => {
 
-  const existing = permisoRepository.getByName(data.nombre_permiso);
+  const existing = usuarioRepository.getByCorreo(data.correo);
 
   if (existing) {
-    throw new Error('El permiso ya existe');
+    throw new Error('El usuario con ese correo ya existe');
   }
 
-  return permisoRepository.create(data);
+  return usuarioRepository.create(data);
 };
 
 /**
- * Obtener todos los permisos
+ * Obtener todos los usuarios
  *
- * @function getPermisos
- * @memberof module:permisosService
+ * @function getUsuarios
+ * @memberof module:usuariosService
  *
- * @returns {Array&lt;Object>} Lista de permisos
+ * @returns {Array&lt;Object>} Lista de usuarios
  */
-const getPermisos = () => permisoRepository.getAll();
-
-/**
- * Obtener un permiso por id
- *
- * @function getPermisosById
- * @memberof module:permisosService
- *
- * @returns {Array&lt;Object>} Lista de permisos
- */
-const getPermisosById = (id) => permisoRepository.getById(id);
+const getUsuarios = () => usuarioRepository.getAll();
 
 
 /**
- * Editar un permiso existente
- *
- * Reglas de negocio:
- * - El permiso debe existir
- * - El nombre del permiso no puede duplicarse
- *
- * @function editPermiso
- * @memberof module:permisosService
- *
- * @param {number} id - ID del permiso a editar
- * @param {Object} data - Nuevos datos del permiso
- * @param {string} data.nombre_permiso - Nuevo nombre del permiso
- *
- * @returns {Object} Permiso actualizado
- * @throws {Error} Si el permiso no existe
- * @throws {Error} Si el nombre del permiso ya existe
- */
-const editPermiso = (id, data) => {
-
-  const permisoExisting = permisoRepository.getById(id);
-
-  if (!permisoExisting) {
-    throw new Error("El permiso no existe");
-  }
-
-  const duplicatePermiso = permisoRepository.getByName(data.nombre_permiso);
-
-  if (duplicatePermiso &amp;&amp; duplicatePermiso.id_permiso !== id) {
-    throw new Error("Ya existe un permiso con ese nombre");
-  }
-
-  return permisoRepository.editById(id, data);
-};
-
-
-/**
- * Eliminar un permiso por su ID
+ * Editar un usuario existente
  *
  * Regla de negocio:
- * - El permiso debe existir antes de eliminarse
+ * - El usuario debe existir
+ * - El correo no puede duplicarse
  *
- * @function deletePermisoById
- * @memberof module:permisosService
+ * @function editUsuario
+ * @memberof module:usuariosService
  *
- * @param {number} id - ID del permiso a eliminar
- * @returns {Object} Permiso eliminado
- * @throws {Error} Si el permiso no existe
+ * @param {number} id - ID del usuario a editar
+ * @param {Object} data - Nuevos datos del usuario
+ * @param {string} data.nombre - Nombre del usuario
+ * @param {string} data.correo - Correo del usuario
+ * @param {number} data.rol_id - Rol del usuario
+ *
+ * @returns {Object} Usuario actualizado
+ * @throws {Error} Si el usuario no existe
+ * @throws {Error} Si el correo ya está en uso
  */
-const deletePermisoById = (id) => {
+const editUsuario = (id, data) => {
 
-  const permisoExisting = permisoRepository.getById(id);
+  const usuarioExisting = usuarioRepository.getById(id);
 
-  if (!permisoExisting) {
-    throw new Error("El permiso no existe");
+  if (!usuarioExisting) {
+    throw new Error("El usuario no existe");
   }
 
-  return permisoRepository.deleteById(id);
+  const duplicateCorreo = usuarioRepository.getByCorreo(data.correo);
+
+  if (duplicateCorreo &amp;&amp; duplicateCorreo.id_usuario !== id) {
+    throw new Error("Ya existe un usuario con ese correo");
+  }
+
+  return usuarioRepository.editById(id, data);
 };
 
 
+/**
+ * Eliminar un usuario por su ID
+ *
+ * Regla de negocio:
+ * - El usuario debe existir antes de eliminarse
+ *
+ * @function deleteUsuarioById
+ * @memberof module:usuariosService
+ *
+ * @param {number} id - ID del usuario a eliminar
+ * @returns {Object} Usuario eliminado
+ * @throws {Error} Si el usuario no existe
+ */
+const deleteUsuarioById = (id) => {
+
+  const usuarioExisting = usuarioRepository.getById(id);
+
+  if (!usuarioExisting) {
+    throw new Error("El usuario no existe");
+  }
+
+  return usuarioRepository.deleteById(id);
+};
+
 module.exports = {
-  createPermiso,
-  getPermisos,
-  getPermisosById,
-  editPermiso,
-  deletePermisoById
+  createUsuario,
+  getUsuarios,
+  editUsuario,
+  deleteUsuarioById
 };</code></pre>
         </article>
     </section>
