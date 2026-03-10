@@ -62,6 +62,8 @@ app.use('/api/permisos', require('./routes/permisos.routes'));
  */
 app.use('/api/usuarios', require('./routes/usuarios.routes'));
 
+app.use('/api/conductores', require('./routes/conductores.routes'))
+
 
 /**
  * ─────────────────────────────────────────

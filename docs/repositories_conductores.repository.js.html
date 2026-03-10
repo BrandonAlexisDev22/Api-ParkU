@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: repositories/roles.repository.js</title>
+    <title>JSDoc: Source: repositories/conductores.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: repositories/roles.repository.js</h1>
+    <h1 class="page-title">Source: repositories/conductores.repository.js</h1>
 
     
 
@@ -27,107 +27,96 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesRepository
+ * @module ConductorRepository
  * @description
- * Repository encargado de gestionar el acceso a los datos de los roles.
- * En este caso los datos se almacenan en memoria usando un arreglo.
- *
- * En una aplicación real, esta capa se conectaría a una base de datos.
+ * Repositorio encargado de gestionar las operaciones CRUD
+ * de los conductores dentro del sistema ParkU.
  */
 
-// Arreglo que simula una base de datos en memoria
-let roles = [];
-
-// Contador para generar IDs automáticamente
+let Conductores = [];
 let idCounter = 1;
 
 /**
- * Obtiene todos los roles almacenados
+ * Obtiene todos los conductores registrados.
  *
  * @function getAll
- * @memberof module:rolesRepository
- * @returns {Array&lt;Object>} Lista de roles
+ * @returns {Array&lt;Object>} Lista de conductores
  */
-const getAll = () => roles;
+const getAll = () => Conductores;
 
 /**
- * Busca un rol por su ID
+ * Busca un conductor por su ID.
  *
  * @function getById
- * @memberof module:rolesRepository
- * @param {number} id - Identificador del rol
- * @returns {Object|undefined} Rol encontrado o undefined si no existe
+ * @param {number} id - Identificador único del conductor
+ * @returns {Object|null} Conductor encontrado o null si no existe
  */
-const getById = (id) => roles.find(r => r.id_rol === id);
+const getById = (id) => Conductores.find(c => c.id_conductor === id);
 
 /**
- * Busca un rol por su nombre
+ * Busca un conductor por su nombre.
  *
  * @function getByName
- * @memberof module:rolesRepository
- * @param {string} name - Nombre del rol
- * @returns {Object|undefined} Rol encontrado o undefined si no existe
+ * @param {string} nombre - Nombre del conductor
+ * @returns {Object|null} Conductor encontrado o null si no existe
  */
-const getByName = (name) => roles.find(r => r.nombre_rol === name);
+const getByName = (nombre) => Conductores.find(c => c.nombre === nombre);
 
 /**
- * Crea un nuevo rol
- *
- * Genera automáticamente un ID y guarda el rol en memoria.
+ * Crea un nuevo conductor en el sistema.
  *
  * @function create
- * @memberof module:rolesRepository
- * @param {Object} roleData - Datos del rol
- * @param {string} roleData.nombre_rol - Nombre del rol
- * @returns {Object} Rol creado
+ * @param {Object} conductorData - Datos del conductor
+ * @param {string} conductorData.nombre - Nombre del conductor
+ * @param {string} conductorData.apellido - Apellido del conductor
+ * @param {string} conductorData.numeroDocumento - Número de documento
+ * @param {string} conductorData.tipoDocumento - Tipo de documento
+ * @param {string} conductorData.telefono - Número de teléfono
+ * @param {string} conductorData.correo - Correo electrónico
+ * @returns {Object} Conductor creado
  */
-const create = (roleData) => {
-  const newRole = { id_rol: idCounter++, ...roleData };
-  roles.push(newRole);
-  return newRole;
+const create = (conductorData) => {
+  const newConductor = { id_conductor: idCounter++, ...conductorData };
+  Conductores.push(newConductor);
+  return newConductor;
 };
 
-
 /**
- * Edita un rol existente por su ID
- *
- * Busca un rol en la lista y actualiza sus datos.
+ * Edita un conductor existente por su ID.
  *
  * @function editById
- * @memberof module:rolesRepository
- *
- * @param {number} id - ID del rol a editar
- * @param {Object} roleData - Datos nuevos del rol
- * @param {string} roleData.nombre_rol - Nuevo nombre del rol
- *
- * @returns {Object|null} Rol actualizado o null si no se encuentra
+ * @param {number} id - Identificador del conductor
+ * @param {Object} conductorData - Datos a actualizar
+ * @returns {Object|null} Conductor actualizado o null si no existe
  */
-const editById = (id, roleData) => {
-  const role = roles.find(r => r.id_rol === id);
-  if (!role) {
+const editById = (id, conductorData) => {
+  const conductor = Conductores.find(c => c.id_conductor === id);
+
+  if (!conductor) {
     return null;
   }
-  Object.assign(role, roleData);
-  return role;
+
+  Object.assign(conductor, conductorData);
+  return conductor;
 };
 
-
 /**
- * Elimina un rol por su ID
+ * Elimina un conductor por su ID.
  *
- * @param {number} id - ID del rol a eliminar
- * @returns {Object|null} Rol eliminado o null si no existe
+ * @function deleteById
+ * @param {number} id - Identificador del conductor
+ * @returns {Object|null} Conductor eliminado o null si no existe
  */
 const deleteById = (id) => {
-  const index = roles.findIndex(r => r.id_rol === id);
+  const index = Conductores.findIndex(c => c.id_conductor === id);
+
   if (index === -1) {
     return null;
   }
-  const deletedRole = roles.splice(index, 1)[0];
-  return deletedRole;
+
+  const deletedConductor = Conductores.splice(index, 1)[0];
+  return deletedConductor;
 };
-
-
 
 module.exports = {
   getAll,

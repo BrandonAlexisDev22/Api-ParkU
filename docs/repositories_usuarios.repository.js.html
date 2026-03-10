@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: controllers/roles.controller.js</title>
+    <title>JSDoc: Source: repositories/usuarios.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: controllers/roles.controller.js</h1>
+    <h1 class="page-title">Source: repositories/usuarios.repository.js</h1>
 
     
 
@@ -27,113 +27,137 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesController
+ * @module usuariosRepository
  * @description
- * Controller encargado de manejar las peticiones HTTP relacionadas con los roles.
- * Recibe las solicitudes del cliente, llama al Service correspondiente
- * y devuelve la respuesta HTTP.
+ * Repository encargado de manejar el acceso a los datos de usuarios.
+ * Aquí se realizan las operaciones CRUD sobre la fuente de datos.
  *
- * Flujo:
- * Cliente → Controller → Service → Repository → Datos
+ * Flujo de arquitectura:
+ * Controller → Service → Repository → Base de Datos
  */
 
-const roleService = require('../services/role.services');
+const Usuario = require('../models/usuarios.models');
 
-/**
- * Crear un nuevo rol
- *
- * Endpoint: POST /roles
- *
- * @function createRole
- * @memberof module:rolesController
- *
- * @param {Object} req - Request de Express
- * @param {Object} res - Response de Express
- *
- * @returns {Object} Rol creado
- */
-const createRole = (req, res) => {
-  try {
-    const role = roleService.createRole(req.body);
-    res.status(201).json(role);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
+let usuarios = [];
+let idCounter = 1;
 
 /**
- * Obtener todos los roles
+ * Crear un usuario
  *
- * Endpoint: GET /roles
+ * @function create
+ * @memberof module:usuariosRepository
  *
- * @function getRoles
- * @memberof module:rolesController
- *
- * @param {Object} req - Request de Express
- * @param {Object} res - Response de Express
- *
- * @returns {Array&lt;Object>} Lista de roles
+ * @param {Object} data - Datos del usuario
+ * @returns {Object} Usuario creado
  */
-const getRoles = (req, res) => {
-  const roles = roleService.getRoles();
-  res.json(roles);
+const create = (data) => {
+  const usuario = new Usuario(
+    idCounter++,
+    data.nombre,
+    data.correo,
+    data.password,
+    data.rol_id,
+    true
+  );
+
+  usuarios.push(usuario);
+  return usuario;
 };
 
-/**
- * Editar un rol existente
- *
- * Endpoint: PUT /roles/:id
- *
- * @function editRole
- * @memberof module:rolesController
- *
- * @param {Object} req - Request de Express
- * @param {Object} res - Response de Express
- *
- * @returns {Object} Rol actualizado
- */
-const editRole = (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const data = req.body;
-    const updatedRole = roleService.editRole(id, data);
-    res.json(updatedRole);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
 
 /**
- * Eliminar un rol existente
+ * Obtener todos los usuarios
  *
- * Endpoint: DELETE /roles/:id
+ * @function getAll
+ * @memberof module:usuariosRepository
  *
- * @function deleteRole
- * @memberof module:rolesController
- *
- * @param {Object} req - Request de Express
- * @param {Object} req.params - Parámetros de la ruta
- * @param {number} req.params.id - ID del rol a eliminar
- *
- * @param {Object} res - Response de Express
- *
- * @returns {Object} Rol eliminado
+ * @returns {Array&lt;Object>} Lista de usuarios
  */
-const deleteRole = (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const deletedRole = roleService.deleteRoleById(id);
-    res.json(deletedRole);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
+const getAll = () => usuarios;
+
+
+/**
+ * Obtener usuario por ID
+ *
+ * @function getById
+ * @memberof module:usuariosRepository
+ *
+ * @param {number} id - ID del usuario
+ * @returns {Object|null} Usuario encontrado
+ */
+const getById = (id) => {
+  return usuarios.find(u => u.id_usuario === id);
 };
+
+
+/**
+ * Obtener usuario por correo
+ *
+ * @function getByCorreo
+ * @memberof module:usuariosRepository
+ *
+ * @param {string} correo - Correo del usuario
+ * @returns {Object|null} Usuario encontrado
+ */
+const getByCorreo = (correo) => {
+  return usuarios.find(u => u.correo === correo);
+};
+
+
+/**
+ * Editar usuario por ID
+ *
+ * @function editById
+ * @memberof module:usuariosRepository
+ *
+ * @param {number} id - ID del usuario
+ * @param {Object} data - Nuevos datos
+ * @returns {Object} Usuario actualizado
+ */
+const editById = (id, data) => {
+
+  const usuario = getById(id);
+
+  if (!usuario) return null;
+
+  usuario.nombre = data.nombre ?? usuario.nombre;
+  usuario.correo = data.correo ?? usuario.correo;
+  usuario.password = data.password ?? usuario.password;
+  usuario.rol_id = data.rol_id ?? usuario.rol_id;
+
+  return usuario;
+};
+
+
+/**
+ * Eliminar usuario por ID
+ *
+ * @function deleteById
+ * @memberof module:usuariosRepository
+ *
+ * @param {number} id - ID del usuario
+ * @returns {Object|null} Usuario eliminado
+ */
+const deleteById = (id) => {
+
+  const index = usuarios.findIndex(u => u.id_usuario === id);
+
+  if (index === -1) return null;
+
+  const deleted = usuarios[index];
+  usuarios.splice(index, 1);
+
+  return deleted;
+};
+
 
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRole
+  create,
+  getAll,
+  getById,
+  getByCorreo,
+  editById,
+  deleteById
 };</code></pre>
         </article>
     </section>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: permisosController</title>
+    <title>JSDoc: Module: usuariosController</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: permisosController</h1>
+    <h1 class="page-title">Module: usuariosController</h1>
 
     
 
@@ -38,7 +38,7 @@
     <div class="container-overview">
     
         
-            <div class="description">Controller encargado de manejar las peticiones HTTP relacionadas con los permisos.Recibe las solicitudes del cliente, llama al Service correspondientey devuelve la respuesta HTTP.Flujo:Cliente → Controller → Service → Repository → Datos</div>
+            <div class="description">Controller encargado de manejar las peticiones HTTP relacionadas con los usuarios.Recibe las solicitudes del cliente, llama al Service correspondientey devuelve la respuesta HTTP.Flujo:Cliente → Controller → Service → Repository → Datos</div>
         
 
         
@@ -87,7 +87,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line1">line 1</a>
+        <a href="controllers_usuarios.controller.js.html">controllers/usuarios.controller.js</a>, <a href="controllers_usuarios.controller.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -144,7 +144,7 @@
     
 
     
-    <h4 class="name" id=".deletePermiso"><span class="type-signature">(static) </span>deletePermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".createUsuario"><span class="type-signature">(static) </span>createUsuario<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -152,7 +152,189 @@
 
 
 <div class="description">
-    Eliminar un permiso existenteEndpoint: DELETE /permisos/:id
+    Crear un nuevo usuarioEndpoint: POST /usuarios
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>req</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Request de Express</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>res</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Response de Express</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="controllers_usuarios.controller.js.html">controllers/usuarios.controller.js</a>, <a href="controllers_usuarios.controller.js.html#line14">line 14</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Usuario creado
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".deleteUsuario"><span class="type-signature">(static) </span>deleteUsuario<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Eliminar un usuario existenteEndpoint: DELETE /usuarios/:id
 </div>
 
 
@@ -288,7 +470,7 @@
 
             
 
-            <td class="description last">ID del permiso a eliminar</td>
+            <td class="description last">ID del usuario a eliminar</td>
         </tr>
 
     
@@ -366,7 +548,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line112">line 112</a>
+        <a href="controllers_usuarios.controller.js.html">controllers/usuarios.controller.js</a>, <a href="controllers_usuarios.controller.js.html#line78">line 78</a>
     </li></ul></dd>
     
 
@@ -395,7 +577,7 @@
 
         
 <div class="param-desc">
-    Permiso eliminado
+    Usuario eliminado
 </div>
 
 
@@ -424,7 +606,7 @@
     
 
     
-    <h4 class="name" id=".editPermiso"><span class="type-signature">(static) </span>editPermiso<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id=".editUsuario"><span class="type-signature">(static) </span>editUsuario<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -432,7 +614,7 @@
 
 
 <div class="description">
-    Editar un permiso existenteEndpoint: PUT /permisos/:id
+    Editar un usuario existenteEndpoint: PUT /usuarios/:id
 </div>
 
 
@@ -548,7 +730,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line84">line 84</a>
+        <a href="controllers_usuarios.controller.js.html">controllers/usuarios.controller.js</a>, <a href="controllers_usuarios.controller.js.html#line54">line 54</a>
     </li></ul></dd>
     
 
@@ -577,7 +759,7 @@
 
         
 <div class="param-desc">
-    Permiso actualizado
+    Usuario actualizado
 </div>
 
 
@@ -606,7 +788,7 @@
     
 
     
-    <h4 class="name" id=".getPermisos"><span class="type-signature">(static) </span>getPermisos<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    <h4 class="name" id=".getUsuarios"><span class="type-signature">(static) </span>getUsuarios<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
     
 
     
@@ -614,7 +796,7 @@
 
 
 <div class="description">
-    Obtener todos los permisosEndpoint: GET /permisos
+    Obtener todos los usuariosEndpoint: GET /usuarios
 </div>
 
 
@@ -730,7 +912,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line36">line 36</a>
+        <a href="controllers_usuarios.controller.js.html">controllers/usuarios.controller.js</a>, <a href="controllers_usuarios.controller.js.html#line36">line 36</a>
     </li></ul></dd>
     
 
@@ -759,7 +941,7 @@
 
         
 <div class="param-desc">
-    Lista de roles
+    Lista de usuarios
 </div>
 
 
@@ -777,306 +959,6 @@
 </dl>
 
     
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id=".getPermisosById"><span class="type-signature">(static) </span>getPermisosById<span class="signature">(req, res)</span><span class="type-signature"> &rarr; {Object|Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Controlador encargado de manejar la petición HTTP para obtenerun permiso específico según su identificador.Flujo:Request → Controller → Service → Repository → Base de Datos
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>req</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Objeto de solicitud HTTP de Express
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>params</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Parámetros de la ruta
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">ID del permiso a buscar</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>res</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Objeto de respuesta HTTP de Express</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="controllers_permisos.controller.js.html">controllers/permisos.controller.js</a>, <a href="controllers_permisos.controller.js.html#line54">line 54</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-<ul>
-        <li>
-<div class="param-desc">
-    200 - Permiso encontrado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-</li>
-    
-        <li>
-<div class="param-desc">
-    400 - Error en la solicitud
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-</li>
-    </ul>
 
 
 
