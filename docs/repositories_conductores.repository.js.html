@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: repositories/usuarios.repository.js</title>
+    <title>JSDoc: Source: repositories/conductores.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: repositories/usuarios.repository.js</h1>
+    <h1 class="page-title">Source: repositories/conductores.repository.js</h1>
 
     
 
@@ -27,135 +27,102 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module usuariosRepository
+ * @module ConductorRepository
  * @description
- * Repository encargado de manejar el acceso a los datos de usuarios.
- * Aquí se realizan las operaciones CRUD sobre la fuente de datos.
- *
- * Flujo de arquitectura:
- * Controller → Service → Repository → Base de Datos
+ * Repositorio encargado de gestionar las operaciones CRUD
+ * de los conductores dentro del sistema ParkU.
  */
 
-const Usuario = require('../models/usuarios.models');
-
-let usuarios = [];
+let Conductores = [];
 let idCounter = 1;
 
 /**
- * Crear un usuario
- *
- * @function create
- * @memberof module:usuariosRepository
- *
- * @param {Object} data - Datos del usuario
- * @returns {Object} Usuario creado
- */
-const create = (data) => {
-  const usuario = new Usuario(
-    idCounter++,
-    data.nombre,
-    data.correo,
-    data.password,
-    data.rol_id,
-    true
-  );
-
-  usuarios.push(usuario);
-  return usuario;
-};
-
-
-/**
- * Obtener todos los usuarios
+ * Obtiene todos los conductores registrados.
  *
  * @function getAll
- * @memberof module:usuariosRepository
- *
- * @returns {Array&lt;Object>} Lista de usuarios
+ * @returns {Array&lt;Object>} Lista de conductores
  */
-const getAll = () => usuarios;
-
+const getAll = () => Conductores;
 
 /**
- * Obtener usuario por ID
+ * Busca un conductor por su ID.
  *
  * @function getById
- * @memberof module:usuariosRepository
- *
- * @param {number} id - ID del usuario
- * @returns {Object|null} Usuario encontrado
+ * @param {number} id - Identificador único del conductor
+ * @returns {Object|null} Conductor encontrado o null si no existe
  */
-const getById = (id) => {
-  return usuarios.find(u => u.id_usuario === id);
-};
-
+const getById = (id) => Conductores.find(c => c.id_conductor === id);
 
 /**
- * Obtener usuario por correo
+ * Busca un conductor por su nombre.
  *
- * @function getByCorreo
- * @memberof module:usuariosRepository
- *
- * @param {string} correo - Correo del usuario
- * @returns {Object|null} Usuario encontrado
+ * @function getByName
+ * @param {string} nombre - Nombre del conductor
+ * @returns {Object|null} Conductor encontrado o null si no existe
  */
-const getByCorreo = (correo) => {
-  return usuarios.find(u => u.correo === correo);
-};
-
+const getByName = (nombre) => Conductores.find(c => c.nombre === nombre);
 
 /**
- * Editar usuario por ID
+ * Crea un nuevo conductor en el sistema.
+ *
+ * @function create
+ * @param {Object} conductorData - Datos del conductor
+ * @param {string} conductorData.nombre - Nombre del conductor
+ * @param {string} conductorData.apellido - Apellido del conductor
+ * @param {string} conductorData.numeroDocumento - Número de documento
+ * @param {string} conductorData.tipoDocumento - Tipo de documento
+ * @param {string} conductorData.telefono - Número de teléfono
+ * @param {string} conductorData.correo - Correo electrónico
+ * @returns {Object} Conductor creado
+ */
+const create = (conductorData) => {
+  const newConductor = { id_conductor: idCounter++, ...conductorData };
+  Conductores.push(newConductor);
+  return newConductor;
+};
+
+/**
+ * Edita un conductor existente por su ID.
  *
  * @function editById
- * @memberof module:usuariosRepository
- *
- * @param {number} id - ID del usuario
- * @param {Object} data - Nuevos datos
- * @returns {Object} Usuario actualizado
+ * @param {number} id - Identificador del conductor
+ * @param {Object} conductorData - Datos a actualizar
+ * @returns {Object|null} Conductor actualizado o null si no existe
  */
-const editById = (id, data) => {
+const editById = (id, conductorData) => {
+  const conductor = Conductores.find(c => c.id_conductor === id);
 
-  const usuario = getById(id);
+  if (!conductor) {
+    return null;
+  }
 
-  if (!usuario) return null;
-
-  usuario.nombre = data.nombre ?? usuario.nombre;
-  usuario.correo = data.correo ?? usuario.correo;
-  usuario.password = data.password ?? usuario.password;
-  usuario.rol_id = data.rol_id ?? usuario.rol_id;
-
-  return usuario;
+  Object.assign(conductor, conductorData);
+  return conductor;
 };
-
 
 /**
- * Eliminar usuario por ID
+ * Elimina un conductor por su ID.
  *
  * @function deleteById
- * @memberof module:usuariosRepository
- *
- * @param {number} id - ID del usuario
- * @returns {Object|null} Usuario eliminado
+ * @param {number} id - Identificador del conductor
+ * @returns {Object|null} Conductor eliminado o null si no existe
  */
 const deleteById = (id) => {
+  const index = Conductores.findIndex(c => c.id_conductor === id);
 
-  const index = usuarios.findIndex(u => u.id_usuario === id);
+  if (index === -1) {
+    return null;
+  }
 
-  if (index === -1) return null;
-
-  const deleted = usuarios[index];
-  usuarios.splice(index, 1);
-
-  return deleted;
+  const deletedConductor = Conductores.splice(index, 1)[0];
+  return deletedConductor;
 };
 
-
 module.exports = {
-  create,
   getAll,
   getById,
-  getByCorreo,
+  getByName,
+  create,
   editById,
   deleteById
 };</code></pre>

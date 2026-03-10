@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: index.js</title>
+    <title>JSDoc: Source: models/conductores.models.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: index.js</h1>
+    <h1 class="page-title">Source: models/conductores.models.js</h1>
 
     
 
@@ -27,85 +27,53 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @file index.js
+ * @module ConductorModel
  * @description
- * Punto de entrada principal de la API del sistema ParkU.
+ * Clase que representa la entidad Conductor dentro del sistema ParkU.
+ * Modela la estructura de un conductor en la aplicación.
+ */
+
+/**
+ * Representa un conductor dentro del sistema.
  *
- * Este archivo se encarga de:
- * - Inicializar el servidor Express
- * - Configurar middlewares globales
- * - Registrar las rutas de los módulos del sistema
- * - Iniciar el servidor en el puerto configurado
+ * @class Conductor
  *
- * Arquitectura utilizada:
- * Cliente → Routes → Controllers → Services → Repositories → Datos
+ * @param {number} id - Identificador único del conductor
+ * @param {string} nombre - Nombre del conductor
+ * @param {string} apellido - Apellido del conductor
+ * @param {string} numeroDocumento - Número de documento del conductor
+ * @param {string} tipoDocumento - Tipo de documento (CC, CE, PAS, etc.)
+ * @param {string} telefono - Número de teléfono del conductor
+ * @param {string} correo - Correo electrónico del conductor
  */
 
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+class Conductor {
+    constructor(id_conductor, nombre, apellido, numeroDocumento, tipoDocumento, telefono, correo) {
 
-const app = express();
+        /** @type {number} */
+        this.id_conductor = id_conductor
 
-/**
- * ─────────────────────────────────────────
- * Middlewares globales
- * ─────────────────────────────────────────
- */
+        /** @type {string} */
+        this.nombre = nombre
 
-/**
- * Middleware CORS
- * Permite que la API sea consumida desde otros dominios
- * (por ejemplo un frontend en React o Angular).
- */
-app.use(cors());
+        /** @type {string} */
+        this.apellido = apellido
 
-/**
- * Middleware para parsear el body de las solicitudes en formato JSON.
- */
-app.use(express.json());
+        /** @type {string} */
+        this.numeroDocumento = numeroDocumento
 
+        /** @type {string} */
+        this.tipoDocumento = tipoDocumento
 
-/**
- * ─────────────────────────────────────────
- * Definición de rutas de la API
- * ─────────────────────────────────────────
- */
+        /** @type {string} */
+        this.telefono = telefono
 
-/**
- * Rutas del módulo de roles
- * Prefijo: /api/roles
- */
-app.use('/api/roles', require('./routes/roles.routes'));
+        /** @type {string} */
+        this.correo = correo
+    }
+}
 
-/**
- * Rutas del módulo de permisos
- * Prefijo: /api/permisos
- */
-app.use('/api/permisos', require('./routes/permisos.routes'));
-
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/usuarios
- */
-app.use('/api/usuarios', require('./routes/usuarios.routes'));
-
-
-/**
- * ─────────────────────────────────────────
- * Configuración del puerto del servidor
- * ─────────────────────────────────────────
- */
-
-const PORT = process.env.PORT || 3000;
-
-
-/**
- * Inicia el servidor Express
- */
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});</code></pre>
+module.exports = Conductor;</code></pre>
         </article>
     </section>
 
