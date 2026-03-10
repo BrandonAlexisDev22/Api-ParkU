@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: services/role.services.js</title>
+    <title>JSDoc: Source: repositories/celdas.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: services/role.services.js</h1>
+    <h1 class="page-title">Source: repositories/celdas.repository.js</h1>
 
     
 
@@ -27,116 +27,125 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesService
+ * @module celdasRepository
  * @description
- * Service encargado de manejar la lógica de negocio de los roles
- * dentro de la arquitectura MVC.
+ * Repository encargado del acceso a datos de las celdas.
+ * Simula una base de datos en memoria.
  *
  * Responsabilidades:
- * - Aplicar reglas de negocio
- * - Validar datos antes de enviarlos al repositorio
- * - Comunicarse con el Repository para acceder a la base de datos
+ * - CRUD de celdas
+ * - Manejo directo de datos
  *
  * Flujo:
- * Controller → Service → Repository → Base de Datos
+ * Service → Repository → Base de datos (simulada)
  */
 
-// Importa el repository encargado del acceso a datos
-const roleRepository = require('../repositories/roles.repository');
+// Arreglo que simula una base de datos
+let celdas = [];
+
+// Contador para generar IDs automáticamente
+let idCounter = 1;
 
 /**
- * Crear un nuevo rol
+ * Obtiene todas las celdas almacenadas
  *
- * Regla de negocio:
- * No se puede crear un rol con un nombre que ya exista.
+ * @function getAll
+ * @memberof module:celdasRepository
  *
- * @function createRole
- * @memberof module:rolesService
- *
- * @param {Object} data - Datos del rol a crear
- * @param {string} data.nombre_rol - Nombre del rol
- * @returns {Object} Rol creado
- * @throws {Error} Si el rol ya existe
+ * @returns {Array&lt;Object>} Lista de celdas
  */
-const createRole = (data) => {
+const getAll = () => celdas;
 
-  const existing = roleRepository.getByName(data.nombre_rol);
+/**
+ * Busca una celda por su ID
+ *
+ * @function getById
+ * @memberof module:celdasRepository
+ *
+ * @param {number} id - Identificador de la celda
+ *
+ * @returns {Object|undefined} Celda encontrada o undefined
+ */
+const getById = (id) => celdas.find(c => c.id_celda === id);
 
-  if (existing) {
-    throw new Error('El rol ya existe');
-  }
+/**
+ * Busca una celda por su número
+ *
+ * @function getByNumero
+ * @memberof module:celdasRepository
+ *
+ * @param {string} numero - Número de la celda
+ *
+ * @returns {Object|undefined} Celda encontrada
+ */
+const getByNumero = (numero) => celdas.find(c => c.numero === numero);
 
-  return roleRepository.create(data);
+/**
+ * Crea una nueva celda
+ *
+ * @function create
+ * @memberof module:celdasRepository
+ *
+ * @param {Object} celdaData - Datos de la celda
+ * @param {string} celdaData.numero - Número de celda
+ * @param {string} celdaData.tipo - Tipo de celda (carro, moto)
+ * @param {string} celdaData.estado - Estado de la celda
+ * @param {number} celdaData.id_parqueadero - ID del parqueadero
+ *
+ * @returns {Object} Celda creada
+ */
+const create = (celdaData) => {
+  const newCelda = { id_celda: idCounter++, ...celdaData };
+  celdas.push(newCelda);
+  return newCelda;
 };
 
 /**
- * Obtener todos los roles
+ * Edita una celda existente
  *
- * @function getRoles
- * @memberof module:rolesService
+ * @function editById
+ * @memberof module:celdasRepository
  *
- * @returns {Array&lt;Object>} Lista de roles
+ * @param {number} id - ID de la celda
+ * @param {Object} celdaData - Nuevos datos
+ *
+ * @returns {Object|null} Celda actualizada o null si no existe
  */
-const getRoles = () => roleRepository.getAll();
+const editById = (id, celdaData) => {
+  const celda = celdas.find(c => c.id_celda === id);
 
+  if (!celda) return null;
 
-/**
- * Editar un rol existente
- *
- * Regla de negocio:
- * - El rol debe existir
- * - El nombre del rol no puede duplicarse
- *
- * @function editRole
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a editar
- * @param {Object} data - Nuevos datos del rol
- * @param {string} data.nombre_rol - Nuevo nombre del rol
- *
- * @returns {Object} Rol actualizado
- * @throws {Error} Si el rol no existe
- * @throws {Error} Si el nombre del rol ya existe
- */
-const editRole = (id, data) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  const duplicateRole = roleRepository.getByName(data.nombre_rol);
-  if (duplicateRole &amp;&amp; duplicateRole.id_rol !== id) {
-    throw new Error("Ya existe un rol con ese nombre");
-  }
-  return roleRepository.editById(id, data);
+  Object.assign(celda, celdaData);
+
+  return celda;
 };
 
 /**
- * Eliminar un rol por su ID
+ * Elimina una celda por su ID
  *
- * Regla de negocio:
- * - El rol debe existir antes de eliminarse
+ * @function deleteById
+ * @memberof module:celdasRepository
  *
- * @function deleteRoleById
- * @memberof module:rolesService
+ * @param {number} id - ID de la celda
  *
- * @param {number} id - ID del rol a eliminar
- * @returns {Object} Rol eliminado
- * @throws {Error} Si el rol no existe
+ * @returns {Object|null} Celda eliminada o null si no existe
  */
+const deleteById = (id) => {
+  const index = celdas.findIndex(c => c.id_celda === id);
 
-const deleteRoleById = (id) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  return roleRepository.deleteById(id);
+  if (index === -1) return null;
+
+  return celdas.splice(index, 1)[0];
 };
 
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRoleById
+  getAll,
+  getById,
+  getByNumero,
+  create,
+  editById,
+  deleteById
 };</code></pre>
         </article>
     </section>

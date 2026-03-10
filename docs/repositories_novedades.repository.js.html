@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: services/role.services.js</title>
+    <title>JSDoc: Source: repositories/novedades.repository.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: services/role.services.js</h1>
+    <h1 class="page-title">Source: repositories/novedades.repository.js</h1>
 
     
 
@@ -27,116 +27,94 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * @module rolesService
+ * @module incidentesRepository
  * @description
- * Service encargado de manejar la lógica de negocio de los roles
- * dentro de la arquitectura MVC.
+ * Repository encargado de manejar el acceso a datos de los incidentes
+ * o novedades registradas dentro del sistema de parqueaderos.
  *
- * Responsabilidades:
- * - Aplicar reglas de negocio
- * - Validar datos antes de enviarlos al repositorio
- * - Comunicarse con el Repository para acceder a la base de datos
- *
- * Flujo:
- * Controller → Service → Repository → Base de Datos
+ * Simula una base de datos en memoria.
  */
 
-// Importa el repository encargado del acceso a datos
-const roleRepository = require('../repositories/roles.repository');
+let incidentes = [];
+let idCounter = 1;
 
 /**
- * Crear un nuevo rol
+ * Obtener todos los incidentes
  *
- * Regla de negocio:
- * No se puede crear un rol con un nombre que ya exista.
- *
- * @function createRole
- * @memberof module:rolesService
- *
- * @param {Object} data - Datos del rol a crear
- * @param {string} data.nombre_rol - Nombre del rol
- * @returns {Object} Rol creado
- * @throws {Error} Si el rol ya existe
+ * @function getAll
+ * @returns {Array&lt;Object>}
  */
-const createRole = (data) => {
+const getAll = () => incidentes;
 
-  const existing = roleRepository.getByName(data.nombre_rol);
+/**
+ * Buscar incidente por ID
+ *
+ * @function getById
+ * @param {number} id
+ * @returns {Object|undefined}
+ */
+const getById = (id) => incidentes.find(i => i.id_incidente === id);
 
-  if (existing) {
-    throw new Error('El rol ya existe');
-  }
+/**
+ * Crear incidente
+ *
+ * @function create
+ * @param {Object} data
+ * @returns {Object}
+ */
+const create = (data) => {
 
-  return roleRepository.create(data);
+  const incidente = {
+    id_incidente: idCounter++,
+    ...data
+  };
+
+  incidentes.push(incidente);
+
+  return incidente;
 };
 
 /**
- * Obtener todos los roles
+ * Editar incidente
  *
- * @function getRoles
- * @memberof module:rolesService
- *
- * @returns {Array&lt;Object>} Lista de roles
+ * @function editById
+ * @param {number} id
+ * @param {Object} data
+ * @returns {Object|null}
  */
-const getRoles = () => roleRepository.getAll();
+const editById = (id, data) => {
 
+  const incidente = incidentes.find(i => i.id_incidente === id);
 
-/**
- * Editar un rol existente
- *
- * Regla de negocio:
- * - El rol debe existir
- * - El nombre del rol no puede duplicarse
- *
- * @function editRole
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a editar
- * @param {Object} data - Nuevos datos del rol
- * @param {string} data.nombre_rol - Nuevo nombre del rol
- *
- * @returns {Object} Rol actualizado
- * @throws {Error} Si el rol no existe
- * @throws {Error} Si el nombre del rol ya existe
- */
-const editRole = (id, data) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  const duplicateRole = roleRepository.getByName(data.nombre_rol);
-  if (duplicateRole &amp;&amp; duplicateRole.id_rol !== id) {
-    throw new Error("Ya existe un rol con ese nombre");
-  }
-  return roleRepository.editById(id, data);
+  if (!incidente) return null;
+
+  Object.assign(incidente, data);
+
+  return incidente;
 };
 
 /**
- * Eliminar un rol por su ID
+ * Eliminar incidente
  *
- * Regla de negocio:
- * - El rol debe existir antes de eliminarse
- *
- * @function deleteRoleById
- * @memberof module:rolesService
- *
- * @param {number} id - ID del rol a eliminar
- * @returns {Object} Rol eliminado
- * @throws {Error} Si el rol no existe
+ * @function deleteById
+ * @param {number} id
+ * @returns {Object|null}
  */
+const deleteById = (id) => {
 
-const deleteRoleById = (id) => {
-  const roleExisting = roleRepository.getById(id);
-  if (!roleExisting) {
-    throw new Error("El rol no existe");
-  }
-  return roleRepository.deleteById(id);
+  const index = incidentes.findIndex(i => i.id_incidente === id);
+
+  if (index === -1) return null;
+
+  return incidentes.splice(index, 1)[0];
 };
 
 module.exports = {
-  createRole,
-  getRoles,
-  editRole,
-  deleteRoleById
+  getAll,
+  getById,
+  create,
+  editById,
+  deleteById
 };</code></pre>
         </article>
     </section>
