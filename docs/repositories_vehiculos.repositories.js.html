@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: repositories/vehiculos.repositories.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: repositories/vehiculos.repositories.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module VehiculoRepository
+ * @description
+ * Repositorio encargado de manejar las operaciones CRUD
+ * de los vehículos dentro del sistema.
+ */
+
+let vehiculos = [];
+let idCounter = 1;
+
+/**
+ * Obtiene todos los vehículos registrados.
+ *
+ * @function getAll
+ * @returns {Array&lt;Object>} Lista de vehículos
+ */
+const getAll = () => vehiculos;
+
+/**
+ * Busca un vehículo por su ID.
+ *
+ * @function getById
+ * @param {number} id - Identificador del vehículo
+ * @returns {Object|null} Vehículo encontrado o null si no existe
+ */
+const getById = (id) => vehiculos.find(v => v.id_vehiculo === id);
+
+/**
+ * Busca un vehículo por su placa.
+ *
+ * @function getByPlaca
+ * @param {string} placa - Placa del vehículo
+ * @returns {Object|null} Vehículo encontrado o null si no existe
+ */
+const getByPlaca = (placa) => vehiculos.find(v => v.placa === placa);
+
+/**
+ * Crea un nuevo vehículo en el sistema.
+ *
+ * @function create
+ * @param {Object} vehiculoData - Datos del vehículo
+ * @param {string} vehiculoData.placa - Placa del vehículo
+ * @param {string} vehiculoData.tipoVehiculo - Tipo de vehículo
+ * @param {string} vehiculoData.marca - Marca del vehículo
+ * @param {string} vehiculoData.modelo - Modelo del vehículo
+ * @param {string} vehiculoData.color - Color del vehículo
+ * @param {number} vehiculoData.id_conductor - ID del conductor asociado
+ * @returns {Object} Vehículo creado
+ */
+const create = (vehiculoData) => {
+  const newVehiculo = { id_vehiculo: idCounter++, ...vehiculoData };
+  vehiculos.push(newVehiculo);
+  return newVehiculo;
+};
+
+/**
+ * Actualiza un vehículo existente por su ID.
+ *
+ * @function editById
+ * @param {number} id - Identificador del vehículo
+ * @param {Object} vehiculoData - Datos a actualizar
+ * @returns {Object|null} Vehículo actualizado o null si no existe
+ */
+const editById = (id, vehiculoData) => {
+  const vehiculo = vehiculos.find(v => v.id_vehiculo === id);
+
+  if (!vehiculo) {
+    return null;
+  }
+
+  Object.assign(vehiculo, vehiculoData);
+  return vehiculo;
+};
+
+/**
+ * Elimina un vehículo por su ID.
+ *
+ * @function deleteById
+ * @param {number} id - Identificador del vehículo
+ * @returns {Object|null} Vehículo eliminado o null si no existe
+ */
+const deleteById = (id) => {
+  const index = vehiculos.findIndex(v => v.id_vehiculo === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const deletedVehiculo = vehiculos.splice(index, 1)[0];
+  return deletedVehiculo;
+};
+
+module.exports = {
+  getAll,
+  getById,
+  getByPlaca,
+  create,
+  editById,
+  deleteById
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-ConductorController.html">ConductorController</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-VehiculoController.html">VehiculoController</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-VehiculosRoutes.html">VehiculosRoutes</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-celdasController.html">celdasController</a></li><li><a href="module-celdasRepository.html">celdasRepository</a></li><li><a href="module-celdasService.html">celdasService</a></li><li><a href="module-incidentesController.html">incidentesController</a></li><li><a href="module-incidentesRepository.html">incidentesRepository</a></li><li><a href="module-incidentesRoutes.html">incidentesRoutes</a></li><li><a href="module-incidentesService.html">incidentesService</a></li><li><a href="module-novedadModel.html">novedadModel</a></li><li><a href="module-parqueaderosController.html">parqueaderosController</a></li><li><a href="module-parqueaderosService.html">parqueaderosService</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosRoutes.html">permisosRoutes</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-reconocimientoModel.html">reconocimientoModel</a></li><li><a href="module-reconocimientoRepository.html">reconocimientoRepository</a></li><li><a href="module-reconocimientoRoutes.html">reconocimientoRoutes</a></li><li><a href="module-reconocimientoService.html">reconocimientoService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li><li><a href="module-usuariosController.html">usuariosController</a></li><li><a href="module-usuariosRepository.html">usuariosRepository</a></li><li><a href="module-usuariosService.html">usuariosService</a></li></ul><h3>Classes</h3><ul><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li><li><a href="module-reconocimientoModel-Reconocimiento.html">Reconocimiento</a></li></ul><h3>Global</h3><ul><li><a href="global.html#PORT">PORT</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Mar 10 2026 22:51:06 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

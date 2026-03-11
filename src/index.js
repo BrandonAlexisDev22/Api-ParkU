@@ -84,7 +84,8 @@ app.use('/api/reconocimiento', require('./routes/reconocimiento.routes'));
  * Prefijo: /api/usuarios
  */
 app.use('/api/parqueaderos', require('./routes/parqueaderos.routes'));
-app.use('/api/conductores', require('./routes/conductores.routes'))
+app.use('/api/conductores', require('./routes/conductores.routes'));
+app.use('/api/vehivulos',require('./routes/vehiculos.routes'))
 
 
 
