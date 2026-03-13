@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: Novedad</title>
+    <title>JSDoc: Class: AsignacionDeCelda</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: Novedad</h1>
+    <h1 class="page-title">Class: AsignacionDeCelda</h1>
 
     
 
@@ -28,8 +28,7 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-novedadModel.html">novedadModel</a>~</span>Novedad<span class="signature">()</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AsignacionDeCelda<span class="signature">()</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -42,7 +41,7 @@
     
 
     
-    <h4 class="name" id="Novedad"><span class="type-signature"></span>new Novedad<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="AsignacionDeCelda"><span class="type-signature"></span>new AsignacionDeCelda<span class="signature">()</span><span class="type-signature"></span></h4>
     
 
     
@@ -50,7 +49,7 @@
 
 
 <div class="description">
-    Representa una Novedad dentro del sistema
+    Modelo que representa la asignación de una celda de parqueaderoa un vehículo y su conductor dentro del sistema.
 </div>
 
 
@@ -94,7 +93,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line16">line 16</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -144,86 +143,78 @@
 
         
             
-<h4 class="name" id="descripcion"><span class="type-signature"></span>descripcion<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Descripción detallada de la novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line62">line 62</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
 <h4 class="name" id="estado"><span class="type-signature"></span>estado<span class="type-signature"> :string</span></h4>
 
 
 
 
-<div class="description">
-    Estado actual de la novedadpendiente | en_proceso | resuelto
-</div>
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line60">line 60</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="fecha_ingreso"><span class="type-signature"></span>fecha_ingreso<span class="type-signature"> :string</span></h4>
+
+
+
 
 
 
@@ -270,7 +261,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line81">line 81</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line48">line 48</a>
     </li></ul></dd>
     
 
@@ -288,14 +279,10 @@
 
         
             
-<h4 class="name" id="fecha"><span class="type-signature"></span>fecha<span class="type-signature"> :Date</span></h4>
+<h4 class="name" id="fecha_salida"><span class="type-signature"></span>fecha_salida<span class="type-signature"> :string|null</span></h4>
 
 
 
-
-<div class="description">
-    Fecha de registro de la novedad
-</div>
 
 
 
@@ -303,7 +290,10 @@
     <ul>
         <li>
             
-<span class="param-type">Date</span>
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
 
 
         </li>
@@ -342,7 +332,214 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line87">line 87</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line54">line 54</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="hora_ingreso"><span class="type-signature"></span>hora_ingreso<span class="type-signature"> :string</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line51">line 51</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="hora_salida"><span class="type-signature"></span>hora_salida<span class="type-signature"> :string|null</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line57">line 57</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="id_asignacion"><span class="type-signature"></span>id_asignacion<span class="type-signature"> :number</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line36">line 36</a>
     </li></ul></dd>
     
 
@@ -365,9 +562,73 @@
 
 
 
-<div class="description">
-    ID de la celda relacionada
-</div>
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line39">line 39</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="id_conductor"><span class="type-signature"></span>id_conductor<span class="type-signature"> :number</span></h4>
+
+
+
 
 
 
@@ -414,7 +675,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line68">line 68</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line45">line 45</a>
     </li></ul></dd>
     
 
@@ -432,14 +693,10 @@
 
         
             
-<h4 class="name" id="id_novedad"><span class="type-signature"></span>id_novedad<span class="type-signature"> :number</span></h4>
+<h4 class="name" id="id_vehiculo"><span class="type-signature"></span>id_vehiculo<span class="type-signature"> :number</span></h4>
 
 
 
-
-<div class="description">
-    Identificador de la novedad
-</div>
 
 
 
@@ -486,151 +743,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line50">line 50</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="reportado_por"><span class="type-signature"></span>reportado_por<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Usuario que reportó la novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line74">line 74</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="tipo"><span class="type-signature"></span>tipo<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Tipo de novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line56">line 56</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line42">line 42</a>
     </li></ul></dd>
     
 
@@ -668,8 +781,7 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-novedadModel.html">novedadModel</a>~</span>Novedad<span class="signature">(id, tipo, descripcion, id_celda, reportado_por, estado, fecha)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>AsignacionDeCelda<span class="signature">(id_asignacion, id_celda, id_vehiculo, id_conductor, fecha_ingreso, hora_ingreso, fecha_salida, hora_salida, estado)</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -682,7 +794,7 @@
     
 
     
-    <h4 class="name" id="Novedad"><span class="type-signature"></span>new Novedad<span class="signature">(id, tipo, descripcion, id_celda, reportado_por, estado, fecha)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="AsignacionDeCelda"><span class="type-signature"></span>new AsignacionDeCelda<span class="signature">(id_asignacion, id_celda, id_vehiculo, id_conductor, fecha_ingreso, hora_ingreso, fecha_salida, hora_salida, estado)</span><span class="type-signature"></span></h4>
     
 
     
@@ -690,7 +802,7 @@
 
 
 <div class="description">
-    Crea una nueva instancia de Novedad
+    Crea una nueva asignación de celda.
 </div>
 
 
@@ -716,8 +828,6 @@
         
 
         
-        <th>Default</th>
-        
 
         <th class="last">Description</th>
     </tr>
@@ -728,7 +838,7 @@
 
         <tr>
             
-                <td class="name"><code>id</code></td>
+                <td class="name"><code>id_asignacion</code></td>
             
 
             <td class="type">
@@ -743,66 +853,8 @@
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">Identificador único de la novedad</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>tipo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last">Tipo de novedad registrada</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>descripcion</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last">Descripción detallada de la novedad</td>
+            <td class="description last">Identificador único de la asignación.</td>
         </tr>
 
     
@@ -824,19 +876,61 @@
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">Celda relacionada con la novedad</td>
+            <td class="description last">Identificador de la celda asignada.</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>reportado_por</code></td>
+                <td class="name"><code>id_vehiculo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Identificador del vehículo.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>id_conductor</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Identificador del conductor.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>fecha_ingreso</code></td>
             
 
             <td class="type">
@@ -851,12 +945,83 @@
             
 
             
-                <td class="default">
-                
-                </td>
+
+            <td class="description last">Fecha en que el vehículo ingresa.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>hora_ingreso</code></td>
             
 
-            <td class="description last">Usuario o guardia que reporta la novedad</td>
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Hora en que el vehículo ingresa.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>fecha_salida</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Fecha de salida del vehículo.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>hora_salida</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Hora de salida del vehículo.</td>
         </tr>
 
     
@@ -878,41 +1043,8 @@
             
 
             
-                <td class="default">
-                
-                    pendiente
-                
-                </td>
-            
 
-            <td class="description last">Estado de la novedad (pendiente, en_proceso, resuelto)</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>fecha</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Date</span>
-
-
-            
-            </td>
-
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last">Fecha y hora de registro</td>
+            <td class="description last">Estado de la asignación (activa, finalizada).</td>
         </tr>
 
     
@@ -953,7 +1085,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line36">line 36</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line23">line 23</a>
     </li></ul></dd>
     
 
@@ -1003,86 +1135,78 @@
 
         
             
-<h4 class="name" id="descripcion"><span class="type-signature"></span>descripcion<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Descripción detallada de la novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line62">line 62</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
 <h4 class="name" id="estado"><span class="type-signature"></span>estado<span class="type-signature"> :string</span></h4>
 
 
 
 
-<div class="description">
-    Estado actual de la novedadpendiente | en_proceso | resuelto
-</div>
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line60">line 60</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="fecha_ingreso"><span class="type-signature"></span>fecha_ingreso<span class="type-signature"> :string</span></h4>
+
+
+
 
 
 
@@ -1129,7 +1253,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line81">line 81</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line48">line 48</a>
     </li></ul></dd>
     
 
@@ -1147,14 +1271,10 @@
 
         
             
-<h4 class="name" id="fecha"><span class="type-signature"></span>fecha<span class="type-signature"> :Date</span></h4>
+<h4 class="name" id="fecha_salida"><span class="type-signature"></span>fecha_salida<span class="type-signature"> :string|null</span></h4>
 
 
 
-
-<div class="description">
-    Fecha de registro de la novedad
-</div>
 
 
 
@@ -1162,7 +1282,10 @@
     <ul>
         <li>
             
-<span class="param-type">Date</span>
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
 
 
         </li>
@@ -1201,7 +1324,214 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line87">line 87</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line54">line 54</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="hora_ingreso"><span class="type-signature"></span>hora_ingreso<span class="type-signature"> :string</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line51">line 51</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="hora_salida"><span class="type-signature"></span>hora_salida<span class="type-signature"> :string|null</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+|
+
+<span class="param-type">null</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line57">line 57</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="id_asignacion"><span class="type-signature"></span>id_asignacion<span class="type-signature"> :number</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line36">line 36</a>
     </li></ul></dd>
     
 
@@ -1224,9 +1554,73 @@
 
 
 
-<div class="description">
-    ID de la celda relacionada
-</div>
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line39">line 39</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="id_conductor"><span class="type-signature"></span>id_conductor<span class="type-signature"> :number</span></h4>
+
+
+
 
 
 
@@ -1273,7 +1667,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line68">line 68</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line45">line 45</a>
     </li></ul></dd>
     
 
@@ -1291,14 +1685,10 @@
 
         
             
-<h4 class="name" id="id_novedad"><span class="type-signature"></span>id_novedad<span class="type-signature"> :number</span></h4>
+<h4 class="name" id="id_vehiculo"><span class="type-signature"></span>id_vehiculo<span class="type-signature"> :number</span></h4>
 
 
 
-
-<div class="description">
-    Identificador de la novedad
-</div>
 
 
 
@@ -1345,151 +1735,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line50">line 50</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="reportado_por"><span class="type-signature"></span>reportado_por<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Usuario que reportó la novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line74">line 74</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="tipo"><span class="type-signature"></span>tipo<span class="type-signature"> :string</span></h4>
-
-
-
-
-<div class="description">
-    Tipo de novedad
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line56">line 56</a>
+        <a href="models_asignacion-celdas.models.js.html">models/asignacion-celdas.models.js</a>, <a href="models_asignacion-celdas.models.js.html#line42">line 42</a>
     </li></ul></dd>
     
 

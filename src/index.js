@@ -87,7 +87,7 @@ app.use('/api/parqueaderos', require('./routes/parqueaderos.routes'));
 app.use('/api/conductores', require('./routes/conductores.routes'));
 app.use('/api/vehivulos',require('./routes/vehiculos.routes'))
 
-
+app.use('/api/asignacion-celdas',require('./routes/asignacion-celdas.routes'))
 
 /**
  * ─────────────────────────────────────────

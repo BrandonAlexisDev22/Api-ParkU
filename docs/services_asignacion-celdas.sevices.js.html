@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: repositories/parqueaderos.repository.js</title>
+    <title>JSDoc: Source: services/asignacion-celdas.sevices.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: repositories/parqueaderos.repository.js</h1>
+    <h1 class="page-title">Source: services/asignacion-celdas.sevices.js</h1>
 
     
 
@@ -26,115 +26,111 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>// Arreglo que simula una base de datos en memoria
-let parqueaderos = [];
-
-// Contador para generar IDs automáticamente
-let idCounter = 1;
+            <pre class="prettyprint source linenums"><code>const asignacionceldasRepository = require('../repositories/asignacion-celdas.repository');
 
 /**
- * Obtiene todos los parqueaderos almacenados
+ * Crea una nueva asignación de celda.
+ * Verifica que la asignación no exista previamente.
  *
- * @function getAll
- * @memberof module:parqueaderosRepository
- * @returns {Array&lt;Object>} Lista de parqueaderos
+ * @param {Object} data - Datos de la asignación.
+ * @param {number} data.id_asignacion - ID de la asignación.
+ * @param {number} data.id_celda - ID de la celda.
+ * @param {number} data.id_vehiculo - ID del vehículo.
+ * @param {number} data.id_conductor - ID del conductor.
+ * @param {string} data.fecha_ingreso - Fecha de ingreso.
+ * @param {string} data.hora_ingreso - Hora de ingreso.
+ * @param {string} data.fecha_salida - Fecha de salida.
+ * @param {string} data.hora_salida - Hora de salida.
+ * @param {string} data.estado - Estado de la asignación.
+ * @returns {Object} Nueva asignación creada.
+ * @throws {Error} Si la celda ya está asignada.
  */
-const getAll = () => parqueaderos;
+const createAsignacionCelda = (data) => {
 
-/**
- * Busca un parqueadero por su ID
- *
- * @function getById
- * @memberof module:parqueaderosRepository
- * @param {number} id - Identificador del parqueadero
- * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
- */
-const getById = (id) => parqueaderos.find(p => p.id_parqueadero === id);
+  const existing = asignacionceldasRepository.getById(data.id_asignacion);
 
-/**
- * Busca un parqueadero por su nombre
- *
- * @function getByName
- * @memberof module:parqueaderosRepository
- * @param {string} name - Nombre del parqueadero
- * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
- */
-const getByName = (name) => parqueaderos.find(p => p.nombre === name);
-
-/**
- * Crea un nuevo parqueadero
- *
- * Genera automáticamente un ID y guarda el parqueadero en memoria.
- *
- * @function create
- * @memberof module:parqueaderosRepository
- *
- * @param {Object} parqueaderoData - Datos del parqueadero
- * @param {string} parqueaderoData.nombre - Nombre del parqueadero
- * @param {string} parqueaderoData.direccion - Dirección del parqueadero
- * @param {number} parqueaderoData.capacidad_total - Capacidad total del parqueadero
- * @param {number} parqueaderoData.espacios_disponibles - Espacios disponibles
- * @param {boolean} parqueaderoData.estado - Estado del parqueadero
- *
- * @returns {Object} Parqueadero creado
- */
-const create = (parqueaderoData) => {
-  const newParqueadero = { id_parqueadero: idCounter++, ...parqueaderoData };
-  parqueaderos.push(newParqueadero);
-  return newParqueadero;
-};
-
-/**
- * Edita un parqueadero existente por su ID
- *
- * Busca un parqueadero en la lista y actualiza sus datos.
- *
- * @function editById
- * @memberof module:parqueaderosRepository
- *
- * @param {number} id - ID del parqueadero a editar
- * @param {Object} parqueaderoData - Nuevos datos del parqueadero
- *
- * @returns {Object|null} Parqueadero actualizado o null si no se encuentra
- */
-const editById = (id, parqueaderoData) => {
-  const parqueadero = parqueaderos.find(p => p.id_parqueadero === id);
-
-  if (!parqueadero) {
-    return null;
+  if (existing) {
+    throw new Error('La celda ya está asignada');
   }
 
-  Object.assign(parqueadero, parqueaderoData);
-  return parqueadero;
+  return asignacionceldasRepository.create(data);
 };
+
 
 /**
- * Elimina un parqueadero por su ID
+ * Obtiene una asignación de celda por su ID.
  *
- * @function deleteById
- * @memberof module:parqueaderosRepository
- *
- * @param {number} id - ID del parqueadero a eliminar
- * @returns {Object|null} Parqueadero eliminado o null si no existe
+ * @param {number} id - ID de la asignación.
+ * @returns {Object|null} Asignación encontrada o null si no existe.
  */
-const deleteById = (id) => {
-  const index = parqueaderos.findIndex(p => p.id_parqueadero === id);
+const getAsignacionById = (id) => {
+  return asignacionceldasRepository.getById(id);
+};
 
-  if (index === -1) {
-    return null;
+
+/**
+ * Obtiene todas las asignaciones de celdas registradas.
+ *
+ * @returns {Array&lt;Object>} Lista de asignaciones.
+ */
+const getAsignaciones = () => {
+  return asignacionceldasRepository.getAll();
+};
+
+
+/**
+ * Edita una asignación de celda existente.
+ * Verifica que la asignación exista y que el vehículo no esté duplicado.
+ *
+ * @param {number} id - ID de la asignación a editar.
+ * @param {Object} data - Nuevos datos de la asignación.
+ * @returns {Object} Asignación actualizada.
+ * @throws {Error} Si la asignación no existe.
+ * @throws {Error} Si ya existe una asignación con el mismo vehículo.
+ */
+const editAsignacionCelda = (id, data) => {
+
+  const asignacionExisting = asignacionceldasRepository.getById(id);
+
+  if (!asignacionExisting) {
+    throw new Error("La asignación no existe");
   }
 
-  const deletedParqueadero = parqueaderos.splice(index, 1)[0];
-  return deletedParqueadero;
+  const duplicateAsignacion = asignacionceldasRepository.getByIdvehi(data.id_vehiculo);
+
+  if (duplicateAsignacion &amp;&amp; duplicateAsignacion.id_asignacion !== id) {
+    throw new Error("Ya existe una asignación con ese vehículo");
+  }
+
+  return asignacionceldasRepository.editById(id, data);
 };
+
+
+/**
+ * Elimina una asignación de celda por su ID.
+ *
+ * @param {number} id - ID de la asignación a eliminar.
+ * @returns {Object} Asignación eliminada.
+ * @throws {Error} Si la asignación no existe.
+ */
+const deleteAsignacionById = (id) => {
+
+  const asignacionExisting = asignacionceldasRepository.getById(id);
+
+  if (!asignacionExisting) {
+    throw new Error("La asignación no existe");
+  }
+
+  return asignacionceldasRepository.deleteById(id);
+};
+
 
 module.exports = {
-  getAll,
-  getById,
-  getByName,
-  create,
-  editById,
-  deleteById
+  createAsignacionCelda,
+  getAsignacionById,
+  getAsignaciones,
+  editAsignacionCelda,
+  deleteAsignacionById
 };</code></pre>
         </article>
     </section>

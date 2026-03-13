@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: repositories/parqueaderos.repository.js</title>
+    <title>JSDoc: Source: controllers/asignacion-celdas.controller.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: repositories/parqueaderos.repository.js</h1>
+    <h1 class="page-title">Source: controllers/asignacion-celdas.controller.js</h1>
 
     
 
@@ -26,115 +26,90 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>// Arreglo que simula una base de datos en memoria
-let parqueaderos = [];
-
-// Contador para generar IDs automáticamente
-let idCounter = 1;
+            <pre class="prettyprint source linenums"><code>const asignacionService = require('../services/asignacion-celdas.service');
 
 /**
- * Obtiene todos los parqueaderos almacenados
+ * Crea una nueva asignación de celda.
+ * Recibe los datos desde el body de la petición HTTP
+ * y delega la lógica al service.
  *
- * @function getAll
- * @memberof module:parqueaderosRepository
- * @returns {Array&lt;Object>} Lista de parqueaderos
- */
-const getAll = () => parqueaderos;
 
-/**
- * Busca un parqueadero por su ID
- *
- * @function getById
- * @memberof module:parqueaderosRepository
- * @param {number} id - Identificador del parqueadero
- * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
+ * @returns {void}
  */
-const getById = (id) => parqueaderos.find(p => p.id_parqueadero === id);
-
-/**
- * Busca un parqueadero por su nombre
- *
- * @function getByName
- * @memberof module:parqueaderosRepository
- * @param {string} name - Nombre del parqueadero
- * @returns {Object|undefined} Parqueadero encontrado o undefined si no existe
- */
-const getByName = (name) => parqueaderos.find(p => p.nombre === name);
-
-/**
- * Crea un nuevo parqueadero
- *
- * Genera automáticamente un ID y guarda el parqueadero en memoria.
- *
- * @function create
- * @memberof module:parqueaderosRepository
- *
- * @param {Object} parqueaderoData - Datos del parqueadero
- * @param {string} parqueaderoData.nombre - Nombre del parqueadero
- * @param {string} parqueaderoData.direccion - Dirección del parqueadero
- * @param {number} parqueaderoData.capacidad_total - Capacidad total del parqueadero
- * @param {number} parqueaderoData.espacios_disponibles - Espacios disponibles
- * @param {boolean} parqueaderoData.estado - Estado del parqueadero
- *
- * @returns {Object} Parqueadero creado
- */
-const create = (parqueaderoData) => {
-  const newParqueadero = { id_parqueadero: idCounter++, ...parqueaderoData };
-  parqueaderos.push(newParqueadero);
-  return newParqueadero;
+const createAsignacion = (req, res) => {
+  try {
+    const asignacion = asignacionService.createAsignacionCelda(req.body);
+    res.status(201).json(asignacion);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
 /**
- * Edita un parqueadero existente por su ID
+ * Obtiene todas las asignaciones de celdas registradas.
  *
- * Busca un parqueadero en la lista y actualiza sus datos.
- *
- * @function editById
- * @memberof module:parqueaderosRepository
- *
- * @param {number} id - ID del parqueadero a editar
- * @param {Object} parqueaderoData - Nuevos datos del parqueadero
- *
- * @returns {Object|null} Parqueadero actualizado o null si no se encuentra
+
+ * @returns {void}
  */
-const editById = (id, parqueaderoData) => {
-  const parqueadero = parqueaderos.find(p => p.id_parqueadero === id);
-
-  if (!parqueadero) {
-    return null;
-  }
-
-  Object.assign(parqueadero, parqueaderoData);
-  return parqueadero;
+const getAsignaciones = (req, res) => {
+  const asignaciones = asignacionService.getAsignaciones();
+  res.json(asignaciones);
 };
 
 /**
- * Elimina un parqueadero por su ID
+ * Obtiene una asignación específica por su ID.
  *
- * @function deleteById
- * @memberof module:parqueaderosRepository
- *
- * @param {number} id - ID del parqueadero a eliminar
- * @returns {Object|null} Parqueadero eliminado o null si no existe
+P.
+ * @returns {void}
  */
-const deleteById = (id) => {
-  const index = parqueaderos.findIndex(p => p.id_parqueadero === id);
-
-  if (index === -1) {
-    return null;
+const getAsignacionById = (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const asignacion = asignacionService.getAsignacionById(id);
+    res.json(asignacion);
+  } catch (error) {
+    res.status(404).json({ message: error.message });
   }
+};
 
-  const deletedParqueadero = parqueaderos.splice(index, 1)[0];
-  return deletedParqueadero;
+/**
+ * Actualiza una asignación de celda existente.
+ *
+
+ * @returns {void}
+ */
+const editAsignacion = (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updated = asignacionService.editAsignacionCelda(id, req.body);
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+/**
+ * Elimina una asignación de celda por su ID.
+ *
+
+ * @returns {void}
+ */
+const deleteAsignacion = (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const deleted = asignacionService.deleteAsignacionById(id);
+    res.json(deleted);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
 module.exports = {
-  getAll,
-  getById,
-  getByName,
-  create,
-  editById,
-  deleteById
+  createAsignacion,
+  getAsignaciones,
+  getAsignacionById,
+  editAsignacion,
+  deleteAsignacion
 };</code></pre>
         </article>
     </section>
