@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: repositories/usuario.repository.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: repositories/usuario.repository.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module UsuarioRepository
+ * @description Capa de acceso a datos para la tabla 'usuario'.
+ * Gestiona cuentas de acceso, perfiles de usuario y credenciales de seguridad.
+ */
+
+const db = require('../config/database');
+
+/**
+ * Recupera todos los usuarios con el detalle de su rol asociado.
+ * Excluye la contraseña por seguridad en listados generales.
+ * @returns {Promise&lt;Array>}
+ */
+const findAll = async () => {
+  const [rows] = await db.query(`
+    SELECT u.id, u.correo, u.nombre, u.numero,
+           r.id AS rol_id, r.nombre AS rol_nombre
+    FROM usuario u
+    LEFT JOIN rol r ON u.rol = r.id
+  `);
+  return rows;
+};
+
+/**
+ * Busca un usuario por su ID. Incluye detalles del rol.
+ * @param {number} id 
+ * @returns {Promise&lt;Object|null>}
+ */
+const findById = async (id) => {
+  const [rows] = await db.query(`
+    SELECT u.id, u.correo, u.nombre, u.numero,
+           r.id AS rol_id, r.nombre AS rol_nombre
+    FROM usuario u
+    LEFT JOIN rol r ON u.rol = r.id
+    WHERE u.id = ?
+  `, [id]);
+  return rows[0] || null;
+};
+
+/**
+ * Busca un usuario por su correo electrónico.
+ * IMPORTANTE: Este método retorna el hash de la contraseña para procesos de Login.
+ * @param {string} correo 
+ * @returns {Promise&lt;Object|null>} Fila completa del usuario.
+ */
+const findByCorreo = async (correo) => {
+  const [rows] = await db.query('SELECT * FROM usuario WHERE correo = ?', [correo]);
+  return rows[0] || null;
+};
+
+/**
+ * Registra un nuevo usuario en la plataforma.
+ * @param {Object} data - { correo, contrasena (hash), nombre, numero, rol }
+ * @returns {Promise&lt;Object>} El usuario creado (sin contraseña).
+ */
+const create = async ({ correo, contrasena, nombre, numero, rol }) => {
+  const [result] = await db.query(
+    'INSERT INTO usuario (correo, contrasena, nombre, numero, rol) VALUES (?, ?, ?, ?, ?)',
+    [correo, contrasena, nombre, numero || null, rol || null]
+  );
+  return findById(result.insertId);
+};
+
+/**
+ * Actualiza la información de perfil del usuario.
+ * @param {number} id 
+ * @param {Object} data - { nombre, numero, rol }
+ * @returns {Promise&lt;Object>}
+ */
+const update = async (id, { nombre, numero, rol }) => {
+  await db.query(
+    'UPDATE usuario SET nombre = ?, numero = ?, rol = ? WHERE id = ?',
+    [nombre, numero || null, rol || null, id]
+  );
+  return findById(id);
+};
+
+/**
+ * Sobrescribe la contraseña actual por un nuevo hash cifrado.
+ * @param {number} id 
+ * @param {string} contrasena - Nuevo hash generado.
+ * @returns {Promise&lt;void>}
+ */
+const updateContrasena = async (id, contrasena) => {
+  await db.query('UPDATE usuario SET contrasena = ? WHERE id = ?', [contrasena, id]);
+};
+
+/**
+ * Elimina una cuenta de usuario.
+ * @param {number} id 
+ * @returns {Promise&lt;boolean>}
+ */
+const remove = async (id) => {
+  const [result] = await db.query('DELETE FROM usuario WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+};
+
+module.exports = { findAll, findById, findByCorreo, create, update, updateContrasena, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

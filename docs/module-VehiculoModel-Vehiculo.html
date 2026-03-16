@@ -29,7 +29,7 @@
 <header>
     
         <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-VehiculoModel.html">VehiculoModel</a>~</span>Vehiculo<span class="signature">(id_vehiculo, placa, tipoVehiculo, marca, modelo, color, id_conductor)</span><span class="type-signature"></span></h2>
+            <span class="ancestors"><a href="module-VehiculoModel.html">VehiculoModel</a>~</span>Vehiculo<span class="signature">(id, conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado)</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -42,16 +42,12 @@
     
 
     
-    <h4 class="name" id="Vehiculo"><span class="type-signature"></span>new Vehiculo<span class="signature">(id_vehiculo, placa, tipoVehiculo, marca, modelo, color, id_conductor)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="Vehiculo"><span class="type-signature"></span>new Vehiculo<span class="signature">(id, conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado)</span><span class="type-signature"></span></h4>
     
 
     
 
 
-
-<div class="description">
-    Representa un vehículo dentro del sistema.
-</div>
 
 
 
@@ -76,6 +72,8 @@
         
 
         
+        <th>Default</th>
+        
 
         <th class="last">Description</th>
     </tr>
@@ -86,7 +84,7 @@
 
         <tr>
             
-                <td class="name"><code>id_vehiculo</code></td>
+                <td class="name"><code>id</code></td>
             
 
             <td class="type">
@@ -101,8 +99,39 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
-            <td class="description last">Identificador único del vehículo</td>
+            <td class="description last">Identificador único (Primary Key)</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>conductor</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">ID del conductor asociado (FK)</td>
         </tr>
 
     
@@ -124,15 +153,19 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
-            <td class="description last">Placa del vehículo</td>
+            <td class="description last">Placa única del vehículo</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>tipoVehiculo</code></td>
+                <td class="name"><code>tipo</code></td>
             
 
             <td class="type">
@@ -147,8 +180,12 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
-            <td class="description last">Tipo de vehículo (carro, moto, bicicleta)</td>
+            <td class="description last">Tipo de vehículo (ej. carro, moto)</td>
         </tr>
 
     
@@ -170,8 +207,12 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
-            <td class="description last">Marca del vehículo</td>
+            <td class="description last">Marca del fabricante</td>
         </tr>
 
     
@@ -193,8 +234,39 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
-            <td class="description last">Modelo del vehículo</td>
+            <td class="description last">Modelo específico</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>anio</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">Año de fabricación (YEAR en SQL)</td>
         </tr>
 
     
@@ -216,6 +288,10 @@
             
 
             
+                <td class="default">
+                
+                </td>
+            
 
             <td class="description last">Color del vehículo</td>
         </tr>
@@ -224,7 +300,34 @@
 
         <tr>
             
-                <td class="name"><code>id_conductor</code></td>
+                <td class="name"><code>descripcion</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">Detalles adicionales</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>estado</code></td>
             
 
             <td class="type">
@@ -239,8 +342,14 @@
             
 
             
+                <td class="default">
+                
+                    1
+                
+                </td>
+            
 
-            <td class="description last">ID del conductor asociado al vehículo</td>
+            <td class="description last">Estado lógico (1: Activo, 0: Inactivo)</td>
         </tr>
 
     
@@ -281,7 +390,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line8">line 8</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line21">line 21</a>
     </li></ul></dd>
     
 
@@ -328,6 +437,74 @@
 
     
         <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="anio"><span class="type-signature"></span>anio<span class="type-signature"> :number</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line42">line 42</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
 
         
             
@@ -381,7 +558,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line41">line 41</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line45">line 45</a>
     </li></ul></dd>
     
 
@@ -399,7 +576,7 @@
 
         
             
-<h4 class="name" id="id_conductor"><span class="type-signature"></span>id_conductor<span class="type-signature"> :number</span></h4>
+<h4 class="name" id="conductor"><span class="type-signature"></span>conductor<span class="type-signature"> :number</span></h4>
 
 
 
@@ -449,7 +626,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line44">line 44</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -467,7 +644,75 @@
 
         
             
-<h4 class="name" id="id_vehiculo"><span class="type-signature"></span>id_vehiculo<span class="type-signature"> :number</span></h4>
+<h4 class="name" id="descripcion"><span class="type-signature"></span>descripcion<span class="type-signature"> :string</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line48">line 48</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="estado"><span class="type-signature"></span>estado<span class="type-signature"> :number</span></h4>
 
 
 
@@ -517,7 +762,75 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line26">line 26</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line51">line 51</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="id"><span class="type-signature"></span>id<span class="type-signature"> :number</span></h4>
+
+
+
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line24">line 24</a>
     </li></ul></dd>
     
 
@@ -585,7 +898,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line35">line 35</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line36">line 36</a>
     </li></ul></dd>
     
 
@@ -653,7 +966,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line38">line 38</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line39">line 39</a>
     </li></ul></dd>
     
 
@@ -721,7 +1034,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line29">line 29</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line30">line 30</a>
     </li></ul></dd>
     
 
@@ -739,7 +1052,7 @@
 
         
             
-<h4 class="name" id="tipoVehiculo"><span class="type-signature"></span>tipoVehiculo<span class="type-signature"> :string</span></h4>
+<h4 class="name" id="tipo"><span class="type-signature"></span>tipo<span class="type-signature"> :string</span></h4>
 
 
 
@@ -789,7 +1102,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line32">line 32</a>
+        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line33">line 33</a>
     </li></ul></dd>
     
 
@@ -823,13 +1136,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-ConductorController.html">ConductorController</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-VehiculoController.html">VehiculoController</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-VehiculosRoutes.html">VehiculosRoutes</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-celdasController.html">celdasController</a></li><li><a href="module-celdasRepository.html">celdasRepository</a></li><li><a href="module-celdasService.html">celdasService</a></li><li><a href="module-incidentesController.html">incidentesController</a></li><li><a href="module-incidentesRepository.html">incidentesRepository</a></li><li><a href="module-incidentesRoutes.html">incidentesRoutes</a></li><li><a href="module-incidentesService.html">incidentesService</a></li><li><a href="module-novedadModel.html">novedadModel</a></li><li><a href="module-parqueaderosController.html">parqueaderosController</a></li><li><a href="module-parqueaderosService.html">parqueaderosService</a></li><li><a href="module-permisosController.html">permisosController</a></li><li><a href="module-permisosRoutes.html">permisosRoutes</a></li><li><a href="module-permisosService.html">permisosService</a></li><li><a href="module-reconocimientoModel.html">reconocimientoModel</a></li><li><a href="module-reconocimientoRepository.html">reconocimientoRepository</a></li><li><a href="module-reconocimientoRoutes.html">reconocimientoRoutes</a></li><li><a href="module-reconocimientoService.html">reconocimientoService</a></li><li><a href="module-reportesController.html">reportesController</a></li><li><a href="module-reportesRepository.html">reportesRepository</a></li><li><a href="module-reportesRoutes.html">reportesRoutes</a></li><li><a href="module-reportesService.html">reportesService</a></li><li><a href="module-rolesController.html">rolesController</a></li><li><a href="module-rolesRepository.html">rolesRepository</a></li><li><a href="module-rolesService.html">rolesService</a></li><li><a href="module-usuariosController.html">usuariosController</a></li><li><a href="module-usuariosRepository.html">usuariosRepository</a></li><li><a href="module-usuariosService.html">usuariosService</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="ReservaVehiculo.html">ReservaVehiculo</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li><li><a href="module-reconocimientoModel-Reconocimiento.html">Reconocimiento</a></li></ul><h3>Global</h3><ul><li><a href="global.html#PORT">PORT</a></li><li><a href="global.html#asignacionDeCeldas">asignacionDeCeldas</a></li><li><a href="global.html#consultar">consultar</a></li><li><a href="global.html#consultarReserva">consultarReserva</a></li><li><a href="global.html#crear">crear</a></li><li><a href="global.html#crearReserva">crearReserva</a></li><li><a href="global.html#create">create</a></li><li><a href="global.html#createAsignacion">createAsignacion</a></li><li><a href="global.html#createAsignacionCelda">createAsignacionCelda</a></li><li><a href="global.html#deleteAsignacion">deleteAsignacion</a></li><li><a href="global.html#deleteAsignacionById">deleteAsignacionById</a></li><li><a href="global.html#deleteById">deleteById</a></li><li><a href="global.html#disponibilidades">disponibilidades</a></li><li><a href="global.html#editAsignacion">editAsignacion</a></li><li><a href="global.html#editAsignacionCelda">editAsignacionCelda</a></li><li><a href="global.html#editById">editById</a></li><li><a href="global.html#editar">editar</a></li><li><a href="global.html#editarReserva">editarReserva</a></li><li><a href="global.html#generarReporte">generarReporte</a></li><li><a href="global.html#generarReporteReservas">generarReporteReservas</a></li><li><a href="global.html#getAll">getAll</a></li><li><a href="global.html#getAsignacionById">getAsignacionById</a></li><li><a href="global.html#getAsignaciones">getAsignaciones</a></li><li><a href="global.html#getById">getById</a></li><li><a href="global.html#getByIdCon">getByIdCon</a></li><li><a href="global.html#getByIdvehi">getByIdvehi</a></li><li><a href="global.html#idCounter">idCounter</a></li><li><a href="global.html#listar">listar</a></li><li><a href="global.html#listarReservas">listarReservas</a></li><li><a href="global.html#reservasVehiculos">reservasVehiculos</a></li><li><a href="global.html#visualizar">visualizar</a></li><li><a href="global.html#visualizarReserva">visualizarReserva</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 01:37:10 GMT-0500 (hora estándar de Colombia)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const { swaggerDocs } = require('../src/config/swagger'); // Importamos la configuración
 
 const app = express();
 
@@ -26,15 +27,12 @@ app.use('/api/reportes',         require('./routes/reporte.routes'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // ── 404 ────────────────────────────────────────────────────
-app.use((req, res) => res.status(404).json({ message: 'Ruta no encontrada' }));
-
-// ── Error global ───────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ message: 'Error interno del servidor' });
-});
-
+// Nota: La documentación debe ir ANTES del manejador 404 para que no bloquee el acceso
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
+
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    swaggerDocs(app, PORT); // <--- ESTA LÍNEA GENERA LA DOCUMENTACIÓN
+});
 
 module.exports = app;

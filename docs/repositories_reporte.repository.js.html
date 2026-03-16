@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: repositories/reporte.repository.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: repositories/reporte.repository.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module ReporteRepository
+ * @description Capa de acceso a datos para la tabla 'reporte'.
+ * Centraliza la gestión de incidentes, novedades y evidencias fotográficas.
+ */
+
+const db = require('../config/database');
+
+/**
+ * Consulta base con joins para obtener contexto del parqueadero y vehículo.
+ * @constant {string}
+ */
+const BASE_QUERY = `
+  SELECT rp.*, p.nombre AS parqueadero_nombre, v.placa
+  FROM reporte rp
+  LEFT JOIN parqueadero p ON rp.parqueadero = p.id
+  LEFT JOIN vehiculo v     ON rp.vehiculo    = v.id
+`;
+
+/**
+ * Obtiene todos los reportes, priorizando los más recientes.
+ * @returns {Promise&lt;Array>}
+ */
+const findAll = async () => {
+  const [rows] = await db.query(`${BASE_QUERY} ORDER BY rp.fecha_hora DESC`);
+  return rows;
+};
+
+/**
+ * Busca un reporte por su ID único.
+ * @param {number} id 
+ * @returns {Promise&lt;Object|null>}
+ */
+const findById = async (id) => {
+  const [rows] = await db.query(`${BASE_QUERY} WHERE rp.id = ?`, [id]);
+  return rows[0] || null;
+};
+
+/**
+ * Filtra reportes por una sede específica.
+ * @param {number} parqueaderoId 
+ * @returns {Promise&lt;Array>}
+ */
+const findByParqueadero = async (parqueaderoId) => {
+  const [rows] = await db.query(
+    `${BASE_QUERY} WHERE rp.parqueadero = ? ORDER BY rp.fecha_hora DESC`,
+    [parqueaderoId]
+  );
+  return rows;
+};
+
+/**
+ * Registra una nueva novedad en el sistema.
+ * @param {Object} data - { descripcion, parqueadero, vehiculo, evidencia }
+ * @returns {Promise&lt;Object>} El reporte creado con sus relaciones.
+ */
+const create = async ({ descripcion, parqueadero, vehiculo, evidencia }) => {
+  const [result] = await db.query(
+    'INSERT INTO reporte (descripcion, parqueadero, vehiculo, evidencia) VALUES (?, ?, ?, ?)',
+    [descripcion || null, parqueadero || null, vehiculo || null, evidencia || null]
+  );
+  return findById(result.insertId);
+};
+
+/**
+ * Actualiza el estado o la descripción de un reporte existente.
+ * @param {number} id 
+ * @param {Object} data - { descripcion, estado }
+ * @returns {Promise&lt;Object>}
+ */
+const update = async (id, { descripcion, estado }) => {
+  await db.query(
+    'UPDATE reporte SET descripcion = ?, estado = ? WHERE id = ?',
+    [descripcion || null, estado ?? 1, id]
+  );
+  return findById(id);
+};
+
+/**
+ * Elimina un reporte del sistema.
+ * @param {number} id 
+ * @returns {Promise&lt;boolean>}
+ */
+const remove = async (id) => {
+  const [result] = await db.query('DELETE FROM reporte WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+};
+
+module.exports = { findAll, findById, findByParqueadero, create, update, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/entradaSalida.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/entradaSalida.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module EntradaSalidaService
+ * @description Gestión de flujos de acceso. Controla el registro de movimientos y la actualización de disponibilidad de celdas.
+ */
+
+const repo       = require('../repositories/entradaSalida.repository');
+const celdaRepo  = require('../repositories/celda.repository');
+const vehRepo    = require('../repositories/vehiculo.repository');
+
+/**
+ * @swagger
+ * components:
+ * schemas:
+ * EntradaSalida:
+ * type: object
+ * required:
+ * - tipo
+ * - celda
+ * - vehiculo
+ * properties:
+ * id:
+ * type: integer
+ * description: ID único del registro de movimiento.
+ * tipo:
+ * type: string
+ * enum: [entrada, salida]
+ * description: Tipo de movimiento registrado.
+ * celda:
+ * type: integer
+ * description: ID de la celda involucrada.
+ * vehiculo:
+ * type: integer
+ * description: ID del vehículo que realiza el movimiento.
+ * descripcion:
+ * type: string
+ * description: Notas adicionales o estado del vehículo al ingresar/salir.
+ * fecha_hora:
+ * type: string
+ * format: date-time
+ * description: Estampa de tiempo del registro (generada por la BD).
+ */
+
+/**
+ * Obtiene el historial completo de entradas y salidas.
+ * @returns {Promise&lt;Array>}
+ */
+const getAll = () => repo.findAll();
+
+/**
+ * Busca un registro específico por ID.
+ * @param {number} id 
+ * @throws {Object} 404 si el registro no existe.
+ */
+const getById = async (id) => {
+  const item = await repo.findById(id);
+  if (!item) throw { status: 404, message: 'Registro no encontrado' };
+  return item;
+};
+
+/**
+ * Filtra el historial por un vehículo específico.
+ * @param {number} vehiculoId 
+ */
+const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
+
+/**
+ * Consulta registros dentro de un rango de fechas.
+ * @param {string} desde - Fecha inicial (YYYY-MM-DD).
+ * @param {string} hasta - Fecha final (YYYY-MM-DD).
+ * @throws {Object} 400 si faltan parámetros de fecha.
+ */
+const getByFecha = (desde, hasta) => {
+  if (!desde || !hasta) throw { status: 400, message: 'desde y hasta son requeridos' };
+  return repo.findByFecha(desde, hasta);
+};
+
+/**
+ * Registra el ingreso de un vehículo y marca la celda como OCUPADA.
+ * @swagger
+ * /api/entradas-salidas/entrada:
+ * post:
+ * summary: Registrar entrada de vehículo
+ * tags: [Control de Acceso]
+ * responses:
+ * 200:
+ * description: Entrada registrada y celda actualizada a ocupada.
+ * 409:
+ * description: Conflicto - La celda ya está ocupada.
+ */
+const registrarEntrada = async ({ celda, vehiculo, descripcion }) => {
+  if (!celda || !vehiculo) throw { status: 400, message: 'celda y vehiculo son requeridos' };
+
+  const celdaExiste = await celdaRepo.findById(celda);
+  if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+  
+  // Regla de negocio: Validar disponibilidad
+  if (!celdaExiste.estado) throw { status: 409, message: 'La celda no está disponible' };
+
+  const vehExiste = await vehRepo.findById(vehiculo);
+  if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
+
+  // Efecto secundario: Marcar celda como ocupada (estado = 0)
+  await celdaRepo.update(celda, { discapacidad: celdaExiste.discapacidad, estado: 0 });
+
+  return repo.create({ tipo: 'entrada', celda, vehiculo, descripcion });
+};
+
+/**
+ * Registra la salida de un vehículo y LIBERA la celda.
+ * @swagger
+ * /api/entradas-salidas/salida:
+ * post:
+ * summary: Registrar salida de vehículo
+ * tags: [Control de Acceso]
+ * responses:
+ * 200:
+ * description: Salida registrada y celda liberada (estado 1).
+ */
+const registrarSalida = async ({ celda, vehiculo, descripcion }) => {
+  if (!celda || !vehiculo) throw { status: 400, message: 'celda y vehiculo son requeridos' };
+
+  const celdaExiste = await celdaRepo.findById(celda);
+  if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+
+  // Efecto secundario: Liberar celda (estado = 1)
+  await celdaRepo.update(celda, { discapacidad: celdaExiste.discapacidad, estado: 1 });
+
+  return repo.create({ tipo: 'salida', celda, vehiculo, descripcion });
+};
+
+/**
+ * Elimina un registro del historial.
+ * @param {number} id 
+ */
+const remove = async (id) => {
+  await getById(id);
+  return repo.remove(id);
+};
+
+module.exports = { getAll, getById, getByVehiculo, getByFecha, registrarEntrada, registrarSalida, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

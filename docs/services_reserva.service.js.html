@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/reserva.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/reserva.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module ReservaService
+ * @description Gestión de reservas de celdas. Incluye lógica de validación de fechas 
+ * y control de solapamientos horarios para evitar conflictos.
+ */
+
+const repo      = require('../repositories/reserva.repository');
+const celdaRepo = require('../repositories/celda.repository');
+const vehRepo   = require('../repositories/vehiculo.repository');
+
+/**
+ * @swagger
+ * components:
+ * schemas:
+ * Reserva:
+ * type: object
+ * required:
+ * - celda
+ * - vehiculo
+ * - fechaHora_inicio
+ * - fechaHora_fin
+ * properties:
+ * id:
+ * type: integer
+ * description: ID único de la reserva.
+ * celda:
+ * type: integer
+ * description: ID de la celda a reservar.
+ * vehiculo:
+ * type: integer
+ * description: ID del vehículo que reserva.
+ * fechaHora_inicio:
+ * type: string
+ * format: date-time
+ * description: Fecha y hora de inicio de la reserva.
+ * fechaHora_fin:
+ * type: string
+ * format: date-time
+ * description: Fecha y hora de finalización de la reserva.
+ * estado:
+ * type: string
+ * description: Estado actual (ej. activa, cancelada, completada).
+ * example:
+ * celda: 10
+ * vehiculo: 5
+ * fechaHora_inicio: "2026-03-20T08:00:00Z"
+ * fechaHora_fin: "2026-03-20T10:00:00Z"
+ */
+
+/**
+ * Obtiene el listado de todas las reservas.
+ * @returns {Promise&lt;Array>}
+ */
+const getAll = () => repo.findAll();
+
+/**
+ * Busca una reserva por su ID.
+ * @param {number} id 
+ * @throws {Object} 404 si la reserva no existe.
+ */
+const getById = async (id) => {
+  const item = await repo.findById(id);
+  if (!item) throw { status: 404, message: 'Reserva no encontrada' };
+  return item;
+};
+
+/**
+ * Filtra reservas por vehículo.
+ * @param {number} vehiculoId 
+ */
+const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
+
+/**
+ * Filtra reservas por celda.
+ * @param {number} celdaId 
+ */
+const getByCelda = (celdaId) => repo.findByCelda(celdaId);
+
+/**
+ * Valida la coherencia de las fechas de reserva.
+ * @private
+ * @param {string} inicio 
+ * @param {string} fin 
+ * @throws {Object} 400 si las fechas son inválidas, pasadas o el inicio es mayor al fin.
+ */
+const _validarFechas = (inicio, fin) => {
+  const i = new Date(inicio);
+  const f = new Date(fin);
+  if (isNaN(i) || isNaN(f)) throw { status: 400, message: 'Fechas inválidas' };
+  if (i >= f) throw { status: 400, message: 'fechaHora_inicio debe ser anterior a fechaHora_fin' };
+  if (i &lt; new Date()) throw { status: 400, message: 'No se puede reservar en una fecha pasada' };
+};
+
+/**
+ * Crea una reserva verificando disponibilidad horaria.
+ * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin }
+ * @throws {Object} 400 Datos faltantes, 404 Entidades no encontradas, 409 Conflicto de horario.
+ */
+const create = async ({ celda, vehiculo, fechaHora_inicio, fechaHora_fin }) => {
+  if (!celda || !vehiculo || !fechaHora_inicio || !fechaHora_fin)
+    throw { status: 400, message: 'celda, vehiculo, fechaHora_inicio y fechaHora_fin son requeridos' };
+
+  _validarFechas(fechaHora_inicio, fechaHora_fin);
+
+  const celdaExiste = await celdaRepo.findById(celda);
+  if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+
+  const vehExiste = await vehRepo.findById(vehiculo);
+  if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
+
+  // Lógica de Solapamiento
+  const conflictos = await repo.findConflictos(celda, fechaHora_inicio, fechaHora_fin);
+  if (conflictos.length) throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
+
+  return repo.create({ celda, vehiculo, fechaHora_inicio, fechaHora_fin });
+};
+
+/**
+ * Actualiza una reserva existente validando nuevos conflictos.
+ * @param {number} id 
+ * @param {Object} datos 
+ */
+const update = async (id, datos) => {
+  const reserva = await getById(id);
+  _validarFechas(datos.fechaHora_inicio, datos.fechaHora_fin);
+
+  const conflictos = await repo.findConflictos(
+    datos.celda || reserva.celda_id,
+    datos.fechaHora_inicio,
+    datos.fechaHora_fin,
+    id
+  );
+  if (conflictos.length) throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
+
+  return repo.update(id, datos);
+};
+
+/**
+ * Elimina una reserva.
+ * @param {number} id 
+ */
+const remove = async (id) => {
+  await getById(id);
+  return repo.remove(id);
+};
+
+module.exports = { getAll, getById, getByVehiculo, getByCelda, create, update, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

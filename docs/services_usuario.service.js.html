@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/usuario.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/usuario.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module UsuarioService
+ * @description Gestión de usuarios, autenticación y seguridad. 
+ * Implementa cifrado de contraseñas con bcryptjs.
+ */
+
+const bcrypt = require('bcryptjs');
+const repo   = require('../repositories/usuario.repository');
+
+/**
+ * @swagger
+ * components:
+ * schemas:
+ * Usuario:
+ * type: object
+ * required:
+ * - correo
+ * - contrasena
+ * - nombre
+ * properties:
+ * id:
+ * type: integer
+ * description: ID único del usuario.
+ * correo:
+ * type: string
+ * format: email
+ * description: Correo electrónico (identificador de login).
+ * contrasena:
+ * type: string
+ * description: Contraseña cifrada (solo escritura).
+ * nombre:
+ * type: string
+ * description: Nombre completo del usuario.
+ * numero:
+ * type: string
+ * description: Número de teléfono/contacto.
+ * rol:
+ * type: integer
+ * description: ID del rol asignado.
+ * example:
+ * id: 1
+ * correo: "admin@parku.com"
+ * nombre: "Admin ParkU"
+ * numero: "3001234567"
+ * rol: 1
+ */
+
+/**
+ * Obtiene todos los usuarios (sin incluir contraseñas).
+ * @returns {Promise&lt;Array>}
+ */
+const getAll = () => repo.findAll();
+
+/**
+ * Busca un usuario por ID.
+ * @param {number} id 
+ * @throws {Object} 404 si el usuario no existe.
+ */
+const getById = async (id) => {
+  const item = await repo.findById(id);
+  if (!item) throw { status: 404, message: 'Usuario no encontrado' };
+  return item;
+};
+
+/**
+ * Registra un nuevo usuario con contraseña cifrada.
+ * @param {Object} data - { correo, contrasena, nombre, numero, rol }
+ * @throws {Object} 400 datos faltantes, 409 correo duplicado.
+ */
+const create = async ({ correo, contrasena, nombre, numero, rol }) => {
+  if (!correo || !contrasena || !nombre)
+    throw { status: 400, message: 'correo, contrasena y nombre son requeridos' };
+    
+  const existe = await repo.findByCorreo(correo);
+  if (existe) throw { status: 409, message: 'El correo ya está registrado' };
+  
+  const hash = await bcrypt.hash(contrasena, 10);
+  return repo.create({ correo, contrasena: hash, nombre, numero, rol });
+};
+
+/**
+ * Actualiza la información básica de un usuario.
+ * @param {number} id 
+ * @param {Object} datos 
+ */
+const update = async (id, datos) => {
+  await getById(id);
+  return repo.update(id, datos);
+};
+
+/**
+ * Cambia la contraseña verificando la anterior.
+ * @param {number} id 
+ * @param {Object} passwordData - { actual, nueva }
+ * @throws {Object} 401 si la contraseña actual no coincide.
+ */
+const cambiarContrasena = async (id, { actual, nueva }) => {
+  if (!actual || !nueva) throw { status: 400, message: 'actual y nueva son requeridos' };
+  
+  const usuario = await repo.findByCorreo((await getById(id)).correo);
+  const ok = await bcrypt.compare(actual, usuario.contrasena);
+  
+  if (!ok) throw { status: 401, message: 'Contraseña actual incorrecta' };
+  
+  const hash = await bcrypt.hash(nueva, 10);
+  await repo.updateContrasena(id, hash);
+};
+
+/**
+ * Elimina un usuario.
+ * @param {number} id 
+ */
+const remove = async (id) => {
+  await getById(id);
+  return repo.remove(id);
+};
+
+/**
+ * Valida credenciales de acceso.
+ * @param {string} correo 
+ * @param {string} contrasena 
+ * @returns {Promise&lt;Object>} Datos del usuario (sin contraseña).
+ * @throws {Object} 401 si las credenciales son erróneas.
+ */
+const login = async (correo, contrasena) => {
+  if (!correo || !contrasena)
+    throw { status: 400, message: 'correo y contrasena son requeridos' };
+    
+  const usuario = await repo.findByCorreo(correo);
+  if (!usuario) throw { status: 401, message: 'Credenciales inválidas' };
+  
+  const ok = await bcrypt.compare(contrasena, usuario.contrasena);
+  if (!ok) throw { status: 401, message: 'Credenciales inválidas' };
+  
+  // Extraemos la contraseña para no devolverla en el objeto de sesión
+  const { contrasena: _, ...datos } = usuario;
+  return datos;
+};
+
+module.exports = { getAll, getById, create, update, cambiarContrasena, remove, login };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

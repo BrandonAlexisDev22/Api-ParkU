@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/vehiculo.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/vehiculo.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module VehiculoService
+ * @description Lógica de negocio para la gestión de vehículos. 
+ * Controla la vinculación de autos/motos con sus respectivos conductores.
+ */
+
+const repo          = require('../repositories/vehiculo.repository');
+const conductorRepo = require('../repositories/conductor.repository');
+
+/**
+ * @swagger
+ * components:
+ * schemas:
+ * Vehiculo:
+ * type: object
+ * required:
+ * - conductor
+ * - placa
+ * properties:
+ * id:
+ * type: integer
+ * description: ID único del vehículo.
+ * conductor:
+ * type: integer
+ * description: ID del conductor (propietario/responsable).
+ * placa:
+ * type: string
+ * description: Matrícula única del vehículo.
+ * marca:
+ * type: string
+ * description: Marca del fabricante.
+ * modelo:
+ * type: string
+ * description: Modelo o línea del vehículo.
+ * color:
+ * type: string
+ * description: Color predominante.
+ * tipo:
+ * type: string
+ * enum: [Carro, Moto, Bicicleta]
+ * description: Categoría del vehículo.
+ * example:
+ * conductor: 3
+ * placa: "KRS-123"
+ * marca: "Mazda"
+ * modelo: "CX-5"
+ * tipo: "Carro"
+ */
+
+/**
+ * Obtiene la lista global de vehículos.
+ * @returns {Promise&lt;Array>}
+ */
+const getAll = () => repo.findAll();
+
+/**
+ * Busca un vehículo por su ID.
+ * @param {number} id 
+ * @throws {Object} 404 si el vehículo no existe.
+ */
+const getById = async (id) => {
+  const item = await repo.findById(id);
+  if (!item) throw { status: 404, message: 'Vehículo no encontrado' };
+  return item;
+};
+
+/**
+ * Obtiene todos los vehículos asociados a un conductor.
+ * @param {number} conductorId 
+ */
+const getByConductor = (conductorId) => repo.findByConductor(conductorId);
+
+/**
+ * Registra un nuevo vehículo validando la placa y el conductor.
+ * @param {Object} datos - { conductor, placa, marca, modelo, etc. }
+ * @throws {Object} 400 datos faltantes, 404 conductor inexistente, 409 placa duplicada.
+ */
+const create = async (datos) => {
+  if (!datos.conductor || !datos.placa)
+    throw { status: 400, message: 'conductor y placa son requeridos' };
+
+  const conductorExiste = await conductorRepo.findById(datos.conductor);
+  if (!conductorExiste) throw { status: 404, message: 'Conductor no encontrado' };
+
+  const placaExiste = await repo.findByPlaca(datos.placa);
+  if (placaExiste) throw { status: 409, message: 'La placa ya está registrada' };
+
+  return repo.create(datos);
+};
+
+/**
+ * Actualiza la información del vehículo. 
+ * Si se cambia la placa, valida que no pertenezca a otro vehículo.
+ * @param {number} id 
+ * @param {Object} datos 
+ * @throws {Object} 409 si la nueva placa ya existe en otro ID.
+ */
+const update = async (id, datos) => {
+  await getById(id);
+  if (datos.placa) {
+    const dup = await repo.findByPlaca(datos.placa);
+    if (dup &amp;&amp; dup.id != id) throw { status: 409, message: 'La placa ya está registrada' };
+  }
+  return repo.update(id, datos);
+};
+
+/**
+ * Elimina un vehículo del sistema.
+ * @param {number} id 
+ */
+const remove = async (id) => {
+  await getById(id);
+  return repo.remove(id);
+};
+
+module.exports = { getAll, getById, getByConductor, create, update, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

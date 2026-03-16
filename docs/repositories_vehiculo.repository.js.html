@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: repositories/vehiculo.repository.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: repositories/vehiculo.repository.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module VehiculoRepository
+ * @description Capa de acceso a datos para la tabla 'vehiculo'.
+ * Gestiona la flota de vehículos y su relación jerárquica con conductores y usuarios.
+ */
+
+const db = require('../config/database');
+
+/**
+ * Consulta base que recupera los datos del vehículo y el nombre del propietario
+ * navegando a través de la tabla de conductores hasta la de usuarios.
+ * @constant {string}
+ */
+const BASE_QUERY = `
+  SELECT v.*, u.nombre AS conductor_nombre
+  FROM vehiculo v
+  JOIN conductor c ON v.conductor = c.id
+  JOIN usuario u   ON c.usuario   = u.id
+`;
+
+/**
+ * Obtiene el listado completo de vehículos con su contexto de propietario.
+ * @returns {Promise&lt;Array>}
+ */
+const findAll = async () => {
+  const [rows] = await db.query(BASE_QUERY);
+  return rows;
+};
+
+/**
+ * Busca un vehículo por su ID interno.
+ * @param {number} id 
+ * @returns {Promise&lt;Object|null>}
+ */
+const findById = async (id) => {
+  const [rows] = await db.query(`${BASE_QUERY} WHERE v.id = ?`, [id]);
+  return rows[0] || null;
+};
+
+/**
+ * Busca un vehículo por su placa (identificador único externo).
+ * @param {string} placa 
+ * @returns {Promise&lt;Object|null>}
+ */
+const findByPlaca = async (placa) => {
+  const [rows] = await db.query('SELECT * FROM vehiculo WHERE placa = ?', [placa]);
+  return rows[0] || null;
+};
+
+/**
+ * Recupera todos los vehículos registrados bajo un mismo conductor.
+ * @param {number} conductorId 
+ * @returns {Promise&lt;Array>}
+ */
+const findByConductor = async (conductorId) => {
+  const [rows] = await db.query('SELECT * FROM vehiculo WHERE conductor = ?', [conductorId]);
+  return rows;
+};
+
+/**
+ * Registra un nuevo vehículo en la base de datos.
+ * @param {Object} data - { conductor, placa, tipo, marca, modelo, anio, color, descripcion }
+ * @returns {Promise&lt;Object>} El vehículo creado con los datos de su propietario.
+ */
+const create = async ({ conductor, placa, tipo, marca, modelo, anio, color, descripcion }) => {
+  const [result] = await db.query(
+    `INSERT INTO vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [conductor, placa, tipo || null, marca || null, modelo || null,
+     anio || null, color || null, descripcion || null]
+  );
+  return findById(result.insertId);
+};
+
+/**
+ * Actualiza la información técnica y el estado del vehículo.
+ * @param {number} id 
+ * @param {Object} data - { tipo, marca, modelo, anio, color, descripcion, estado }
+ * @returns {Promise&lt;Object>}
+ */
+const update = async (id, { tipo, marca, modelo, anio, color, descripcion, estado }) => {
+  await db.query(
+    `UPDATE vehiculo SET tipo=?, marca=?, modelo=?, anio=?, color=?, descripcion=?, estado=?
+     WHERE id = ?`,
+    [tipo || null, marca || null, modelo || null, anio || null,
+     color || null, descripcion || null, estado ?? 1, id]
+  );
+  return findById(id);
+};
+
+/**
+ * Elimina un vehículo del sistema.
+ * @param {number} id 
+ * @returns {Promise&lt;boolean>}
+ */
+const remove = async (id) => {
+  const [result] = await db.query('DELETE FROM vehiculo WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+};
+
+module.exports = { findAll, findById, findByPlaca, findByConductor, create, update, remove };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#handleError">handleError</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 08:04:36 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
