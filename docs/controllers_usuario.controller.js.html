@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/usuario.controller.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/usuario.controller.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @swagger
+ * tags:
+ *   name: Usuarios
+ *   description: Endpoints para gestionar usuarios
+ */
+
+const svc = require('../services/usuario.service');
+const { handleError } = require('../helpers/errorHandler');
+
+/**
+ * @swagger
+ * /usuarios:
+ *   get:
+ *     summary: Obtener todos los usuarios
+ *     tags: [Usuarios]
+ *     responses:
+ *       200:
+ *         description: Lista de todos los usuarios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Usuario'
+ */
+const getAll = async (req, res) => { 
+  try { res.json(await svc.getAll()); } 
+  catch(e) { handleError(res,e); } 
+};
+
+/**
+ * @swagger
+ * /usuarios/{id}:
+ *   get:
+ *     summary: Obtener un usuario por ID
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Usuario encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ *       404:
+ *         description: Usuario no encontrado
+ */
+const getById = async (req, res) => { 
+  try { res.json(await svc.getById(req.params.id)); } 
+  catch(e) { handleError(res,e); } 
+};
+
+/**
+ * @swagger
+ * /usuarios:
+ *   post:
+ *     summary: Crear un nuevo usuario
+ *     tags: [Usuarios]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Usuario'
+ *     responses:
+ *       201:
+ *         description: Usuario creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ */
+const create = async (req, res) => { 
+  try { res.status(201).json(await svc.create(req.body)); } 
+  catch(e) { handleError(res,e); } 
+};
+
+/**
+ * @swagger
+ * /usuarios/{id}:
+ *   put:
+ *     summary: Actualizar un usuario por ID
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Usuario'
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ */
+const update = async (req, res) => { 
+  try { res.json(await svc.update(req.params.id, req.body)); } 
+  catch(e) { handleError(res,e); } 
+};
+
+/**
+ * @swagger
+ * /usuarios/{id}:
+ *   delete:
+ *     summary: Eliminar un usuario por ID
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       204:
+ *         description: Usuario eliminado correctamente
+ */
+const remove = async (req, res) => { 
+  try { await svc.remove(req.params.id); res.status(204).send(); } 
+  catch(e) { handleError(res,e); } 
+};
+
+/**
+ * @swagger
+ * /usuarios/{id}/contrasena:
+ *   patch:
+ *     summary: Cambiar la contraseña de un usuario
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contrasenaActual:
+ *                 type: string
+ *                 description: Contraseña actual del usuario
+ *               nuevaContrasena:
+ *                 type: string
+ *                 description: Nueva contraseña
+ *             required:
+ *               - contrasenaActual
+ *               - nuevaContrasena
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ */
+const cambiarContrasena = async (req, res) => {
+  try { await svc.cambiarContrasena(req.params.id, req.body); res.json({ message: 'Contraseña actualizada' }); }
+  catch(e) { handleError(res,e); }
+};
+
+/**
+ * @swagger
+ * /usuarios/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     tags: [Usuarios]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 description: Correo electrónico del usuario
+ *               contrasena:
+ *                 type: string
+ *                 description: Contraseña del usuario
+ *             required:
+ *               - correo
+ *               - contrasena
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 usuario:
+ *                   $ref: '#/components/schemas/Usuario'
+ */
+const login = async (req, res) => {
+  try { const usuario = await svc.login(req.body.correo, req.body.contrasena); res.json({ message: 'Login exitoso', usuario }); }
+  catch(e) { handleError(res,e); }
+};
+
+module.exports = { getAll, getById, create, update, remove, cambiarContrasena, login };
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Usuario:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID del usuario
+ *         nombre:
+ *           type: string
+ *           description: Nombre completo del usuario
+ *         correo:
+ *           type: string
+ *           description: Correo electrónico del usuario
+ *         contrasena:
+ *           type: string
+ *           description: Contraseña del usuario (encriptada)
+ *         rol:
+ *           type: integer
+ *           description: ID del rol asignado al usuario
+ *       required:
+ *         - nombre
+ *         - correo
+ *         - contrasena
+ *         - rol
+ */</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CeldaRepository.html">CeldaRepository</a></li><li><a href="module-CeldaService.html">CeldaService</a></li><li><a href="module-ConductorModel.html">ConductorModel</a></li><li><a href="module-ConductorRepository.html">ConductorRepository</a></li><li><a href="module-ConductorService.html">ConductorService</a></li><li><a href="module-EntradaSalidaRepository.html">EntradaSalidaRepository</a></li><li><a href="module-EntradaSalidaService.html">EntradaSalidaService</a></li><li><a href="module-ParqueaderoModel.html">ParqueaderoModel</a></li><li><a href="module-ParqueaderoRepository.html">ParqueaderoRepository</a></li><li><a href="module-ParqueaderoService.html">ParqueaderoService</a></li><li><a href="module-PerfilRepository.html">PerfilRepository</a></li><li><a href="module-PerfilService.html">PerfilService</a></li><li><a href="module-PermisoModel.html">PermisoModel</a></li><li><a href="module-PermisoRepository.html">PermisoRepository</a></li><li><a href="module-PermisoService.html">PermisoService</a></li><li><a href="module-ReconocimientoModel.html">ReconocimientoModel</a></li><li><a href="module-ReporteRepository.html">ReporteRepository</a></li><li><a href="module-ReporteService.html">ReporteService</a></li><li><a href="module-ReservaModel.html">ReservaModel</a></li><li><a href="module-ReservaRepository.html">ReservaRepository</a></li><li><a href="module-ReservaService.html">ReservaService</a></li><li><a href="module-RolPermisoRepository.html">RolPermisoRepository</a></li><li><a href="module-RolPermisoService.html">RolPermisoService</a></li><li><a href="module-RolRepository.html">RolRepository</a></li><li><a href="module-RolService.html">RolService</a></li><li><a href="module-RoleModel.html">RoleModel</a></li><li><a href="module-UsuarioModel.html">UsuarioModel</a></li><li><a href="module-UsuarioRepository.html">UsuarioRepository</a></li><li><a href="module-UsuarioService.html">UsuarioService</a></li><li><a href="module-VehiculoModel.html">VehiculoModel</a></li><li><a href="module-VehiculoRepository.html">VehiculoRepository</a></li><li><a href="module-VehiculoService.html">VehiculoService</a></li><li><a href="module-celdaModel.html">celdaModel</a></li><li><a href="module-novedadModel.html">novedadModel</a></li></ul><h3>Classes</h3><ul><li><a href="AsignacionDeCelda.html">AsignacionDeCelda</a></li><li><a href="ControlSalida.html">ControlSalida</a></li><li><a href="DisponibilidadCelda.html">DisponibilidadCelda</a></li><li><a href="module-ConductorModel-Conductor.html">Conductor</a></li><li><a href="module-ParqueaderoModel-Parqueadero.html">Parqueadero</a></li><li><a href="module-PermisoModel-Permiso.html">Permiso</a></li><li><a href="module-ReconocimientoModel-Reconocimiento.html">Reconocimiento</a></li><li><a href="module-ReservaModel-Reserva.html">Reserva</a></li><li><a href="module-RoleModel-Role.html">Role</a></li><li><a href="module-UsuarioModel-Usuario.html">Usuario</a></li><li><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></li><li><a href="module-celdaModel-Celda.html">Celda</a></li><li><a href="module-novedadModel-Novedad.html">Novedad</a></li></ul><h3>Global</h3><ul><li><a href="global.html#cambiarContrasena">cambiarContrasena</a></li><li><a href="global.html#create">create</a></li><li><a href="global.html#getAll">getAll</a></li><li><a href="global.html#getByCelda">getByCelda</a></li><li><a href="global.html#getByConductor">getByConductor</a></li><li><a href="global.html#getByFecha">getByFecha</a></li><li><a href="global.html#getById">getById</a></li><li><a href="global.html#getByParqueadero">getByParqueadero</a></li><li><a href="global.html#getByRol">getByRol</a></li><li><a href="global.html#getByVehiculo">getByVehiculo</a></li><li><a href="global.html#getDisponibles">getDisponibles</a></li><li><a href="global.html#handleError">handleError</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#registrarEntrada">registrarEntrada</a></li><li><a href="global.html#registrarSalida">registrarSalida</a></li><li><a href="global.html#remove">remove</a></li><li><a href="global.html#router">router</a></li><li><a href="global.html#svc">svc</a></li><li><a href="global.html#update">update</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Mon Mar 16 2026 09:18:18 GMT-0500 (hora estándar de Colombia)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
