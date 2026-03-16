@@ -1,85 +1,97 @@
-const asignacionService = require('../services/asignacion-celdas.service');
+const service = require('../services/asignacion-celdas.services');
+
 
 /**
- * Crea una nueva asignación de celda.
- * Recibe los datos desde el body de la petición HTTP
- * y delega la lógica al service.
- *
-
- * @returns {void}
+ * Obtener todas las asignaciones
  */
-const createAsignacion = (req, res) => {
+const getAsignaciones = async (req, res) => {
   try {
-    const asignacion = asignacionService.createAsignacionCelda(req.body);
-    res.status(201).json(asignacion);
+    const asignaciones = await service.getAsignaciones();
+    res.json(asignaciones);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-/**
- * Obtiene todas las asignaciones de celdas registradas.
- *
-
- * @returns {void}
- */
-const getAsignaciones = (req, res) => {
-  const asignaciones = asignacionService.getAsignaciones();
-  res.json(asignaciones);
-};
 
 /**
- * Obtiene una asignación específica por su ID.
- *
-P.
- * @returns {void}
+ * Obtener asignación por ID
  */
-const getAsignacionById = (req, res) => {
+const getAsignacionById = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const asignacion = asignacionService.getAsignacionById(id);
+
+    const { id } = req.params;
+
+    const asignacion = await service.getAsignacionById(id);
+
+    if (!asignacion) {
+      return res.status(404).json({ message: "Asignación no encontrada" });
+    }
+
     res.json(asignacion);
+
   } catch (error) {
-    res.status(404).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
+
 
 /**
- * Actualiza una asignación de celda existente.
- *
-
- * @returns {void}
+ * Crear asignación
  */
-const editAsignacion = (req, res) => {
+const createAsignacion = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const updated = asignacionService.editAsignacionCelda(id, req.body);
-    res.json(updated);
+
+    const nuevaAsignacion = await service.createAsignacionCelda(req.body);
+
+    res.status(201).json(nuevaAsignacion);
+
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
+
 
 /**
- * Elimina una asignación de celda por su ID.
- *
-
- * @returns {void}
+ * Editar asignación
  */
-const deleteAsignacion = (req, res) => {
+const editAsignacion = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const deleted = asignacionService.deleteAsignacionById(id);
-    res.json(deleted);
+
+    const { id } = req.params;
+
+    const asignacion = await service.editAsignacionCelda(id, req.body);
+
+    res.json(asignacion);
+
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
+
+
+/**
+ * Eliminar asignación
+ */
+const deleteAsignacion = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+
+    await service.deleteAsignacionById(id);
+
+    res.json({ message: "Asignación eliminada correctamente" });
+
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 
 module.exports = {
-  createAsignacion,
   getAsignaciones,
   getAsignacionById,
+  createAsignacion,
   editAsignacion,
   deleteAsignacion
 };

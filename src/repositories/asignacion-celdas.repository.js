@@ -1,112 +1,115 @@
-/**
- * Arreglo que almacena todas las asignaciones de celdas en memoria.
- * @type {Array<Object>}
- */
-let asignacionDeCeldas = [];
+import connection from "../config/database.js";
 
 /**
- * Contador para generar IDs únicos automáticamente.
- * @type {number}
+ * Obtiene todas las asignaciones (entradas/salidas)
+ * @returns {Promise<Array>}
  */
-let idCounter = 1;
-
-/**
- * Obtiene todas las asignaciones de celdas.
- * @returns {Array<Object>} Lista de asignaciones registradas.
- */
-const getAll = () => asignacionDeCeldas;
-
-
-/**
- * Busca una asignación por su ID.
- * @param {number} id - ID de la asignación.
- * @returns {Object|undefined} Asignación encontrada o undefined si no existe.
- */
-const getById = (id) => asignacionDeCeldas.find(a => a.id_asignacion === id);
-
-
-/**
- * Busca una asignación por el ID del conductor.
- * @param {number} id_con - ID del conductor.
- * @returns {Object|undefined} Asignación encontrada o undefined si no existe.
- */
-const getByIdCon = (id_con) => asignacionDeCeldas.find(r => r.id_conductor === id_con);
-
-
-/**
- * Busca una asignación por el ID del vehículo.
- * @param {number} id_vehi - ID del vehículo.
- * @returns {Object|undefined} Asignación encontrada o undefined si no existe.
- */
-const getByIdvehi = (id_vehi) => asignacionDeCeldas.find(r => r.id_vehiculo === id_vehi);
-
-
-/**
- * Crea una nueva asignación de celda.
- * Genera automáticamente el ID de la asignación.
- *
- * @param {Object} asignacionceldasData - Datos de la asignación.
- * @param {number} asignacionceldasData.id_celda
- * @param {number} asignacionceldasData.id_vehiculo
- * @param {number} asignacionceldasData.id_conductor
- * @param {string} asignacionceldasData.fecha_ingreso
- * @param {string} asignacionceldasData.hora_ingreso
- * @param {string} asignacionceldasData.fecha_salida
- * @param {string} asignacionceldasData.hora_salida
- * @param {string} asignacionceldasData.estado
- *
- * @returns {Object} Nueva asignación creada.
- */
-const create = (asignacionceldasData) => {
-  const newAsignacion = { id_asignacion: idCounter++, ...asignacionceldasData };
-  asignacionDeCeldas.push(newAsignacion);
-  return newAsignacion;
+export const getAll = async () => {
+  const [rows] = await connection.query(
+    "SELECT * FROM EntradaSalida"
+  );
+  return rows;
 };
 
 
 /**
- * Edita una asignación existente por su ID.
- *
- * @param {number} id - ID de la asignación.
- * @param {Object} asignacionData - Nuevos datos de la asignación.
- * @returns {Object|null} Asignación actualizada o null si no se encuentra.
+ * Busca una asignación por ID
+ * @param {number} id
+ * @returns {Promise<Object>}
  */
-const editById = (id, asignacionData) => {
-  const asignacion = asignacionDeCeldas.find(a => a.id_asignacion === id);
-
-  if (!asignacion) {
-    return null;
-  }
-
-  Object.assign(asignacion, asignacionData);
-  return asignacion;
+export const getById = async (id) => {
+  const [rows] = await connection.query(
+    "SELECT * FROM EntradaSalida WHERE id = ?",
+    [id]
+  );
+  return rows[0];
 };
 
 
 /**
- * Elimina una asignación de celda por su ID.
- *
- * @param {number} id - ID de la asignación.
- * @returns {Object|null} Asignación eliminada o null si no existe.
+ * Busca asignaciones por vehículo
+ * @param {number} id_vehiculo
+ * @returns {Promise<Array>}
  */
-const deleteById = (id) => {
-  const index = asignacionDeCeldas.findIndex(a => a.id_asignacion === id);
-
-  if (index === -1) {
-    return null;
-  }
-
-  const deletedAsignacion = asignacionDeCeldas.splice(index, 1)[0];
-  return deletedAsignacion;
+export const getByVehiculo = async (id_vehiculo) => {
+  const [rows] = await connection.query(
+    "SELECT * FROM EntradaSalida WHERE vehiculo = ?",
+    [id_vehiculo]
+  );
+  return rows;
 };
 
 
-module.exports = {
-  getAll,
-  getById,
-  getByIdCon,
-  getByIdvehi,
-  create,
-  editById,
-  deleteById
+/**
+ * Busca asignaciones por celda
+ * @param {number} id_celda
+ * @returns {Promise<Array>}
+ */
+export const getByCelda = async (id_celda) => {
+  const [rows] = await connection.query(
+    "SELECT * FROM EntradaSalida WHERE celda = ?",
+    [id_celda]
+  );
+  return rows;
+};
+
+
+/**
+ * Crea una nueva asignación (entrada o salida)
+ * @param {Object} data
+ * @param {string} data.tipo
+ * @param {number} data.celda
+ * @param {number} data.vehiculo
+ * @param {string} data.descripcion
+ * @returns {Promise<Object>}
+ */
+export const create = async (data) => {
+
+  const { tipo, celda, vehiculo, descripcion } = data;
+
+  const [result] = await connection.query(
+    `INSERT INTO EntradaSalida (tipo, celda, vehiculo, descripcion)
+     VALUES (?, ?, ?, ?)`,
+    [tipo, celda, vehiculo, descripcion]
+  );
+
+  return {
+    id: result.insertId,
+    ...data
+  };
+};
+
+
+/**
+ * Edita una asignación
+ * @param {number} id
+ * @param {Object} data
+ */
+export const editById = async (id, data) => {
+
+  const { tipo, celda, vehiculo, descripcion } = data;
+
+  const [result] = await connection.query(
+    `UPDATE EntradaSalida 
+     SET tipo = ?, celda = ?, vehiculo = ?, descripcion = ?
+     WHERE id = ?`,
+    [tipo, celda, vehiculo, descripcion, id]
+  );
+
+  return result;
+};
+
+
+/**
+ * Elimina una asignación
+ * @param {number} id
+ */
+export const deleteById = async (id) => {
+
+  const [result] = await connection.query(
+    "DELETE FROM EntradaSalida WHERE id = ?",
+    [id]
+  );
+
+  return result;
 };
