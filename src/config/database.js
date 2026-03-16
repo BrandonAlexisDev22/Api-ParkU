@@ -6,7 +6,7 @@ import mysql from "mysql2/promise";
 const connection = mysql.createPool({
   host: "yamanote.proxy.rlwy.net",
   user: "root",
-  password: "TU_PASSWORD",
+  password: "sWNIubZJgnAUuljneIDxWBdwemgfdTSe",
   database: "railway",
   port: 28484,
   waitForConnections: true,
