@@ -2,33 +2,36 @@
  * @module ParqueaderoModel
  * @description
  * Clase que representa la entidad Parqueadero dentro del sistema ParkU.
- * Modela la estructura de un parqueadero en la aplicación.
+ * Sincronizada con la tabla 'parqueadero' de la base de datos en Railway.
  */
 
-/**
- * Representa un parqueadero dentro del sistema.
- *
- * @class Parqueadero
- * @param {number} id - Identificador único del parqueadero
- * @param {string} nombre - Nombre del parqueadero
- * @param {string} direccion - Dirección del parqueadero
- * @param {number} capacidad_total - Número total de espacios disponibles
- * @param {number} espacios_disponibles - Espacios disponibles actualmente
- * @param {boolean} [estado=true] - Estado del parqueadero (activo o inactivo)
- */
 class Parqueadero {
+  /**
+   * @param {number} id - Identificador único (id en SQL)
+   * @param {string} nombre - Nombre de la sede
+   * @param {string} direccion - Dirección física
+   * @param {number} capacidad - Capacidad máxima (capacidad en SQL)
+   * @param {number|boolean} estado - Estado (1 para activo, 0 para inactivo)
+   */
+  constructor(id, nombre, direccion, capacidad, estado = 1) {
+    
+    /** @type {number} */
+    this.id = id;
 
-  constructor(id, nombre, direccion, capacidad_total, espacios_disponibles, estado = true) {
-
-    this.id_parqueadero = id;
+    /** @type {string} */
     this.nombre = nombre;
+
+    /** @type {string} */
     this.direccion = direccion;
-    this.capacidad_total = capacidad_total;
-    this.espacios_disponibles = espacios_disponibles;
+
+    /** @type {number} */
+    this.capacidad = capacidad;
+
+    /** * @type {number} 
+     * En MySQL solemos usar TINYINT (0 o 1) para representar booleanos.
+     */
     this.estado = estado;
-
   }
-
 }
 
 module.exports = Parqueadero;

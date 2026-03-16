@@ -2,24 +2,27 @@
  * @module RoleModel
  * @description
  * Clase que representa la entidad Role dentro del sistema ParkU.
- * Modela la estructura de un rol en la aplicación.
+ * Sincronizada con la tabla 'rol' y la lógica de permisos de la base de datos.
  */
 
-/**
- * Representa un rol dentro del sistema.
- *
- * @class Role
- * @param {number} id - Identificador único del rol
- * @param {string} nombre_rol - Nombre del rol
- * @param {Array<string>} permisos - Lista de permisos asociados al rol
- * @param {boolean} [estado=true] - Estado del rol (activo o inactivo)
- */
 class Role {
-  constructor(id, nombre_rol, permisos, estado = true) {
-    this.id_rol = id;
-    this.nombre_rol = nombre_rol;
+  /**
+   * @param {number} id - Identificador único (id en SQL)
+   * @param {string} nombre - Nombre del rol (nombre en SQL)
+   * @param {Array<Object>} [permisos=[]] - Lista de objetos de permisos asociados
+   */
+  constructor(id, nombre, permisos = []) {
+    
+    /** @type {number} */
+    this.id = id; // Cambiado de id_rol a id
+
+    /** @type {string} */
+    this.nombre = nombre; // Cambiado de nombre_rol a nombre
+
+    /** * @type {Array<Object>} 
+     * En SQL, los permisos vienen de la tabla 'rol_permiso' mediante un JOIN
+     */
     this.permisos = permisos;
-    this.estado = estado;
   }
 }
 

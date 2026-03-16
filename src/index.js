@@ -1,108 +1,40 @@
-/**
- * @file index.js
- * @description
- * Punto de entrada principal de la API del sistema ParkU.
- *
- * Este archivo se encarga de:
- * - Inicializar el servidor Express
- * - Configurar middlewares globales
- * - Registrar las rutas de los módulos del sistema
- * - Iniciar el servidor en el puerto configurado
- *
- * Arquitectura utilizada:
- * Cliente → Routes → Controllers → Services → Repositories → Datos
- */
-
-const express = require('express');
-const cors = require('cors');
 require('dotenv').config();
+const express = require('express');
+const cors    = require('cors');
 
 const app = express();
 
-/**
- * ─────────────────────────────────────────
- * Middlewares globales
- * ─────────────────────────────────────────
- */
-
-/**
- * Middleware CORS
- * Permite que la API sea consumida desde otros dominios
- * (por ejemplo un frontend en React o Angular).
- */
+// ── Middlewares ────────────────────────────────────────────
 app.use(cors());
-
-/**
- * Middleware para parsear el body de las solicitudes en formato JSON.
- */
 app.use(express.json());
 
+// ── Rutas ──────────────────────────────────────────────────
+app.use('/api/roles',            require('./routes/rol.routes'));
+app.use('/api/permisos',         require('./routes/permiso.routes'));
+app.use('/api/roles-permisos',   require('./routes/rolPermiso.routes'));
+app.use('/api/usuarios',         require('./routes/usuario.routes'));
+app.use('/api/perfiles',         require('./routes/perfil.routes'));
+app.use('/api/conductores',      require('./routes/conductor.routes'));
+app.use('/api/vehiculos',        require('./routes/vehiculo.routes'));
+app.use('/api/parqueaderos',     require('./routes/parqueadero.routes'));
+app.use('/api/celdas',           require('./routes/celda.routes'));
+app.use('/api/entradas-salidas', require('./routes/entradaSalida.routes'));
+app.use('/api/reservas',         require('./routes/reserva.routes'));
+app.use('/api/reportes',         require('./routes/reporte.routes'));
 
-/**
- * ─────────────────────────────────────────
- * Definición de rutas de la API
- * ─────────────────────────────────────────
- */
+// ── Health check ───────────────────────────────────────────
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-/**
- * Rutas del módulo de roles
- * Prefijo: /api/roles
- */
-app.use('/api/roles', require('./routes/roles.routes'));
+// ── 404 ────────────────────────────────────────────────────
+app.use((req, res) => res.status(404).json({ message: 'Ruta no encontrada' }));
 
-/**
- * Rutas del módulo de permisos
- * Prefijo: /api/permisos
- */
-app.use('/api/permisos', require('./routes/permisos.routes'));
-
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/usuarios
- */
-app.use('/api/usuarios', require('./routes/usuarios.routes'));
-
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/usuarios
- */
-app.use('/api/celdas', require('./routes/celdas.routes'));
-
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/incidentes
- */
-app.use('/api/incidentes', require('./routes/incidentes.routes'));
-
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/incidentes
- */
-app.use('/api/reconocimiento', require('./routes/reconocimiento.routes'));
-/**
- * Rutas del módulo de usuarios
- * Prefijo: /api/usuarios
- */
-app.use('/api/parqueaderos', require('./routes/parqueaderos.routes'));
-app.use('/api/conductores', require('./routes/conductores.routes'));
-app.use('/api/vehivulos',require('./routes/vehiculos.routes'))
-
-app.use('/api/asignacion-celdas',require('./routes/asignacion-celdas.routes'))
-app.use ('api/reservas', require('./routes/reservaVehiculoRoutes'));
-app.use ('api/disponibilidadDeCeldas', require('./routes/disponibilidadDeCeldas.routes'));
-
-/**
- * ─────────────────────────────────────────
- * Configuración del puerto del servidor
- * ─────────────────────────────────────────
- */
+// ── Error global ───────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ message: 'Error interno del servidor' });
+});
 
 const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
 
-
-/**
- * Inicia el servidor Express
- */
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = app;

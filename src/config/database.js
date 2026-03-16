@@ -1,17 +1,20 @@
-import mysql from "mysql2/promise";
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+console.log("--- DEBUG CONEXIÓN ---");
+console.log("HOST:", process.env.DB_HOST);
+console.log("USER:", process.env.DB_USER);
+console.log("----------------------");
 
-/**
- * Conexión a la base de datos MySQL en Railway
- */
-const connection = mysql.createPool({
-  host: "yamanote.proxy.rlwy.net",
-  user: "root",
-  password: "sWNIubZJgnAUuljneIDxWBdwemgfdTSe",
-  database: "railway",
-  port: 28484,
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  connectTimeout: 20000 // 20 segundos de espera
 });
 
-export default connection;
+module.exports = pool;

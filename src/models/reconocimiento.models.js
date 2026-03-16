@@ -1,63 +1,41 @@
 /**
- * @module reconocimientoModel
+ * @module ReconocimientoModel
  * @description
- * Modelo que representa un registro de reconocimiento automático
- * de placas de vehículos dentro del sistema de parqueaderos.
- *
- * Este modelo se utiliza para almacenar las placas detectadas por
- * cámaras de reconocimiento instaladas en los accesos del parqueadero.
+ * Clase que representa la entidad EntradaSalida dentro del sistema ParkU.
+ * Modela el registro generado por el sistema de cámaras al detectar un vehículo.
  */
 
-/**
- * Representa un reconocimiento de placa
- *
- * @class Reconocimiento
- */
 class Reconocimiento {
-
   /**
-   * Crea una nueva instancia de reconocimiento de placa
-   *
-   * @constructor
-   *
-   * @param {number} id - Identificador único del reconocimiento
-   * @param {string} placa - Placa del vehículo detectado
-   * @param {string} camara - Nombre o ubicación de la cámara que detectó la placa
-   * @param {number} confianza - Nivel de confianza del reconocimiento (0 a 1)
-   * @param {Date} fecha_hora - Fecha y hora en que se detectó la placa
+   * @param {number} id - Identificador único (id en SQL)
+   * @param {number} vehiculo - ID del vehículo detectado (FK)
+   * @param {string} fecha_hora - Marca de tiempo del evento (TIMESTAMP)
+   * @param {string} tipo - Tipo de evento ('Entrada' o 'Salida')
+   * @param {string} evidencia - Información adicional (URL imagen, cámara, confianza)
    */
-  constructor(id, placa, camara, confianza, fecha_hora = new Date()) {
+  constructor(id, vehiculo, fecha_hora, tipo, evidencia) {
+    
+    /** @type {number} */
+    this.id = id; // Cambiado de id_reconocimiento a id para cumplir con el SQL
 
-    /**
-     * ID del reconocimiento
-     * @type {number}
+    /** * @type {number} 
+     * Representa la relación con la tabla 'vehiculo'
      */
-    this.id_reconocimiento = id;
+    this.vehiculo = vehiculo;
 
-    /**
-     * Placa detectada
-     * @type {string}
-     */
-    this.placa = placa;
-
-    /**
-     * Cámara que realizó el reconocimiento
-     * @type {string}
-     */
-    this.camara = camara;
-
-    /**
-     * Nivel de confianza del reconocimiento
-     * Valor entre 0 y 1
-     * @type {number}
-     */
-    this.confianza = confianza;
-
-    /**
-     * Fecha y hora del reconocimiento
-     * @type {Date}
-     */
+    /** @type {string} */
     this.fecha_hora = fecha_hora;
+
+    /** * @type {string} 
+     * Según SQL: ENUM('Entrada', 'Salida')
+     */
+    this.tipo = tipo;
+
+    /** * @type {string} 
+     * Aquí puedes guardar un JSON con {camara: "Acceso A", confianza: 0.98} 
+     * o la URL de la foto de la placa.
+     */
+    this.evidencia = evidencia;
   }
 }
 

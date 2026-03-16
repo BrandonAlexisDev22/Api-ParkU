@@ -1,11 +1,18 @@
 import connection from "./database.js";
+import dotenv from 'dotenv';
+dotenv.config(); // Forzar carga en el test también
 
 async function test() {
   try {
-    const [rows] = await connection.query("SELECT 1");
-    console.log("Conexion exitosa a Railway");
+    // Debug: Esto te mostrará si las variables se están leyendo
+    console.log("Datos de conexión detectados:");
+    console.log("- Host:", process.env.DB_HOST || "VACIÓ");
+    console.log("- User:", process.env.DB_USER || "VACIÓ");
+
+    const [rows] = await connection.query("SELECT 1 + 1 AS result");
+    console.log("¡Conexión exitosa a Railway!", rows);
   } catch (error) {
-    console.error("Error de conexion:", error);
+    console.error("Error de conexión:", error.message);
   }
 }
 

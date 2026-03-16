@@ -2,30 +2,29 @@
  * @module PermisoModel
  * @description
  * Clase que representa la entidad Permiso dentro del sistema ParkU.
- * Modela la estructura de un permiso en la aplicación.
- */
-
-/**
- * Representa un permiso dentro del sistema.
- *
- * @class Permiso
- *
- * @param {number} id_permiso - Identificador único del permiso
- * @param {string} nombre_permiso - Nombre del permiso
- * @param {string} modulo - Módulo al que pertenece el permiso
- * @param {boolean} [estado=true] - Estado del permiso (activo o inactivo)
+ * Sincronizada con la tabla 'permiso' de la base de datos en Railway.
  */
 
 class Permiso {
+  /**
+   * @param {number} id - Identificador único (id en SQL)
+   * @param {string} nombre - Nombre del permiso (nombre en SQL)
+   * @param {string} [modulo] - Módulo asociado (Opcional, si se maneja en la lógica)
+   */
+  constructor(id, nombre, modulo = null) {
+    
+    /** @type {number} */
+    this.id = id; // En SQL es 'id'
 
-    constructor(id_permiso, nombre_permiso, modulo, estado = true) {
-        this.id_permiso = id_permiso;
-        this.nombre_permiso = nombre_permiso;
-        this.modulo = modulo;
-        this.estado = estado;
-    }
+    /** @type {string} */
+    this.nombre = nombre; // En SQL es 'nombre'
 
+    /** * @type {string|null} 
+     * Nota: Si tu tabla SQL no tiene columna 'modulo', 
+     * este campo se usará solo en la lógica de la App.
+     */
+    this.modulo = modulo;
+  }
 }
 
 module.exports = Permiso;
-
