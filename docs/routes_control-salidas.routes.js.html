@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: novedadModel</title>
+    <title>JSDoc: Source: routes/control-salidas.routes.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,142 +17,83 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: novedadModel</h1>
+    <h1 class="page-title">Source: routes/control-salidas.routes.js</h1>
 
     
 
 
 
-
-<section>
-
-<header>
     
-        
-            
-        
-    
-</header>
-
-<article>
-    <div class="container-overview">
-    
-        
-            <div class="description">Modelo que representa una novedad registrada dentro del sistemade gestión de parqueaderos.Una novedad permite registrar situaciones o eventos que ocurrendentro del parqueadero, tales como:- Vehículo mal estacionado- Daños en una celda- Problemas de seguridad- Bloqueo de espacios- Reportes administrativos</div>
-        
-
-        
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line1">line 1</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="module-novedadModel-Novedad.html">Novedad</a></dt>
-            <dd></dd>
-        
-            <dt><a href="module-novedadModel-Novedad.html">Novedad</a></dt>
-            <dd></dd>
-        </dl>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</article>
-
-</section>
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module reportesRoutes
+ * @description
+ * Define las rutas HTTP relacionadas con los reportes del sistema.
+ */
+
+const express = require("express");
+const router = express.Router();
+
+const reportesController = require("../controllers/reportesController");
+
+
+/**
+ * Ruta para generar un nuevo reporte
+ *
+ * @name GenerarReporte
+ * @route {POST} /reportes
+ * @memberof module:reportesRoutes
+ * @param {Object} req.body - Datos del reporte
+ * @param {number} req.body.total_vehiculos_ingresados
+ * @param {number} req.body.total_vehiculos_salidos
+ * @param {number} req.body.celdas_ocupadas
+ * @param {number} req.body.celdas_disponibles
+ * @param {string} req.body.fecha_reporte
+ * @returns {Object} Reporte generado
+ */
+router.post("/reportes", reportesController.generarReporte);
+
+
+/**
+ * Ruta para listar todos los reportes
+ *
+ * @name ListarReportes
+ * @route {GET} /reportes
+ * @memberof module:reportesRoutes
+ * @returns {Array&lt;Object>} Lista de reportes
+ */
+router.get("/reportes", reportesController.listarReportes);
+
+
+/**
+ * Ruta para obtener un reporte por ID
+ *
+ * @name ObtenerReportePorId
+ * @route {GET} /reportes/:id
+ * @memberof module:reportesRoutes
+ * @param {number} req.params.id - ID del reporte
+ * @returns {Object} Reporte encontrado
+ */
+router.get("/reportes/:id", reportesController.obtenerReportePorId);
+
+
+/**
+ * Ruta para actualizar un reporte
+ *
+ * @name EditarReporte
+ * @route {PUT} /reportes/:id
+ * @memberof module:reportesRoutes
+ * @param {number} req.params.id - ID del reporte
+ * @param {Object} req.body - Datos nuevos del reporte
+ * @returns {Object} Reporte actualizado
+ */
+router.put("/reportes/:id", reportesController.editarReporte);
+
+
+module.exports = router;</code></pre>
+        </article>
+    </section>
 
 
 

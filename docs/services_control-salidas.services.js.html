@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: novedadModel</title>
+    <title>JSDoc: Source: services/control-salidas.services.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,142 +17,96 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: novedadModel</h1>
+    <h1 class="page-title">Source: services/control-salidas.services.js</h1>
 
     
 
 
 
-
-<section>
-
-<header>
     
-        
-            
-        
-    
-</header>
-
-<article>
-    <div class="container-overview">
-    
-        
-            <div class="description">Modelo que representa una novedad registrada dentro del sistemade gestión de parqueaderos.Una novedad permite registrar situaciones o eventos que ocurrendentro del parqueadero, tales como:- Vehículo mal estacionado- Daños en una celda- Problemas de seguridad- Bloqueo de espacios- Reportes administrativos</div>
-        
-
-        
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_novedades.models.js.html">models/novedades.models.js</a>, <a href="models_novedades.models.js.html#line1">line 1</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="module-novedadModel-Novedad.html">Novedad</a></dt>
-            <dd></dd>
-        
-            <dt><a href="module-novedadModel-Novedad.html">Novedad</a></dt>
-            <dd></dd>
-        </dl>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</article>
-
-</section>
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module reportesService
+ * @description
+ * Service encargado de manejar la lógica de negocio
+ * relacionada con los reportes del sistema.
+ */
+
+const reportesRepository = require("../repositories/asignacion-celdas.repository");
+
+
+/**
+ * Genera un nuevo reporte
+ * 
+ * @param {Object} reporteData
+ * @returns {Object}
+ */
+const generarReporte = (reporteData) => {
+
+    if(!reporteData){
+        throw new Error("Los datos del reporte son obligatorios");
+    }
+
+    return reportesRepository.generarReporte(reporteData);
+};
+
+
+/**
+ * Obtiene todos los reportes
+ * 
+ * @returns {Array&lt;Object>}
+ */
+const getAll= () => {
+    return reportesRepository.getAll();
+};
+
+
+/**
+ * Obtiene un reporte por ID
+ * 
+ * @param {number} id
+ * @returns {Object}
+ */
+const obtenerReportePorId = (id) => {
+
+    const reporte = reportesRepository.consultarReporte(id);
+
+    if(!reporte){
+        throw new Error("Reporte no encontrado");
+    }
+
+    return reporte;
+};
+
+
+/**
+ * Edita un reporte
+ * 
+ * @param {number} id
+ * @param {Object} reporteData
+ * @returns {Object}
+ */
+const editarReporte = (id, reporteData) => {
+
+    const reporteActualizado = reportesRepository.editReporte(id, reporteData);
+
+    if(!reporteActualizado){
+        throw new Error("No se pudo actualizar el reporte");
+    }
+
+    return reporteActualizado;
+};
+
+
+module.exports = {
+    generarReporte,
+    getAll,
+    obtenerReportePorId,
+    editarReporte
+};</code></pre>
+        </article>
+    </section>
 
 
 

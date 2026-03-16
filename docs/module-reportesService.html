@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: VehiculoService</title>
+    <title>JSDoc: Module: reportesService</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: VehiculoService</h1>
+    <h1 class="page-title">Module: reportesService</h1>
 
     
 
@@ -38,7 +38,7 @@
     <div class="container-overview">
     
         
-            <div class="description">Servicio encargado de manejar la lógica de negociorelacionada con los vehículos dentro del sistema.</div>
+            <div class="description">Service encargado de manejar la lógica de negociorelacionada con los reportes del sistema.</div>
         
 
         
@@ -87,7 +87,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_vehiculos.services.js.html">services/vehiculos.services.js</a>, <a href="services_vehiculos.services.js.html#line1">line 1</a>
+        <a href="services_control-salidas.services.js.html">services/control-salidas.services.js</a>, <a href="services_control-salidas.services.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -144,7 +144,7 @@
     
 
     
-    <h4 class="name" id="~createVehiculo"><span class="type-signature">(inner) </span>createVehiculo<span class="signature">(data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id="~editarReporte"><span class="type-signature">(inner) </span>editarReporte<span class="signature">(id, reporteData)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -152,359 +152,7 @@
 
 
 <div class="description">
-    Crea un nuevo vehículo en el sistema.
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>data</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Datos del vehículo
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>placa</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Placa del vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>tipoVehiculo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Tipo de vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>marca</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Marca del vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>modelo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Modelo del vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>color</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Color del vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>id_conductor</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">ID del conductor asociado</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_vehiculos.services.js.html">services/vehiculos.services.js</a>, <a href="services_vehiculos.services.js.html#line10">line 10</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Throws:</h5>
-
-        
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el vehículo ya existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-
-    
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Vehículo creado
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="~deleteVehiculoById"><span class="type-signature">(inner) </span>deleteVehiculoById<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Elimina un vehículo por su ID.
+    Edita un reporte
 </div>
 
 
@@ -556,7 +204,30 @@
 
             
 
-            <td class="description last">ID del vehículo</td>
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>reporteData</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
         </tr>
 
     
@@ -597,7 +268,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_vehiculos.services.js.html">services/vehiculos.services.js</a>, <a href="services_vehiculos.services.js.html#line70">line 70</a>
+        <a href="services_control-salidas.services.js.html">services/control-salidas.services.js</a>, <a href="services_control-salidas.services.js.html#line62">line 62</a>
     </li></ul></dd>
     
 
@@ -620,44 +291,11 @@
 
 
 
-<h5>Throws:</h5>
-
-        
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el vehículo no existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-
-    
 
 
 <h5>Returns:</h5>
 
         
-<div class="param-desc">
-    Vehículo eliminado
-</div>
-
 
 
 <dl>
@@ -684,7 +322,7 @@
     
 
     
-    <h4 class="name" id="~editVehiculo"><span class="type-signature">(inner) </span>editVehiculo<span class="signature">(id, data)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id="~generarReporte"><span class="type-signature">(inner) </span>generarReporte<span class="signature">(reporteData)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
 
     
@@ -692,7 +330,7 @@
 
 
 <div class="description">
-    Edita un vehículo existente.
+    Genera un nuevo reporte
 </div>
 
 
@@ -728,30 +366,7 @@
 
         <tr>
             
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">ID del vehículo</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>data</code></td>
+                <td class="name"><code>reporteData</code></td>
             
 
             <td class="type">
@@ -767,7 +382,7 @@
 
             
 
-            <td class="description last">Datos del vehículo a actualizar</td>
+            <td class="description last"></td>
         </tr>
 
     
@@ -808,7 +423,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_vehiculos.services.js.html">services/vehiculos.services.js</a>, <a href="services_vehiculos.services.js.html#line43">line 43</a>
+        <a href="services_control-salidas.services.js.html">services/control-salidas.services.js</a>, <a href="services_control-salidas.services.js.html#line17">line 17</a>
     </li></ul></dd>
     
 
@@ -831,71 +446,11 @@
 
 
 
-<h5>Throws:</h5>
-<ul>
-        <li>
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si el vehículo no existe
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-</li>
-    
-        <li>
-
-<dl>
-    <dt>
-        <div class="param-desc">
-        Si ya existe otro vehículo con la misma placa
-        </div>
-    </dt>
-    <dd></dd>
-    <dt>
-        <dl>
-            <dt>
-                Type
-            </dt>
-            <dd>
-                
-<span class="param-type">Error</span>
-
-
-            </dd>
-        </dl>
-    </dt>
-    <dd></dd>
-</dl>
-
-</li>
-    </ul>
 
 
 <h5>Returns:</h5>
 
         
-<div class="param-desc">
-    Vehículo actualizado
-</div>
-
 
 
 <dl>
@@ -922,7 +477,7 @@
     
 
     
-    <h4 class="name" id="~getVehiculos"><span class="type-signature">(inner) </span>getVehiculos<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
+    <h4 class="name" id="~getAll"><span class="type-signature">(inner) </span>getAll<span class="signature">()</span><span class="type-signature"> &rarr; {Array.&lt;Object>}</span></h4>
     
 
     
@@ -930,7 +485,7 @@
 
 
 <div class="description">
-    Obtiene todos los vehículos registrados.
+    Obtiene todos los reportes
 </div>
 
 
@@ -974,7 +529,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_vehiculos.services.js.html">services/vehiculos.services.js</a>, <a href="services_vehiculos.services.js.html#line35">line 35</a>
+        <a href="services_control-salidas.services.js.html">services/control-salidas.services.js</a>, <a href="services_control-salidas.services.js.html#line32">line 32</a>
     </li></ul></dd>
     
 
@@ -1002,10 +557,6 @@
 <h5>Returns:</h5>
 
         
-<div class="param-desc">
-    Lista de vehículos
-</div>
-
 
 
 <dl>
@@ -1015,6 +566,161 @@
     <dd>
         
 <span class="param-type">Array.&lt;Object></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="~obtenerReportePorId"><span class="type-signature">(inner) </span>obtenerReportePorId<span class="signature">(id)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Obtiene un reporte por ID
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="services_control-salidas.services.js.html">services/control-salidas.services.js</a>, <a href="services_control-salidas.services.js.html#line43">line 43</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
 
 
     </dd>
