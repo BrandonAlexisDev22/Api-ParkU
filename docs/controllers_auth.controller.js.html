@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: VehiculoModel</title>
+    <title>JSDoc: Source: controllers/auth.controller.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,140 +17,223 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: VehiculoModel</h1>
+    <h1 class="page-title">Source: controllers/auth.controller.js</h1>
 
     
 
 
 
-
-<section>
-
-<header>
     
-        
-            
-        
-    
-</header>
-
-<article>
-    <div class="container-overview">
-    
-        
-            <div class="description">Clase que representa la entidad Vehículo dentro del sistema ParkU.
-Sincronizada con la tabla 'vehiculo' de la base de datos parku.sql.</div>
-        
-
-        
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_vehiculos.models.js.html">models/vehiculos.models.js</a>, <a href="models_vehiculos.models.js.html#line1">line 1</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Classes</h3>
-
-        <dl>
-            <dt><a href="module-VehiculoModel-Vehiculo.html">Vehiculo</a></dt>
-            <dd></dd>
-        </dl>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</article>
-
-</section>
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @module AuthController
+ * @description Controlador de autenticación y autorización
+ */
+
+const usuarioSvc = require('../services/usuario.service');
+const { generarToken } = require('../middleware/auth.middleware');
+const { handleError } = require('../helpers/errorHandler');
+
+/**
+ * Registro de nuevo usuario
+ * @swagger
+ * /api/auth/registro:
+ *   post:
+ *     summary: Registrar nuevo usuario
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - correo
+ *               - contrasena
+ *               - nombre
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *               contrasena:
+ *                 type: string
+ *                 minLength: 6
+ *               nombre:
+ *                 type: string
+ *               numero:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Usuario creado exitosamente
+ *       400:
+ *         description: Validación fallida
+ *       409:
+ *         description: El correo ya está registrado
+ */
+const registro = async (req, res) => {
+  try {
+    const { correo, contrasena, nombre, numero } = req.body;
+
+    // Validaciones básicas
+    if (!correo || !contrasena || !nombre) {
+      return res.status(400).json({
+        status: 400,
+        message: 'Correo, contraseña y nombre son requeridos'
+      });
+    }
+
+    if (contrasena.length &lt; 6) {
+      return res.status(400).json({
+        status: 400,
+        message: 'La contraseña debe tener al menos 6 caracteres'
+      });
+    }
+
+    // Crear usuario
+    const usuario = await usuarioSvc.create({
+      correo,
+      contrasena,
+      nombre,
+      numero,
+      rol: 2 // rol por defecto (conductor/usuario)
+    });
+
+    // Generar token
+    const token = generarToken(usuario);
+
+    res.status(201).json({
+      status: 201,
+      message: 'Usuario registrado exitosamente',
+      data: {
+        usuario,
+        token
+      }
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+/**
+ * Inicio de sesión
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Iniciar sesión
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - correo
+ *               - contrasena
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *               contrasena:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 usuario:
+ *                   type: object
+ *       401:
+ *         description: Credenciales inválidas
+ */
+const login = async (req, res) => {
+  try {
+    const { correo, contrasena } = req.body;
+
+    if (!correo || !contrasena) {
+      return res.status(400).json({
+        status: 400,
+        message: 'Correo y contraseña son requeridos'
+      });
+    }
+
+    const usuarioData = await usuarioSvc.login(correo, contrasena);
+    const token = generarToken(usuarioData);
+
+    res.json({
+      status: 200,
+      message: 'Login exitoso',
+      data: {
+        usuario: usuarioData,
+        token
+      }
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+/**
+ * Verificar token actual
+ * @swagger
+ * /api/auth/verificar:
+ *   get:
+ *     summary: Verificar token actual
+ *     tags: [Autenticación]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token válido
+ */
+const verificar = (req, res) => {
+  res.json({
+    status: 200,
+    message: 'Token válido',
+    data: req.usuario
+  });
+};
+
+/**
+ * Renovar token
+ * @swagger
+ * /api/auth/renovar:
+ *   post:
+ *     summary: Renovar token de acceso
+ *     tags: [Autenticación]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token renovado exitosamente
+ */
+const renovarToken = (req, res) => {
+  try {
+    const token = generarToken(req.usuario);
+    res.json({
+      status: 200,
+      message: 'Token renovado exitosamente',
+      data: { token }
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+module.exports = {
+  registro,
+  login,
+  verificar,
+  renovarToken
+};</code></pre>
+        </article>
+    </section>
 
 
 

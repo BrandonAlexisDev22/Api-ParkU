@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: Conductor</title>
+    <title>JSDoc: Class: Reconocimiento</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: Conductor</h1>
+    <h1 class="page-title">Class: Reconocimiento</h1>
 
     
 
@@ -29,7 +29,7 @@
 <header>
     
         <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-ConductorModel.html">ConductorModel</a>~</span>Conductor<span class="signature">(id, nombre, apellido, numeroDocumento, tipoDocumento, telefono, correo)</span><span class="type-signature"></span></h2>
+            <span class="ancestors"><a href="module-ReconocimientoModel.html">ReconocimientoModel</a>~</span>Reconocimiento<span class="signature">(id, vehiculo, fecha_hora, tipo, evidencia)</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -42,16 +42,12 @@
     
 
     
-    <h4 class="name" id="Conductor"><span class="type-signature"></span>new Conductor<span class="signature">(id, nombre, apellido, numeroDocumento, tipoDocumento, telefono, correo)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="Reconocimiento"><span class="type-signature"></span>new Reconocimiento<span class="signature">(id, vehiculo, fecha_hora, tipo, evidencia)</span><span class="type-signature"></span></h4>
     
 
     
 
 
-
-<div class="description">
-    Representa un conductor dentro del sistema.
-</div>
 
 
 
@@ -102,14 +98,37 @@
 
             
 
-            <td class="description last">Identificador único del conductor</td>
+            <td class="description last">Identificador único (id en SQL)</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>nombre</code></td>
+                <td class="name"><code>vehiculo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">ID del vehículo detectado (FK)</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>fecha_hora</code></td>
             
 
             <td class="type">
@@ -125,14 +144,14 @@
 
             
 
-            <td class="description last">Nombre del conductor</td>
+            <td class="description last">Marca de tiempo del evento (TIMESTAMP)</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>apellido</code></td>
+                <td class="name"><code>tipo</code></td>
             
 
             <td class="type">
@@ -148,14 +167,14 @@
 
             
 
-            <td class="description last">Apellido del conductor</td>
+            <td class="description last">Tipo de evento ('Entrada' o 'Salida')</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>numeroDocumento</code></td>
+                <td class="name"><code>evidencia</code></td>
             
 
             <td class="type">
@@ -171,76 +190,7 @@
 
             
 
-            <td class="description last">Número de documento del conductor</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>tipoDocumento</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Tipo de documento (CC, CE, PAS, etc.)</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>telefono</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Número de teléfono del conductor</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>correo</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Correo electrónico del conductor</td>
+            <td class="description last">Información adicional (URL imagen, cámara, confianza)</td>
         </tr>
 
     
@@ -281,7 +231,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line8">line 8</a>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line16">line 16</a>
     </li></ul></dd>
     
 
@@ -331,7 +281,79 @@
 
         
             
-<h4 class="name" id="apellido"><span class="type-signature"></span>apellido<span class="type-signature"> :string</span></h4>
+<h4 class="name" id="evidencia"><span class="type-signature"></span>evidencia<span class="type-signature"> :string</span></h4>
+
+
+
+
+<div class="description">
+    Aquí puedes guardar un JSON con {camara: "Acceso A", confianza: 0.98} o la URL de la foto de la placa.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">string</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line38">line 38</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="fecha_hora"><span class="type-signature"></span>fecha_hora<span class="type-signature"> :string</span></h4>
 
 
 
@@ -381,7 +403,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line32">line 32</a>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -399,75 +421,7 @@
 
         
             
-<h4 class="name" id="correo"><span class="type-signature"></span>correo<span class="type-signature"> :string</span></h4>
-
-
-
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line44">line 44</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="id_conductor"><span class="type-signature"></span>id_conductor<span class="type-signature"> :number</span></h4>
+<h4 class="name" id="id"><span class="type-signature"></span>id<span class="type-signature"> :number</span></h4>
 
 
 
@@ -517,7 +471,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line26">line 26</a>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line19">line 19</a>
     </li></ul></dd>
     
 
@@ -535,10 +489,14 @@
 
         
             
-<h4 class="name" id="nombre"><span class="type-signature"></span>nombre<span class="type-signature"> :string</span></h4>
+<h4 class="name" id="tipo"><span class="type-signature"></span>tipo<span class="type-signature"> :string</span></h4>
 
 
 
+
+<div class="description">
+    Según SQL: ENUM('Entrada', 'Salida')
+</div>
 
 
 
@@ -585,7 +543,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line29">line 29</a>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line32">line 32</a>
     </li></ul></dd>
     
 
@@ -603,10 +561,14 @@
 
         
             
-<h4 class="name" id="numeroDocumento"><span class="type-signature"></span>numeroDocumento<span class="type-signature"> :string</span></h4>
+<h4 class="name" id="vehiculo"><span class="type-signature"></span>vehiculo<span class="type-signature"> :number</span></h4>
 
 
 
+
+<div class="description">
+    Representa la relación con la tabla 'vehiculo'
+</div>
 
 
 
@@ -614,7 +576,7 @@
     <ul>
         <li>
             
-<span class="param-type">string</span>
+<span class="param-type">number</span>
 
 
         </li>
@@ -653,143 +615,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line35">line 35</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="telefono"><span class="type-signature"></span>telefono<span class="type-signature"> :string</span></h4>
-
-
-
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line41">line 41</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="tipoDocumento"><span class="type-signature"></span>tipoDocumento<span class="type-signature"> :string</span></h4>
-
-
-
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">string</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="models_conductores.models.js.html">models/conductores.models.js</a>, <a href="models_conductores.models.js.html#line38">line 38</a>
+        <a href="models_reconocimiento.models.js.html">models/reconocimiento.models.js</a>, <a href="models_reconocimiento.models.js.html#line24">line 24</a>
     </li></ul></dd>
     
 
