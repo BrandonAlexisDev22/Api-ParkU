@@ -15,7 +15,7 @@ class Usuario {
    * @param {number} rol - ID del rol asociado (rol en SQL)
    * @param {number} [estado=1] - Estado (1: activo, 0: inactivo)
    */
-  constructor(id, nombre, correo, contrasena, numero, rol, estado = 1) {
+  constructor(id, nombre, correo, contrasena, numero, rol, estado = 1, tipoDocumento, perfil,licencia ) {
     
     /** @type {number} */
     this.id = id; // Cambiado de id_usuario a id
@@ -37,6 +37,15 @@ class Usuario {
 
     /** @type {number} */
     this.estado = estado; 
+
+    /** @type {tipoDocumento} */
+    this.tipoDocumento = tipoDocumento
+
+    /**  @type {licencia}*/ 
+    this.licencia = licencia;
+
+    /** @type {perfil} */
+    this.perfil = perfil;
   }
 }
 
