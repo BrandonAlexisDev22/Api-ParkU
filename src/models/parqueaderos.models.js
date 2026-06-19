@@ -2,33 +2,57 @@
  * @module ParqueaderoModel
  * @description
  * Clase que representa la entidad Parqueadero dentro del sistema ParkU.
- * Sincronizada con la tabla 'parqueadero' de la base de datos en Railway.
+ * Sincronizada con la tabla 'parqueadero' de la base de datos.
  */
 
 class Parqueadero {
+
   /**
-   * @param {number} id - Identificador único (id en SQL)
-   * @param {string} nombre - Nombre de la sede
-   * @param {string} direccion - Dirección física
-   * @param {number} capacidad - Capacidad máxima (capacidad en SQL)
-   * @param {number|boolean} estado - Estado (1 para activo, 0 para inactivo)
+   * @param {number} id - Identificador único del parqueadero
+   * @param {string} nombre - Nombre del parqueadero
+   * @param {string|null} ubicacion - Ubicación física del parqueadero
+   * @param {number} celdas_totales - Total de celdas disponibles
+   * @param {number} celdas_movilidad_reducida - Total de celdas para movilidad reducida
+   * @param {number} celdas_motos - Total de celdas para motos
+   * @param {number} celdas_carros - Total de celdas para carros
+   * @param {boolean} estado - Estado del parqueadero
    */
-  constructor(id, nombre, direccion, capacidad, estado = 1) {
-    
+  constructor(
+    id,
+    nombre,
+    ubicacion,
+    celdas_totales,
+    celdas_movilidad_reducida,
+    celdas_motos,
+    celdas_carros,
+    estado = true
+  ) {
+
     /** @type {number} */
     this.id = id;
 
     /** @type {string} */
     this.nombre = nombre;
 
-    /** @type {string} */
-    this.direccion = direccion;
+    /** @type {string|null} */
+    this.ubicacion = ubicacion;
 
     /** @type {number} */
-    this.capacidad = capacidad;
+    this.celdas_totales = celdas_totales;
 
-    /** * @type {number} 
-     * En MySQL solemos usar TINYINT (0 o 1) para representar booleanos.
+    /** @type {number} */
+    this.celdas_movilidad_reducida = celdas_movilidad_reducida;
+
+    /** @type {number} */
+    this.celdas_motos = celdas_motos;
+
+    /** @type {number} */
+    this.celdas_carros = celdas_carros;
+
+    /**
+     * TRUE = Activo
+     * FALSE = Inactivo
+     * @type {boolean}
      */
     this.estado = estado;
   }

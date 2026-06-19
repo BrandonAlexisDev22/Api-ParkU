@@ -2,47 +2,68 @@
  * @module ConductorModel
  * @description
  * Clase que representa la entidad Conductor dentro del sistema ParkU.
- * Modela la estructura de un conductor en la aplicación.
- */
-
-/**
- * Representa un conductor dentro del sistema.
- *
- * @class Conductor
- *
- * @param {number} id - Identificador único del conductor
- * @param {string} nombre - Nombre del conductor
- * @param {string} apellido - Apellido del conductor
- * @param {string} numeroDocumento - Número de documento del conductor
- * @param {string} tipoDocumento - Tipo de documento (CC, CE, PAS, etc.)
- * @param {string} telefono - Número de teléfono del conductor
- * @param {string} correo - Correo electrónico del conductor
+ * Sincronizada con la tabla 'conductor' de la base de datos.
  */
 
 class Conductor {
-    constructor(id_conductor, nombre, apellido, numeroDocumento, tipoDocumento, telefono, correo) {
 
-        /** @type {number} */
-        this.id_conductor = id_conductor
+  /**
+   * @param {number} id - Identificador único del conductor
+   * @param {string} nombre - Nombre completo del conductor
+   * @param {string} tipo_documento - Tipo de documento (CC, CE, PAS, etc.)
+   * @param {number} documento - Número de documento
+   * @param {string|null} licencia - Número de licencia de conducción
+   * @param {string|null} correo - Correo electrónico
+   * @param {string|null} numero - Número telefónico
+   * @param {number} perfil - ID del perfil asociado
+   * @param {boolean} estado - Estado del conductor
+   */
+  constructor(
+    id,
+    nombre,
+    tipo_documento,
+    documento,
+    licencia,
+    correo,
+    numero,
+    perfil,
+    estado = true
+  ) {
 
-        /** @type {string} */
-        this.nombre = nombre
+    /** @type {number} */
+    this.id = id;
 
-        /** @type {string} */
-        this.apellido = apellido
+    /** @type {string} */
+    this.nombre = nombre;
 
-        /** @type {string} */
-        this.numeroDocumento = numeroDocumento
+    /** @type {string} */
+    this.tipo_documento = tipo_documento;
 
-        /** @type {string} */
-        this.tipoDocumento = tipoDocumento
+    /** @type {number} */
+    this.documento = documento;
 
-        /** @type {string} */
-        this.telefono = telefono
+    /** @type {string|null} */
+    this.licencia = licencia;
 
-        /** @type {string} */
-        this.correo = correo
-    }
+    /** @type {string|null} */
+    this.correo = correo;
+
+    /** @type {string|null} */
+    this.numero = numero;
+
+    /**
+     * Referencia a perfil.id
+     * @type {number}
+     */
+    this.perfil = perfil;
+
+    /**
+     * TRUE = Activo
+     * FALSE = Inactivo
+     * @type {boolean}
+     */
+    this.estado = estado;
+  }
 }
 
 module.exports = Conductor;

@@ -31,7 +31,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    console.log(`Servidor corriendo en puerto ${PORT}`);
     swaggerDocs(app, PORT); // <--- ESTA LÍNEA GENERA LA DOCUMENTACIÓN
 });
 

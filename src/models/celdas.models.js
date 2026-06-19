@@ -1,64 +1,71 @@
 /**
- * @module celdaModel
+ * @module CeldaModel
  * @description
- * Modelo que representa una celda dentro de un parqueadero.
- *
- * Una celda es un espacio individual donde puede estacionarse
- * un vehículo dentro de un parqueadero.
- *
- * Este modelo define la estructura de los datos utilizados
- * en el sistema para gestionar las celdas.
+ * Clase que representa una celda dentro del sistema ParkU.
+ * Sincronizada con la tabla 'celda' de la base de datos.
  */
 
 class Celda {
 
   /**
-   * Crear una nueva instancia de Celda
-   *
-   * @constructor
-   *
-   * @param {Object} data - Datos de la celda
-   * @param {number} data.id_celda - Identificador único de la celda
-   * @param {string} data.numero - Número o código de la celda
-   * @param {string} data.tipo - Tipo de celda (carro, moto, discapacitado)
-   * @param {string} data.estado - Estado de la celda (libre, ocupada, reservada)
-   * @param {number} data.id_parqueadero - ID del parqueadero al que pertenece
+   * @param {number} id - Identificador único de la celda
+   * @param {number} parqueadero - ID del parqueadero al que pertenece
+   * @param {string} tipo - Tipo de celda
+   * @param {string} usabilidad - Nivel de uso permitido
+   * @param {string} estado_celda - Estado actual de la celda
    */
-  constructor({ id_celda, numero, tipo, estado, id_parqueadero }) {
+  constructor(
+    id,
+    parqueadero,
+    tipo,
+    usabilidad,
+    estado_celda
+  ) {
 
     /**
      * Identificador único de la celda
      * @type {number}
      */
-    this.id_celda = id_celda;
+    this.id = id;
 
     /**
-     * Número o código de la celda
-     * @type {string}
+     * ID del parqueadero asociado
+     * @type {number}
      */
-    this.numero = numero;
+    this.parqueadero = parqueadero;
 
     /**
      * Tipo de celda
-     * Ejemplo: carro, moto, discapacitado
+     * Valores:
+     * CARRO
+     * MOTO
+     * MOVILIDAD_REDUCIDA
+     * BICICLETA
      * @type {string}
      */
     this.tipo = tipo;
 
     /**
-     * Estado actual de la celda
-     * Ejemplo: libre, ocupada, reservada
+     * Usabilidad de la celda
+     * Valores:
+     * GENERAL
+     * EJECUTIVO
+     * MOVILIDAD_REDUCIDA
      * @type {string}
      */
-    this.estado = estado;
+    this.usabilidad = usabilidad;
 
     /**
-     * ID del parqueadero al que pertenece la celda
-     * @type {number}
+     * Estado actual de la celda
+     * Valores:
+     * DISPONIBLE
+     * OCUPADO
+     * MANTENIMIENTO
+     * INACTIVA
+     * @type {string}
      */
-    this.id_parqueadero = id_parqueadero;
+    this.estado_celda = estado_celda;
   }
-
 }
 
 module.exports = Celda;

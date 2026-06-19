@@ -2,53 +2,75 @@
  * @module VehiculoModel
  * @description
  * Clase que representa la entidad Vehículo dentro del sistema ParkU.
- * Sincronizada con la tabla 'vehiculo' de la base de datos parku.sql.
+ * Sincronizada con la tabla 'vehiculo' de la base de datos.
  */
 
 class Vehiculo {
+
   /**
-   * @param {number} id - Identificador único (Primary Key)
-   * @param {number} conductor - ID del conductor asociado (FK)
+   * @param {number} id - Identificador único del vehículo
+   * @param {number} conductor - ID del conductor asociado
    * @param {string} placa - Placa única del vehículo
-   * @param {string} tipo - Tipo de vehículo (ej. carro, moto)
-   * @param {string} marca - Marca del fabricante
-   * @param {string} modelo - Modelo específico
-   * @param {number} anio - Año de fabricación (YEAR en SQL)
-   * @param {string} color - Color del vehículo
-   * @param {string} descripcion - Detalles adicionales
-   * @param {number} estado - Estado lógico (1: Activo, 0: Inactivo)
+   * @param {string} tipo - Tipo de vehículo
+   * @param {string|null} marca - Marca del vehículo
+   * @param {string|null} modelo - Modelo del vehículo
+   * @param {number|null} anio - Año de fabricación
+   * @param {string|null} color - Color del vehículo
+   * @param {string|null} descripcion - Información adicional
+   * @param {boolean} estado - Estado del vehículo
    */
-  constructor(id, conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado = 1) {
-    
+  constructor(
+    id,
+    conductor,
+    placa,
+    tipo,
+    marca,
+    modelo,
+    anio,
+    color,
+    descripcion,
+    estado = true
+  ) {
+
     /** @type {number} */
     this.id = id;
 
-    /** @type {number} */
-    this.conductor = conductor; // Antes: id_conductor
+    /**
+     * Referencia a conductor.id
+     * @type {number}
+     */
+    this.conductor = conductor;
 
     /** @type {string} */
     this.placa = placa;
 
-    /** @type {string} */
-    this.tipo = tipo; // Antes: tipoVehiculo
+    /**
+     * CARRO | MOTO | BICICLETA
+     * @type {string}
+     */
+    this.tipo = tipo;
 
-    /** @type {string} */
+    /** @type {string|null} */
     this.marca = marca;
 
-    /** @type {string} */
+    /** @type {string|null} */
     this.modelo = modelo;
 
-    /** @type {number} */
-    this.anio = anio; // Nuevo campo según parku.sql
+    /** @type {number|null} */
+    this.anio = anio;
 
-    /** @type {string} */
+    /** @type {string|null} */
     this.color = color;
 
-    /** @type {string} */
-    this.descripcion = descripcion; // Nuevo campo según parku.sql
+    /** @type {string|null} */
+    this.descripcion = descripcion;
 
-    /** @type {number} */
-    this.estado = estado; // Nuevo campo según parku.sql
+    /**
+     * TRUE = Activo
+     * FALSE = Inactivo
+     * @type {boolean}
+     */
+    this.estado = estado;
   }
 }
 

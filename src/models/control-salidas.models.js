@@ -1,32 +1,63 @@
 /**
- * Representa el control de salida de un vehículo del sistema.
+ * @module IngresoSalidaModel
+ * @description
+ * Clase que representa un registro de ingreso o salida de vehículos
+ * dentro del sistema ParkU.
+ * Sincronizada con la tabla 'ingreso_salida' de la base de datos.
  */
-class ControlSalida {
+
+class IngresoSalida {
+
+  /**
+   * @param {number} id - Identificador único del registro
+   * @param {string} tipo - Tipo de movimiento (INGRESO o SALIDA)
+   * @param {number} vehiculo - ID del vehículo
+   * @param {number} celda - ID de la celda
+   * @param {string|null} descripcion - Observaciones o descripción
+   * @param {Date|string} fecha_hora - Fecha y hora del movimiento
+   */
+  constructor(
+    id,
+    tipo,
+    vehiculo,
+    celda,
+    descripcion,
+    fecha_hora
+  ) {
+
+    /** @type {number} */
+    this.id = id;
 
     /**
-     * Crea una instancia de ControlSalida.
-     * 
-     * @param {number} id_control_salida - ID del control de salida.
-     * @param {number} id_asignacion - ID de la asignación de celda.
-     * @param {number} id_vehiculo - ID del vehículo.
-     * @param {number} id_conductor - ID del conductor.
-     * @param {string} fecha_salida - Fecha en que el vehículo sale.
-     * @param {string} hora_salida - Hora en que el vehículo sale.
-     * @param {string} estado_salida - Estado de la salida (autorizado, pendiente, etc.).
-     * @param {string} observaciones - Observaciones adicionales.
+     * INGRESO | SALIDA
+     * @type {string}
      */
-    constructor(id_control_salida,id_asignacion,id_vehiculo,id_conductor,fecha_salida,hora_salida,estado_salida,observaciones
-    ) {
+    this.tipo = tipo;
 
-        this.id_control_salida = id_control_salida;
-        this.id_asignacion = id_asignacion;
-        this.id_vehiculo = id_vehiculo;
-        this.id_conductor = id_conductor;
-        this.fecha_salida = fecha_salida;
-        this.hora_salida = hora_salida;
-        this.estado_salida = estado_salida;
-        this.observaciones = observaciones;
-    }
+    /**
+     * Referencia a vehiculo.id
+     * @type {number}
+     */
+    this.vehiculo = vehiculo;
+
+    /**
+     * Referencia a celda.id
+     * @type {number}
+     */
+    this.celda = celda;
+
+    /**
+     * Observaciones del movimiento
+     * @type {string|null}
+     */
+    this.descripcion = descripcion;
+
+    /**
+     * Fecha y hora del movimiento
+     * @type {Date|string}
+     */
+    this.fecha_hora = fecha_hora;
+  }
 }
 
-module.exports = ControlSalida;
+module.exports = IngresoSalida;
