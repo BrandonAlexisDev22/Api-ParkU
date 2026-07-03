@@ -1,7 +1,7 @@
 /**
  * @module VehiculoRepository
  * @description Capa de acceso a datos para la tabla 'vehiculo'.
- * Gestiona la flota de vehículos y su relación jerárquica con conductores y usuarios.
+ * Alineado con el modelo Vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado).
  */
 
 const db = require('../config/database');
@@ -23,7 +23,7 @@ const BASE_QUERY = `
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(BASE_QUERY);
+  const [rows] = await db.query(`${BASE_QUERY} ORDER BY v.placa`);
   return rows;
 };
 
@@ -53,38 +53,60 @@ const findByPlaca = async (placa) => {
  * @returns {Promise<Array>}
  */
 const findByConductor = async (conductorId) => {
-  const [rows] = await db.query('SELECT * FROM vehiculo WHERE conductor = ?', [conductorId]);
+  const [rows] = await db.query(
+    `${BASE_QUERY} WHERE v.conductor = ? ORDER BY v.placa`,
+    [conductorId]
+  );
   return rows;
 };
 
 /**
  * Registra un nuevo vehículo en la base de datos.
- * @param {Object} data - { conductor, placa, tipo, marca, modelo, anio, color, descripcion }
+ * @param {Object} data - { conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado? }
  * @returns {Promise<Object>} El vehículo creado con los datos de su propietario.
  */
-const create = async ({ conductor, placa, tipo, marca, modelo, anio, color, descripcion }) => {
+const create = async ({ conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado = true }) => {
   const [result] = await db.query(
-    `INSERT INTO vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [conductor, placa, tipo || null, marca || null, modelo || null,
-     anio || null, color || null, descripcion || null]
+    `INSERT INTO vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      conductor,
+      placa,
+      tipo || null,
+      marca || null,
+      modelo || null,
+      anio || null,
+      color || null,
+      descripcion || null,
+      estado ? 1 : 0
+    ]
   );
   return findById(result.insertId);
 };
 
 /**
- * Actualiza la información técnica y el estado del vehículo.
+ * Actualiza parcialmente un vehículo existente.
  * @param {number} id 
- * @param {Object} data - { tipo, marca, modelo, anio, color, descripcion, estado }
+ * @param {Object} data - Campos a actualizar (todos opcionales).
  * @returns {Promise<Object>}
  */
-const update = async (id, { tipo, marca, modelo, anio, color, descripcion, estado }) => {
-  await db.query(
-    `UPDATE vehiculo SET tipo=?, marca=?, modelo=?, anio=?, color=?, descripcion=?, estado=?
-     WHERE id = ?`,
-    [tipo || null, marca || null, modelo || null, anio || null,
-     color || null, descripcion || null, estado ?? 1, id]
-  );
+const update = async (id, data) => {
+  const fields = [];
+  const values = [];
+  const allowedFields = ['conductor', 'placa', 'tipo', 'marca', 'modelo', 'anio', 'color', 'descripcion', 'estado'];
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      fields.push(`${field} = ?`);
+      // Convertir estado booleano a 0/1
+      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
+    }
+  }
+  if (fields.length === 0) {
+    return findById(id);
+  }
+  values.push(id);
+  const query = `UPDATE vehiculo SET ${fields.join(', ')} WHERE id = ?`;
+  await db.query(query, values);
   return findById(id);
 };
 

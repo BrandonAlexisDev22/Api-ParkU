@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/rolPermiso.controller');
+const ctrl = require('../controllers/rolPermiso.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
@@ -64,27 +65,25 @@ router.get('/rol/:rolId', ctrl.getByRol);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - rol
- *               - permiso
- *             properties:
- *               rol:
- *                 type: integer
- *                 description: ID del rol
- *               permiso:
- *                 type: integer
- *                 description: ID del permiso a otorgar
- *                 example: 3
+ *             $ref: '#/components/schemas/RolPermisoCreate'
  *     responses:
  *       201:
  *         description: Asignación creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/RolPermiso'
  *       400:
  *         description: Faltan campos requeridos
  *       404:
  *         description: El rol o el permiso no existen
+ *       409:
+ *         description: El permiso ya está asignado a este rol
  */
-router.post('/', ctrl.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.create
+);
 
 /**
  * @swagger
@@ -105,6 +104,9 @@ router.post('/', ctrl.create);
  *       404:
  *         description: Registro no encontrado
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

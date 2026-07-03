@@ -10,6 +10,91 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Parqueadero:
+ *       type: object
+ *       required:
+ *         - nombre
+ *         - ubicacion
+ *         - celdas_totales
+ *         - celdas_movilidad_reducida
+ *         - celdas_motos
+ *         - celdas_carros
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del parqueadero.
+ *         nombre:
+ *           type: string
+ *           description: Nombre del parqueadero.
+ *         ubicacion:
+ *           type: string
+ *           nullable: true
+ *           description: Ubicación física del parqueadero.
+ *         celdas_totales:
+ *           type: integer
+ *           description: Total de celdas disponibles.
+ *         celdas_movilidad_reducida:
+ *           type: integer
+ *           description: Total de celdas para movilidad reducida.
+ *         celdas_motos:
+ *           type: integer
+ *           description: Total de celdas para motos.
+ *         celdas_carros:
+ *           type: integer
+ *           description: Total de celdas para carros.
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *           description: Estado del parqueadero (activo/inactivo).
+ *     ParqueaderoCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *         - celdas_totales
+ *         - celdas_movilidad_reducida
+ *         - celdas_motos
+ *         - celdas_carros
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         ubicacion:
+ *           type: string
+ *           nullable: true
+ *         celdas_totales:
+ *           type: integer
+ *         celdas_movilidad_reducida:
+ *           type: integer
+ *         celdas_motos:
+ *           type: integer
+ *         celdas_carros:
+ *           type: integer
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *     ParqueaderoUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         ubicacion:
+ *           type: string
+ *           nullable: true
+ *         celdas_totales:
+ *           type: integer
+ *         celdas_movilidad_reducida:
+ *           type: integer
+ *         celdas_motos:
+ *           type: integer
+ *         celdas_carros:
+ *           type: integer
+ *         estado:
+ *           type: boolean
+ */
+
+/**
+ * @swagger
  * /parqueaderos:
  *   get:
  *     summary: Obtener todos los parqueaderos
@@ -24,9 +109,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Parqueadero'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +141,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Parqueadero no encontrado
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -68,7 +161,7 @@ const getById = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Parqueadero'
+ *             $ref: '#/components/schemas/ParqueaderoCreate'
  *     responses:
  *       201:
  *         description: Parqueadero creado exitosamente
@@ -76,17 +169,25 @@ const getById = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Parqueadero'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       409:
+ *         description: Conflicto - nombre duplicado (si aplica)
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newParking = await svc.create(req.body);
+    res.status(201).json(newParking);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /parqueaderos/{id}:
  *   put:
- *     summary: Actualizar un parqueadero por ID
+ *     summary: Actualizar un parqueadero (parcial o total)
  *     tags: [Parqueaderos]
  *     parameters:
  *       - in: path
@@ -100,7 +201,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Parqueadero'
+ *             $ref: '#/components/schemas/ParqueaderoUpdate'
  *     responses:
  *       200:
  *         description: Parqueadero actualizado
@@ -108,10 +209,20 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Parqueadero'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Parqueadero no encontrado
+ *       409:
+ *         description: Conflicto - nombre duplicado (si aplica)
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body)); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -130,35 +241,24 @@ const update = async (req, res) => {
  *     responses:
  *       204:
  *         description: Parqueadero eliminado correctamente
+ *       404:
+ *         description: Parqueadero no encontrado
+ *       409:
+ *         description: No se puede eliminar porque tiene celdas asociadas (si aplica)
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, create, update, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Parqueadero:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID del parqueadero
- *         nombre:
- *           type: string
- *           description: Nombre del parqueadero
- *         direccion:
- *           type: string
- *           description: Dirección del parqueadero
- *         capacidad:
- *           type: integer
- *           description: Número de celdas disponibles en el parqueadero
- *       required:
- *         - nombre
- *         - direccion
- *         - capacidad
- */
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+};

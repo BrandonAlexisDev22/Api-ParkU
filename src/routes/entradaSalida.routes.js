@@ -1,11 +1,69 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/entradaSalida.controller');
+const ctrl = require('../controllers/entradaSalida.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
  * tags:
  *   name: Control de Acceso
  *   description: Registro y monitoreo de movimientos (Entradas y Salidas)
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     EntradaSalida:
+ *       type: object
+ *       required:
+ *         - tipo
+ *         - vehiculo
+ *         - celda
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del registro.
+ *         tipo:
+ *           type: string
+ *           enum: [INGRESO, SALIDA]
+ *           description: Tipo de movimiento.
+ *         vehiculo:
+ *           type: integer
+ *           description: ID del vehículo.
+ *         celda:
+ *           type: integer
+ *           description: ID de la celda utilizada.
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *           description: Observaciones opcionales.
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora del movimiento.
+ *         parqueadero_nombre:
+ *           type: string
+ *           description: Nombre del parqueadero (solo en respuestas con JOIN).
+ *         vehiculo_placa:
+ *           type: string
+ *           description: Placa del vehículo (solo en respuestas con JOIN).
+ *     EntradaSalidaCreate:
+ *       type: object
+ *       required:
+ *         - vehiculo
+ *         - celda
+ *       properties:
+ *         vehiculo:
+ *           type: integer
+ *         celda:
+ *           type: integer
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Opcional, si no se envía se usa la actual.
  */
 
 /**
@@ -116,72 +174,70 @@ router.get('/:id', ctrl.getById);
  * /api/entradas-salidas/entrada:
  *   post:
  *     summary: Registra el ingreso de un vehículo
- *     description: Registra la entrada y cambia automáticamente el estado de la celda a ocupada (0)
+ *     description: Registra la entrada y cambia automáticamente el estado de la celda a OCUPADO
  *     tags: [Control de Acceso]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - celda
- *               - vehiculo
- *             properties:
- *               celda:
- *                 type: integer
- *                 description: ID de la celda
- *               vehiculo:
- *                 type: integer
- *                 description: ID del vehículo
- *               descripcion:
- *                 type: string
- *                 description: Observaciones adicionales
+ *             $ref: '#/components/schemas/EntradaSalidaCreate'
  *     responses:
  *       201:
  *         description: Entrada registrada con éxito
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EntradaSalida'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Vehículo o celda no encontrados
  *       409:
- *         description: Conflicto - La celda ya está ocupada
+ *         description: Conflicto - La celda ya está ocupada o el vehículo ya tiene una entrada activa
  */
-router.post('/entrada', ctrl.registrarEntrada);
+router.post('/entrada',
+  // verificarToken, verificarRol(['admin', 'operador']),
+  ctrl.registrarEntrada
+);
 
 /**
  * @swagger
  * /api/entradas-salidas/salida:
  *   post:
  *     summary: Registra la salida de un vehículo
- *     description: Registra la salida y libera la celda cambiándola a disponible (1)
+ *     description: Registra la salida y libera la celda cambiándola a DISPONIBLE
  *     tags: [Control de Acceso]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - celda
- *               - vehiculo
- *             properties:
- *               celda:
- *                 type: integer
- *                 description: ID de la celda
- *               vehiculo:
- *                 type: integer
- *                 description: ID del vehículo
- *               descripcion:
- *                 type: string
- *                 description: Observaciones adicionales
+ *             $ref: '#/components/schemas/EntradaSalidaCreate'
  *     responses:
  *       201:
  *         description: Salida registrada con éxito
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EntradaSalida'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Vehículo o celda no encontrados
+ *       409:
+ *         description: Conflicto - El vehículo no tiene una entrada activa
  */
-router.post('/salida', ctrl.registrarSalida);
+router.post('/salida',
+  // verificarToken, verificarRol(['admin', 'operador']),
+  ctrl.registrarSalida
+);
 
 /**
  * @swagger
  * /api/entradas-salidas/{id}:
  *   delete:
- *     summary: Elimina un registro del historial
+ *     summary: Elimina un registro del historial (uso administrativo)
  *     tags: [Control de Acceso]
  *     parameters:
  *       - in: path
@@ -191,9 +247,14 @@ router.post('/salida', ctrl.registrarSalida);
  *           type: integer
  *         description: ID del registro a eliminar
  *     responses:
- *       200:
+ *       204:
  *         description: Registro eliminado correctamente
+ *       404:
+ *         description: Registro no encontrado
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

@@ -4,8 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-const { swaggerDocs } = require('./src/config/swagger');
-const { verificarToken, verificarRol } = require('./src/middleware/auth.middleware');
+const { swaggerDocs } = require('./config/swagger');
+const { verificarToken, verificarRol } = require('./middlewares/auth.middleware');
 
 const app = express();
 
@@ -87,7 +87,7 @@ app.get('/api/salud', (req, res) => {
  *       401:
  *         description: Credenciales inválidas
  */
-app.post('/api/auth/login', require('./src/controllers/usuario.controller').login);
+app.post('/api/auth/login', require('./controllers/usuario.controller').login);
 
 /**
  * @swagger
@@ -120,7 +120,7 @@ app.post('/api/auth/login', require('./src/controllers/usuario.controller').logi
  *       409:
  *         description: El correo ya está registrado
  */
-app.post('/api/auth/registro', require('./src/controllers/usuario.controller').create);
+app.post('/api/auth/registro', require('./controllers/usuario.controller').create);
 
 // ────────────────────────────────────────────────────────────────────────────
 // ── MIDDLEWARE DE AUTENTICACIÓN (Aplica a todas las rutas siguientes) ───────
@@ -139,7 +139,7 @@ app.use(verificarToken);
  *   name: Usuarios
  *   description: Gestión de cuentas y perfiles de usuario
  */
-app.use('/api/usuarios', require('./src/routes/usuario.routes'));
+app.use('/api/usuarios', require('./routes/usuario.routes'));
 
 // ── GESTIÓN DE ROLES Y PERMISOS ──────────────────────────────────────────────
 /**
@@ -148,7 +148,7 @@ app.use('/api/usuarios', require('./src/routes/usuario.routes'));
  *   name: Roles
  *   description: Administración de roles del sistema
  */
-app.use('/api/roles', verificarRol(['admin']), require('./src/routes/rol.routes'));
+app.use('/api/roles', verificarRol(['admin']), require('./routes/rol.routes'));
 
 /**
  * @swagger
@@ -156,9 +156,9 @@ app.use('/api/roles', verificarRol(['admin']), require('./src/routes/rol.routes'
  *   name: Permisos
  *   description: Administración de permisos
  */
-app.use('/api/permisos', verificarRol(['admin']), require('./src/routes/permiso.routes'));
+app.use('/api/permisos', verificarRol(['admin']), require('./routes/permiso.routes'));
 
-app.use('/api/roles-permisos', verificarRol(['admin']), require('./src/routes/rolPermiso.routes'));
+app.use('/api/roles-permisos', verificarRol(['admin']), require('./routes/rolPermiso.routes'));
 
 // ── GESTIÓN DE PERFILES ──────────────────────────────────────────────────────
 /**
@@ -167,7 +167,7 @@ app.use('/api/roles-permisos', verificarRol(['admin']), require('./src/routes/ro
  *   name: Perfiles
  *   description: Categorías de usuario
  */
-app.use('/api/perfiles', require('./src/routes/perfil.routes'));
+app.use('/api/perfiles', require('./routes/perfil.routes'));
 
 // ── GESTIÓN DE CONDUCTORES ───────────────────────────────────────────────────
 /**
@@ -176,7 +176,7 @@ app.use('/api/perfiles', require('./src/routes/perfil.routes'));
  *   name: Conductores
  *   description: Gestión de perfiles de conductores
  */
-app.use('/api/conductores', require('./src/routes/conductor.routes'));
+app.use('/api/conductores', require('./routes/conductor.routes'));
 
 // ── GESTIÓN DE VEHÍCULOS ─────────────────────────────────────────────────────
 /**
@@ -185,7 +185,7 @@ app.use('/api/conductores', require('./src/routes/conductor.routes'));
  *   name: Vehículos
  *   description: Administración de flota de vehículos
  */
-app.use('/api/vehiculos', require('./src/routes/vehiculo.routes'));
+app.use('/api/vehiculos', require('./routes/vehiculo.routes'));
 
 // ── GESTIÓN DE PARQUEADEROS ──────────────────────────────────────────────────
 /**
@@ -194,7 +194,7 @@ app.use('/api/vehiculos', require('./src/routes/vehiculo.routes'));
  *   name: Parqueaderos
  *   description: Administración de sedes y ubicaciones
  */
-app.use('/api/parqueaderos', require('./src/routes/parqueadero.routes'));
+app.use('/api/parqueaderos', require('./routes/parqueadero.routes'));
 
 // ── GESTIÓN DE CELDAS ────────────────────────────────────────────────────────
 /**
@@ -203,7 +203,7 @@ app.use('/api/parqueaderos', require('./src/routes/parqueadero.routes'));
  *   name: Celdas
  *   description: Gestión de espacios de parqueo
  */
-app.use('/api/celdas', require('./src/routes/celda.routes'));
+app.use('/api/celdas', require('./routes/celda.routes'));
 
 // ── CONTROL DE ENTRADAS Y SALIDAS ────────────────────────────────────────────
 /**
@@ -212,7 +212,7 @@ app.use('/api/celdas', require('./src/routes/celda.routes'));
  *   name: Control de Acceso
  *   description: Registro de movimientos de vehículos
  */
-app.use('/api/entradas-salidas', require('./src/routes/entradaSalida.routes'));
+app.use('/api/entradas-salidas', require('./routes/entradaSalida.routes'));
 
 // ── GESTIÓN DE RESERVAS ──────────────────────────────────────────────────────
 /**
@@ -221,7 +221,7 @@ app.use('/api/entradas-salidas', require('./src/routes/entradaSalida.routes'));
  *   name: Reservas
  *   description: Administración de reservas de celdas
  */
-app.use('/api/reservas', require('./src/routes/reserva.routes'));
+app.use('/api/reservas', require('./routes/reserva.routes'));
 
 // ── GESTIÓN DE REPORTES ──────────────────────────────────────────────────────
 /**
@@ -230,7 +230,7 @@ app.use('/api/reservas', require('./src/routes/reserva.routes'));
  *   name: Reportes
  *   description: Registro de incidencias y novedades
  */
-app.use('/api/reportes', require('./src/routes/reporte.routes'));
+app.use('/api/reportes', require('./routes/novedades.routes'));
 
 // ────────────────────────────────────────────────────────────────────────────
 // ── DOCUMENTACIÓN SWAGGER ───────────────────────────────────────────────────
@@ -239,10 +239,7 @@ app.use('/api/reportes', require('./src/routes/reporte.routes'));
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-    swaggerDocs(app, PORT); // <--- ESTA LÍNEA GENERA LA DOCUMENTACIÓN
-
+  console.log(`Servidor corriendo en puerto ${PORT}`);
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║                    🅿️  ParkU API v1.0.0                      ║
@@ -254,7 +251,6 @@ app.listen(PORT, () => {
 ╚═══════════════════════════════════════════════════════════════╝
   `);
   swaggerDocs(app, PORT);
-
 });
 
 module.exports = app;

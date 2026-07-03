@@ -1,5 +1,6 @@
-const r = require('express').Router();
-const c = require('../controllers/rol.controller');
+const router = require('express').Router();
+const ctrl = require('../controllers/rol.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
@@ -24,7 +25,7 @@ const c = require('../controllers/rol.controller');
  *               items:
  *                 $ref: '#/components/schemas/Rol'
  */
-r.get('/', c.getAll);
+router.get('/', ctrl.getAll);
 
 /**
  * @swagger
@@ -48,7 +49,7 @@ r.get('/', c.getAll);
  *       404:
  *         description: Rol no encontrado
  */
-r.get('/:id', c.getById);
+router.get('/:id', ctrl.getById);
 
 /**
  * @swagger
@@ -61,26 +62,29 @@ r.get('/:id', c.getById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nombre
- *             properties:
- *               nombre:
- *                 type: string
- *                 example: "Operador"
+ *             $ref: '#/components/schemas/RolCreate'
  *     responses:
  *       201:
  *         description: Rol creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Rol'
+ *       400:
+ *         description: Datos inválidos o faltantes
  *       409:
  *         description: El nombre del rol ya existe
  */
-r.post('/', c.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.create
+);
 
 /**
  * @swagger
  * /api/roles/{id}:
  *   put:
- *     summary: Actualiza un rol
+ *     summary: Actualiza un rol (parcial o total)
  *     tags: [Roles]
  *     parameters:
  *       - in: path
@@ -93,15 +97,25 @@ r.post('/', c.create);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
+ *             $ref: '#/components/schemas/RolUpdate'
  *     responses:
  *       200:
  *         description: Rol actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Rol'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Rol no encontrado
+ *       409:
+ *         description: Conflicto - nombre duplicado
  */
-r.put('/:id', c.update);
+router.put('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.update
+);
 
 /**
  * @swagger
@@ -118,7 +132,14 @@ r.put('/:id', c.update);
  *     responses:
  *       204:
  *         description: Rol eliminado correctamente
+ *       404:
+ *         description: Rol no encontrado
+ *       409:
+ *         description: No se puede eliminar porque está asignado a algún usuario
  */
-r.delete('/:id', c.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
-module.exports = r;
+module.exports = router;

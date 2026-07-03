@@ -10,6 +10,71 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Celda:
+ *       type: object
+ *       required:
+ *         - parqueadero
+ *         - tipo
+ *         - usabilidad
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental de la celda.
+ *         parqueadero:
+ *           type: integer
+ *           description: ID del parqueadero al que pertenece.
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           description: Tipo de vehículo que puede ocupar la celda.
+ *         usabilidad:
+ *           type: string
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *           description: Nivel de uso permitido.
+ *         estado_celda:
+ *           type: string
+ *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
+ *           description: Estado actual de la celda.
+ *         parqueadero_nombre:
+ *           type: string
+ *           description: Nombre del parqueadero (solo en respuestas con JOIN).
+ *     CeldaCreate:
+ *       type: object
+ *       required:
+ *         - parqueadero
+ *         - tipo
+ *         - usabilidad
+ *       properties:
+ *         parqueadero:
+ *           type: integer
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *         usabilidad:
+ *           type: string
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *         estado_celda:
+ *           type: string
+ *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
+ *           default: DISPONIBLE
+ *     CeldaUpdate:
+ *       type: object
+ *       properties:
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *         usabilidad:
+ *           type: string
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *         estado_celda:
+ *           type: string
+ *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
+ */
+
+/**
+ * @swagger
  * /celdas:
  *   get:
  *     summary: Obtener todas las celdas
@@ -24,9 +89,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Celda'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +121,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Celda no encontrada
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -80,9 +153,13 @@ const getById = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Celda'
  */
-const getByParqueadero = async (req, res) => { 
-  try { res.json(await svc.getByParqueadero(req.params.parqueaderoId)); } 
-  catch(e) { handleError(res,e); } 
+const getByParqueadero = async (req, res) => {
+  try {
+    const data = await svc.getByParqueadero(req.params.parqueaderoId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -108,9 +185,83 @@ const getByParqueadero = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Celda'
  */
-const getDisponibles = async (req, res) => { 
-  try { res.json(await svc.getDisponibles(req.params.parqueaderoId)); } 
-  catch(e) { handleError(res,e); } 
+const getDisponibles = async (req, res) => {
+  try {
+    const data = await svc.getDisponibles(req.params.parqueaderoId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /celdas/tipo/{tipo}:
+ *   get:
+ *     summary: Obtener celdas por tipo de vehículo
+ *     tags: [Celdas]
+ *     parameters:
+ *       - in: path
+ *         name: tipo
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *         description: Tipo de vehículo
+ *     responses:
+ *       200:
+ *         description: Lista de celdas del tipo indicado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Tipo no válido
+ */
+const getByTipo = async (req, res) => {
+  try {
+    const data = await svc.getByTipo(req.params.tipo);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /celdas/usabilidad/{usabilidad}:
+ *   get:
+ *     summary: Obtener celdas por usabilidad
+ *     tags: [Celdas]
+ *     parameters:
+ *       - in: path
+ *         name: usabilidad
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *         description: Nivel de usabilidad
+ *     responses:
+ *       200:
+ *         description: Lista de celdas con esa usabilidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Usabilidad no válida
+ */
+const getByUsabilidad = async (req, res) => {
+  try {
+    const data = await svc.getByUsabilidad(req.params.usabilidad);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -124,7 +275,7 @@ const getDisponibles = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Celda'
+ *             $ref: '#/components/schemas/CeldaCreate'
  *     responses:
  *       201:
  *         description: Celda creada exitosamente
@@ -132,17 +283,25 @@ const getDisponibles = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Parqueadero no encontrado
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newCelda = await svc.create(req.body);
+    res.status(201).json(newCelda);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /celdas/{id}:
  *   put:
- *     summary: Actualizar una celda por ID
+ *     summary: Actualizar una celda (parcialmente o completa)
  *     tags: [Celdas]
  *     parameters:
  *       - in: path
@@ -156,7 +315,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Celda'
+ *             $ref: '#/components/schemas/CeldaUpdate'
  *     responses:
  *       200:
  *         description: Celda actualizada
@@ -164,10 +323,18 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Celda no encontrada
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body)); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -186,35 +353,26 @@ const update = async (req, res) => {
  *     responses:
  *       204:
  *         description: Celda eliminada correctamente
+ *       404:
+ *         description: Celda no encontrada
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, getByParqueadero, getDisponibles, create, update, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Celda:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID de la celda
- *         nombre:
- *           type: string
- *           description: Nombre o identificador de la celda
- *         estado:
- *           type: string
- *           description: Estado de la celda (ocupada, disponible, fuera de servicio)
- *         id_parqueadero:
- *           type: integer
- *           description: ID del parqueadero al que pertenece la celda
- *       required:
- *         - nombre
- *         - estado
- *         - id_parqueadero
- */
+module.exports = {
+  getAll,
+  getById,
+  getByParqueadero,
+  getDisponibles,
+  getByTipo,
+  getByUsabilidad,
+  create,
+  update,
+  remove,
+};

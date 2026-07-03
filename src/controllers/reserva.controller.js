@@ -10,6 +10,78 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Reserva:
+ *       type: object
+ *       required:
+ *         - celda
+ *         - vehiculo
+ *         - fechaHora_inicio
+ *         - fechaHora_fin
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID único de la reserva.
+ *         celda:
+ *           type: integer
+ *           description: ID de la celda a reservar.
+ *         vehiculo:
+ *           type: integer
+ *           description: ID del vehículo que reserva.
+ *         fechaHora_inicio:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora de inicio de la reserva.
+ *         fechaHora_fin:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora de finalización de la reserva.
+ *         estado:
+ *           type: integer
+ *           enum: [0, 1]
+ *           description: Estado (1=activa, 0=finalizada/cancelada).
+ *     ReservaCreate:
+ *       type: object
+ *       required:
+ *         - celda
+ *         - vehiculo
+ *         - fechaHora_inicio
+ *         - fechaHora_fin
+ *       properties:
+ *         celda:
+ *           type: integer
+ *         vehiculo:
+ *           type: integer
+ *         fechaHora_inicio:
+ *           type: string
+ *           format: date-time
+ *         fechaHora_fin:
+ *           type: string
+ *           format: date-time
+ *         estado:
+ *           type: integer
+ *           default: 1
+ *     ReservaUpdate:
+ *       type: object
+ *       properties:
+ *         celda:
+ *           type: integer
+ *         vehiculo:
+ *           type: integer
+ *         fechaHora_inicio:
+ *           type: string
+ *           format: date-time
+ *         fechaHora_fin:
+ *           type: string
+ *           format: date-time
+ *         estado:
+ *           type: integer
+ *           enum: [0, 1]
+ */
+
+/**
+ * @swagger
  * /reservas:
  *   get:
  *     summary: Obtener todas las reservas
@@ -24,9 +96,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +128,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Reserva no encontrada
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -80,9 +160,13 @@ const getById = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
  */
-const getByVehiculo = async (req, res) => { 
-  try { res.json(await svc.getByVehiculo(req.params.vehiculoId)); } 
-  catch(e) { handleError(res,e); } 
+const getByVehiculo = async (req, res) => {
+  try {
+    const data = await svc.getByVehiculo(req.params.vehiculoId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -108,9 +192,13 @@ const getByVehiculo = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
  */
-const getByCelda = async (req, res) => { 
-  try { res.json(await svc.getByCelda(req.params.celdaId)); } 
-  catch(e) { handleError(res,e); } 
+const getByCelda = async (req, res) => {
+  try {
+    const data = await svc.getByCelda(req.params.celdaId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -124,7 +212,7 @@ const getByCelda = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Reserva'
+ *             $ref: '#/components/schemas/ReservaCreate'
  *     responses:
  *       201:
  *         description: Reserva creada exitosamente
@@ -132,17 +220,27 @@ const getByCelda = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Reserva'
+ *       400:
+ *         description: Datos inválidos o fechas incorrectas
+ *       404:
+ *         description: Celda o vehículo no encontrado
+ *       409:
+ *         description: Conflicto de horario - la celda ya está reservada
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newReserva = await svc.create(req.body);
+    res.status(201).json(newReserva);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /reservas/{id}:
  *   put:
- *     summary: Actualizar una reserva por ID
+ *     summary: Actualizar una reserva (parcial o total)
  *     tags: [Reservas]
  *     parameters:
  *       - in: path
@@ -156,7 +254,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Reserva'
+ *             $ref: '#/components/schemas/ReservaUpdate'
  *     responses:
  *       200:
  *         description: Reserva actualizada
@@ -164,10 +262,20 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Reserva'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Reserva no encontrada
+ *       409:
+ *         description: Conflicto de horario con otra reserva
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body)); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -186,57 +294,26 @@ const update = async (req, res) => {
  *     responses:
  *       204:
  *         description: Reserva eliminada correctamente
+ *       404:
+ *         description: Reserva no encontrada
+ *       409:
+ *         description: No se puede eliminar porque está referenciada
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, getByVehiculo, getByCelda, create, update, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Reserva:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID de la reserva
- *         id_vehiculo:
- *           type: integer
- *           description: ID del vehículo reservado
- *         id_conductor:
- *           type: integer
- *           description: ID del conductor
- *         id_celda:
- *           type: integer
- *           description: ID de la celda reservada
- *         fecha_reserva:
- *           type: string
- *           format: date
- *           description: Fecha de la reserva
- *         hora_reserva:
- *           type: string
- *           format: time
- *           description: Hora de la reserva
- *         fecha_ingreso:
- *           type: string
- *           format: date
- *           description: Fecha de ingreso al parqueadero
- *         hora_ingreso:
- *           type: string
- *           format: time
- *           description: Hora de ingreso
- *         estado_reserva:
- *           type: string
- *           description: Estado actual de la reserva
- *       required:
- *         - id_vehiculo
- *         - id_conductor
- *         - id_celda
- *         - fecha_reserva
- *         - hora_reserva
- *         - estado_reserva
- */
+module.exports = {
+  getAll,
+  getById,
+  getByVehiculo,
+  getByCelda,
+  create,
+  update,
+  remove,
+};

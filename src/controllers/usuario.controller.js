@@ -10,6 +10,102 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Usuario:
+ *       type: object
+ *       required:
+ *         - nombre
+ *         - correo
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID del usuario
+ *         nombre:
+ *           type: string
+ *         correo:
+ *           type: string
+ *           format: email
+ *         numero:
+ *           type: string
+ *           nullable: true
+ *         rol:
+ *           type: integer
+ *           nullable: true
+ *         estado:
+ *           type: boolean
+ *         tipoDocumento:
+ *           type: string
+ *           nullable: true
+ *         licencia:
+ *           type: string
+ *           nullable: true
+ *         perfil:
+ *           type: integer
+ *           nullable: true
+ *         rol_nombre:
+ *           type: string
+ *     UsuarioCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *         - correo
+ *         - contrasena
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         correo:
+ *           type: string
+ *           format: email
+ *         contrasena:
+ *           type: string
+ *         numero:
+ *           type: string
+ *           nullable: true
+ *         rol:
+ *           type: integer
+ *           nullable: true
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *         tipoDocumento:
+ *           type: string
+ *           nullable: true
+ *         licencia:
+ *           type: string
+ *           nullable: true
+ *         perfil:
+ *           type: integer
+ *           nullable: true
+ *     UsuarioUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         correo:
+ *           type: string
+ *           format: email
+ *         numero:
+ *           type: string
+ *           nullable: true
+ *         rol:
+ *           type: integer
+ *           nullable: true
+ *         estado:
+ *           type: boolean
+ *         tipoDocumento:
+ *           type: string
+ *           nullable: true
+ *         licencia:
+ *           type: string
+ *           nullable: true
+ *         perfil:
+ *           type: integer
+ *           nullable: true
+ */
+
+/**
+ * @swagger
  * /usuarios:
  *   get:
  *     summary: Obtener todos los usuarios
@@ -24,9 +120,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Usuario'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +152,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Usuario no encontrado
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -68,7 +172,7 @@ const getById = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Usuario'
+ *             $ref: '#/components/schemas/UsuarioCreate'
  *     responses:
  *       201:
  *         description: Usuario creado exitosamente
@@ -76,17 +180,25 @@ const getById = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       409:
+ *         description: El correo ya está registrado
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newUser = await svc.create(req.body);
+    res.status(201).json(newUser);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /usuarios/{id}:
  *   put:
- *     summary: Actualizar un usuario por ID
+ *     summary: Actualizar un usuario (parcial o total)
  *     tags: [Usuarios]
  *     parameters:
  *       - in: path
@@ -100,7 +212,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Usuario'
+ *             $ref: '#/components/schemas/UsuarioUpdate'
  *     responses:
  *       200:
  *         description: Usuario actualizado
@@ -108,32 +220,20 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Usuario no encontrado
+ *       409:
+ *         description: El correo ya está en uso
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body)); } 
-  catch(e) { handleError(res,e); } 
-};
-
-/**
- * @swagger
- * /usuarios/{id}:
- *   delete:
- *     summary: Eliminar un usuario por ID
- *     tags: [Usuarios]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del usuario
- *     responses:
- *       204:
- *         description: Usuario eliminado correctamente
- */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -155,16 +255,14 @@ const remove = async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               contrasenaActual:
- *                 type: string
- *                 description: Contraseña actual del usuario
- *               nuevaContrasena:
- *                 type: string
- *                 description: Nueva contraseña
  *             required:
- *               - contrasenaActual
- *               - nuevaContrasena
+ *               - actual
+ *               - nueva
+ *             properties:
+ *               actual:
+ *                 type: string
+ *               nueva:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Contraseña actualizada
@@ -175,10 +273,20 @@ const remove = async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
+ *       400:
+ *         description: Faltan datos
+ *       401:
+ *         description: Contraseña actual incorrecta
+ *       404:
+ *         description: Usuario no encontrado
  */
 const cambiarContrasena = async (req, res) => {
-  try { await svc.cambiarContrasena(req.params.id, req.body); res.json({ message: 'Contraseña actualizada' }); }
-  catch(e) { handleError(res,e); }
+  try {
+    await svc.cambiarContrasena(req.params.id, req.body);
+    res.json({ message: 'Contraseña actualizada' });
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -193,16 +301,15 @@ const cambiarContrasena = async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               correo:
- *                 type: string
- *                 description: Correo electrónico del usuario
- *               contrasena:
- *                 type: string
- *                 description: Contraseña del usuario
  *             required:
  *               - correo
  *               - contrasena
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *               contrasena:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Login exitoso
@@ -215,39 +322,55 @@ const cambiarContrasena = async (req, res) => {
  *                   type: string
  *                 usuario:
  *                   $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Faltan credenciales
+ *       401:
+ *         description: Credenciales inválidas
  */
 const login = async (req, res) => {
-  try { const usuario = await svc.login(req.body.correo, req.body.contrasena); res.json({ message: 'Login exitoso', usuario }); }
-  catch(e) { handleError(res,e); }
+  try {
+    const { correo, contrasena } = req.body;
+    const usuario = await svc.login(correo, contrasena);
+    res.json({ message: 'Login exitoso', usuario });
+  } catch (e) {
+    handleError(res, e);
+  }
 };
-
-module.exports = { getAll, getById, create, update, remove, cambiarContrasena, login };
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Usuario:
- *       type: object
- *       properties:
- *         id:
+ * /usuarios/{id}:
+ *   delete:
+ *     summary: Eliminar un usuario por ID
+ *     tags: [Usuarios]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
  *           type: integer
- *           description: ID del usuario
- *         nombre:
- *           type: string
- *           description: Nombre completo del usuario
- *         correo:
- *           type: string
- *           description: Correo electrónico del usuario
- *         contrasena:
- *           type: string
- *           description: Contraseña del usuario (encriptada)
- *         rol:
- *           type: integer
- *           description: ID del rol asignado al usuario
- *       required:
- *         - nombre
- *         - correo
- *         - contrasena
- *         - rol
+ *         description: ID del usuario
+ *     responses:
+ *       204:
+ *         description: Usuario eliminado correctamente
+ *       404:
+ *         description: Usuario no encontrado
  */
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  cambiarContrasena,
+  login,
+  remove,
+};

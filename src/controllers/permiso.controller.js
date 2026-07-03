@@ -10,6 +10,35 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Permiso:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID del permiso
+ *         nombre:
+ *           type: string
+ *           description: Nombre del permiso
+ *     PermisoCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *     PermisoUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ */
+
+/**
+ * @swagger
  * /permisos:
  *   get:
  *     summary: Obtener todos los permisos
@@ -24,9 +53,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Permiso'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +85,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Permiso no encontrado
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -68,13 +105,7 @@ const getById = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *                 description: Nombre del permiso
- *             required:
- *               - nombre
+ *             $ref: '#/components/schemas/PermisoCreate'
  *     responses:
  *       201:
  *         description: Permiso creado exitosamente
@@ -82,17 +113,26 @@ const getById = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Permiso'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       409:
+ *         description: Ya existe un permiso con ese nombre
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body.nombre)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    // ✅ Corrección: pasar todo req.body (objeto)
+    const newPermiso = await svc.create(req.body);
+    res.status(201).json(newPermiso);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /permisos/{id}:
  *   put:
- *     summary: Actualizar un permiso por ID
+ *     summary: Actualizar un permiso por ID (parcial o total)
  *     tags: [Permisos]
  *     parameters:
  *       - in: path
@@ -106,13 +146,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *                 description: Nombre del permiso
- *             required:
- *               - nombre
+ *             $ref: '#/components/schemas/PermisoUpdate'
  *     responses:
  *       200:
  *         description: Permiso actualizado
@@ -120,10 +154,21 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Permiso'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Permiso no encontrado
+ *       409:
+ *         description: Conflicto - nombre duplicado
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body.nombre)); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    // ✅ Corrección: pasar req.body (objeto) en lugar de solo el string
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -142,27 +187,24 @@ const update = async (req, res) => {
  *     responses:
  *       204:
  *         description: Permiso eliminado correctamente
+ *       404:
+ *         description: Permiso no encontrado
+ *       409:
+ *         description: No se puede eliminar porque está en uso
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, create, update, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Permiso:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID del permiso
- *         nombre:
- *           type: string
- *           description: Nombre del permiso
- *       required:
- *         - nombre
- */
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+};

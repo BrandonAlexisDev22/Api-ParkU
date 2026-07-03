@@ -10,6 +10,43 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     RolPermiso:
+ *       type: object
+ *       required:
+ *         - rol
+ *         - permiso
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID único de la asignación.
+ *         rol:
+ *           type: integer
+ *           description: ID del rol.
+ *         permiso:
+ *           type: integer
+ *           description: ID del permiso.
+ *         rol_nombre:
+ *           type: string
+ *           description: Nombre del rol (solo lectura).
+ *         permiso_nombre:
+ *           type: string
+ *           description: Nombre del permiso (solo lectura).
+ *     RolPermisoCreate:
+ *       type: object
+ *       required:
+ *         - rol
+ *         - permiso
+ *       properties:
+ *         rol:
+ *           type: integer
+ *         permiso:
+ *           type: integer
+ */
+
+/**
+ * @swagger
  * /rolpermisos:
  *   get:
  *     summary: Obtener todas las relaciones rol-permiso
@@ -24,9 +61,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/RolPermiso'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -51,10 +92,16 @@ const getAll = async (req, res) => {
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/RolPermiso'
+ *       404:
+ *         description: Rol no encontrado (o sin permisos)
  */
-const getByRol = async (req, res) => { 
-  try { res.json(await svc.getByRol(req.params.rolId)); } 
-  catch(e) { handleError(res,e); } 
+const getByRol = async (req, res) => {
+  try {
+    const data = await svc.getByRol(req.params.rolId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -68,17 +115,7 @@ const getByRol = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               rol:
- *                 type: integer
- *                 description: ID del rol
- *               permiso:
- *                 type: integer
- *                 description: ID del permiso
- *             required:
- *               - rol
- *               - permiso
+ *             $ref: '#/components/schemas/RolPermisoCreate'
  *     responses:
  *       201:
  *         description: Relación creada exitosamente
@@ -86,10 +123,20 @@ const getByRol = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/RolPermiso'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Rol o permiso no encontrado
+ *       409:
+ *         description: El permiso ya está asignado a este rol
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body.rol, req.body.permiso)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newRelation = await svc.create(req.body);
+    res.status(201).json(newRelation);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -108,31 +155,21 @@ const create = async (req, res) => {
  *     responses:
  *       204:
  *         description: Relación eliminada correctamente
+ *       404:
+ *         description: Relación no encontrada
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getByRol, create, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     RolPermiso:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID de la relación rol-permiso
- *         rol:
- *           type: integer
- *           description: ID del rol
- *         permiso:
- *           type: integer
- *           description: ID del permiso
- *       required:
- *         - rol
- *         - permiso
- */
+module.exports = {
+  getAll,
+  getByRol,
+  create,
+  remove,
+};

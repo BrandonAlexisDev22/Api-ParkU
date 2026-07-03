@@ -10,13 +10,64 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     EntradaSalida:
+ *       type: object
+ *       required:
+ *         - tipo
+ *         - vehiculo
+ *         - celda
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del registro.
+ *         tipo:
+ *           type: string
+ *           enum: [INGRESO, SALIDA]
+ *           description: Tipo de movimiento.
+ *         vehiculo:
+ *           type: integer
+ *           description: ID del vehículo.
+ *         celda:
+ *           type: integer
+ *           description: ID de la celda utilizada.
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *           description: Observaciones opcionales.
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora del movimiento (se asigna automáticamente si no se envía).
+ *     EntradaSalidaCreate:
+ *       type: object
+ *       required:
+ *         - vehiculo
+ *         - celda
+ *       properties:
+ *         vehiculo:
+ *           type: integer
+ *         celda:
+ *           type: integer
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Opcional, si no se envía se usa la actual.
+ */
+
+/**
+ * @swagger
  * /entradas-salidas:
  *   get:
  *     summary: Obtener todas las entradas y salidas
  *     tags: [EntradasSalidas]
  *     responses:
  *       200:
- *         description: Lista de todas las entradas y salidas
+ *         description: Lista de todos los registros
  *         content:
  *           application/json:
  *             schema:
@@ -24,9 +75,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/EntradaSalida'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,16 +107,20 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Registro no encontrado
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /entradas-salidas/vehiculo/{vehiculoId}:
  *   get:
- *     summary: Obtener registros por vehículo
+ *     summary: Obtener todos los registros de un vehículo
  *     tags: [EntradasSalidas]
  *     parameters:
  *       - in: path
@@ -80,9 +139,13 @@ const getById = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/EntradaSalida'
  */
-const getByVehiculo = async (req, res) => { 
-  try { res.json(await svc.getByVehiculo(req.params.vehiculoId)); } 
-  catch(e) { handleError(res,e); } 
+const getByVehiculo = async (req, res) => {
+  try {
+    const data = await svc.getByVehiculo(req.params.vehiculoId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -108,17 +171,27 @@ const getByVehiculo = async (req, res) => {
  *         description: Fecha de fin (YYYY-MM-DD)
  *     responses:
  *       200:
- *         description: Lista de registros en el rango de fechas
+ *         description: Lista de registros en el rango
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/EntradaSalida'
+ *       400:
+ *         description: Fechas inválidas o faltantes
  */
-const getByFecha = async (req, res) => { 
-  try { res.json(await svc.getByFecha(req.query.desde, req.query.hasta)); } 
-  catch(e) { handleError(res,e); } 
+const getByFecha = async (req, res) => {
+  try {
+    const { desde, hasta } = req.query;
+    if (!desde || !hasta) {
+      return res.status(400).json({ message: 'Los parámetros "desde" y "hasta" son requeridos' });
+    }
+    const data = await svc.getByFecha(desde, hasta);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -132,7 +205,7 @@ const getByFecha = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/EntradaSalida'
+ *             $ref: '#/components/schemas/EntradaSalidaCreate'
  *     responses:
  *       201:
  *         description: Entrada registrada exitosamente
@@ -140,10 +213,20 @@ const getByFecha = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/EntradaSalida'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Vehículo o celda no encontrados
+ *       409:
+ *         description: Conflicto (ej. celda ya ocupada)
  */
-const registrarEntrada = async (req, res) => { 
-  try { res.status(201).json(await svc.registrarEntrada(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const registrarEntrada = async (req, res) => {
+  try {
+    const data = await svc.registrarEntrada(req.body);
+    res.status(201).json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -157,7 +240,7 @@ const registrarEntrada = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/EntradaSalida'
+ *             $ref: '#/components/schemas/EntradaSalidaCreate'
  *     responses:
  *       201:
  *         description: Salida registrada exitosamente
@@ -165,10 +248,20 @@ const registrarEntrada = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/EntradaSalida'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Vehículo o celda no encontrados
+ *       409:
+ *         description: Conflicto (ej. no hay entrada activa para ese vehículo)
  */
-const registrarSalida = async (req, res) => { 
-  try { res.status(201).json(await svc.registrarSalida(req.body)); } 
-  catch(e) { handleError(res,e); } 
+const registrarSalida = async (req, res) => {
+  try {
+    const data = await svc.registrarSalida(req.body);
+    res.status(201).json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -187,40 +280,24 @@ const registrarSalida = async (req, res) => {
  *     responses:
  *       204:
  *         description: Registro eliminado correctamente
+ *       404:
+ *         description: Registro no encontrado
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, getByVehiculo, getByFecha, registrarEntrada, registrarSalida, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     EntradaSalida:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID del registro
- *         id_vehiculo:
- *           type: integer
- *           description: ID del vehículo
- *         id_conductor:
- *           type: integer
- *           description: ID del conductor
- *         tipo:
- *           type: string
- *           description: Tipo de registro (entrada o salida)
- *         fecha:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora del registro
- *       required:
- *         - id_vehiculo
- *         - id_conductor
- *         - tipo
- *         - fecha
- */
+module.exports = {
+  getAll,
+  getById,
+  getByVehiculo,
+  getByFecha,
+  registrarEntrada,
+  registrarSalida,
+  remove,
+};

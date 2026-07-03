@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/usuario.controller');
+const ctrl = require('../controllers/usuario.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
@@ -13,7 +14,6 @@ const ctrl   = require('../controllers/usuario.controller');
  * /api/usuarios/login:
  *   post:
  *     summary: Iniciar sesión en el sistema
- *     description: Valida credenciales y retorna los datos del usuario (sin contraseña).
  *     tags: [Usuarios]
  *     requestBody:
  *       required: true
@@ -28,18 +28,22 @@ const ctrl   = require('../controllers/usuario.controller');
  *               correo:
  *                 type: string
  *                 format: email
- *                 example: "admin@parku.com"
  *               contrasena:
  *                 type: string
- *                 format: password
- *                 example: "123456"
  *     responses:
  *       200:
  *         description: Login exitoso
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Usuario'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 usuario:
+ *                   $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Faltan credenciales
  *       401:
  *         description: Credenciales inválidas
  */
@@ -92,27 +96,35 @@ router.get('/:id', ctrl.getById);
  * /api/usuarios:
  *   post:
  *     summary: Registrar un nuevo usuario
- *     description: Crea una cuenta y cifra automáticamente la contraseña.
  *     tags: [Usuarios]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Usuario'
+ *             $ref: '#/components/schemas/UsuarioCreate'
  *     responses:
  *       201:
  *         description: Usuario creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Datos inválidos o faltantes
  *       409:
  *         description: El correo ya está registrado
  */
-router.post('/', ctrl.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.create
+);
 
 /**
  * @swagger
  * /api/usuarios/{id}:
  *   put:
- *     summary: Actualizar datos de perfil
+ *     summary: Actualizar datos de perfil (parcial o total)
  *     tags: [Usuarios]
  *     parameters:
  *       - in: path
@@ -125,24 +137,31 @@ router.post('/', ctrl.create);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *               numero:
- *                 type: string
+ *             $ref: '#/components/schemas/UsuarioUpdate'
  *     responses:
  *       200:
  *         description: Usuario actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Usuario no encontrado
+ *       409:
+ *         description: El correo ya está en uso
  */
-router.put('/:id', ctrl.update);
+router.put('/:id',
+  // verificarToken,
+  ctrl.update
+);
 
 /**
  * @swagger
  * /api/usuarios/{id}/contrasena:
  *   patch:
  *     summary: Cambiar contraseña de usuario
- *     description: Requiere la contraseña actual para validar la identidad antes del cambio.
  *     tags: [Usuarios]
  *     parameters:
  *       - in: path
@@ -167,10 +186,17 @@ router.put('/:id', ctrl.update);
  *     responses:
  *       200:
  *         description: Contraseña actualizada correctamente
+ *       400:
+ *         description: Faltan datos
  *       401:
  *         description: La contraseña actual es incorrecta
+ *       404:
+ *         description: Usuario no encontrado
  */
-router.patch('/:id/contrasena', ctrl.cambiarContrasena);
+router.patch('/:id/contrasena',
+  // verificarToken,
+  ctrl.cambiarContrasena
+);
 
 /**
  * @swagger
@@ -187,7 +213,12 @@ router.patch('/:id/contrasena', ctrl.cambiarContrasena);
  *     responses:
  *       204:
  *         description: Usuario eliminado
+ *       404:
+ *         description: Usuario no encontrado
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

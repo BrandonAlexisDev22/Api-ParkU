@@ -1,6 +1,15 @@
 const router = require('express').Router();
 const authCtrl = require('../controllers/auth.controller');
 const { verificarToken } = require('../middleware/auth.middleware');
+const { body } = require('express-validator');
+const rateLimit = require('express-rate-limit');
+
+// Límite de intentos de login/registro
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10, // máximo 10 peticiones por IP
+  message: { status: 429, message: 'Demasiadas solicitudes, intente más tarde' },
+});
 
 /**
  * @swagger
@@ -28,34 +37,23 @@ const { verificarToken } = require('../middleware/auth.middleware');
  *               correo:
  *                 type: string
  *                 format: email
- *                 example: "admin@parku.com"
  *               contrasena:
  *                 type: string
  *                 format: password
- *                 example: "123456"
  *     responses:
  *       200:
  *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: integer
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     token:
- *                       type: string
- *                     usuario:
- *                       type: object
  *       401:
  *         description: Credenciales inválidas
  */
-router.post('/login', authCtrl.login);
+router.post('/login',
+  authLimiter,
+  [
+    body('correo').isEmail().withMessage('Correo inválido'),
+    body('contrasena').notEmpty().withMessage('Contraseña requerida'),
+  ],
+  authCtrl.login
+);
 
 /**
  * @swagger
@@ -86,19 +84,28 @@ router.post('/login', authCtrl.login);
  *                 type: string
  *     responses:
  *       201:
- *         description: Usuario registrado exitosamente
+ *         description: Usuario registrado
  *       400:
  *         description: Validación fallida
  *       409:
- *         description: El correo ya está registrado
+ *         description: Correo ya registrado
  */
-router.post('/registro', authCtrl.registro);
+router.post('/registro',
+  authLimiter,
+  [
+    body('correo').isEmail().withMessage('Correo inválido'),
+    body('contrasena').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+    body('nombre').notEmpty().withMessage('Nombre requerido'),
+    body('numero').optional().isMobilePhone('any').withMessage('Número de teléfono inválido'),
+  ],
+  authCtrl.registro
+);
 
 /**
  * @swagger
  * /api/auth/verificar:
  *   get:
- *     summary: Verificar si el token es válido
+ *     summary: Verificar token JWT
  *     tags: [Autenticación]
  *     security:
  *       - BearerAuth: []
@@ -118,7 +125,7 @@ router.get('/verificar', verificarToken, authCtrl.verificar);
  *       - BearerAuth: []
  *     responses:
  *       200:
- *         description: Token renovado
+ *         description: Nuevo token generado
  */
 router.post('/renovar', verificarToken, authCtrl.renovarToken);
 

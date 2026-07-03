@@ -1,47 +1,46 @@
 /**
  * @module UsuarioRepository
  * @description Capa de acceso a datos para la tabla 'usuario'.
- * Gestiona cuentas de acceso, perfiles de usuario y credenciales de seguridad.
+ * Alineado con el modelo Usuario (nombre, correo, contrasena, numero, rol, estado, tipoDocumento, licencia, perfil).
  */
 
 const db = require('../config/database');
 
 /**
- * Recupera todos los usuarios con el detalle de su rol asociado.
- * Excluye la contraseña por seguridad en listados generales.
+ * Consulta base para obtener todos los campos excepto contraseña (seguridad).
+ * @constant {string}
+ */
+const BASE_QUERY = `
+  SELECT u.id, u.nombre, u.correo, u.numero, u.rol, u.estado,
+         u.tipoDocumento, u.licencia, u.perfil,
+         r.nombre AS rol_nombre
+  FROM usuario u
+  LEFT JOIN rol r ON u.rol = r.id
+`;
+
+/**
+ * Recupera todos los usuarios con detalles del rol.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`
-    SELECT u.id, u.correo, u.nombre, u.numero,
-           r.id AS rol_id, r.nombre AS rol_nombre
-    FROM usuario u
-    LEFT JOIN rol r ON u.rol = r.id
-  `);
+  const [rows] = await db.query(`${BASE_QUERY} ORDER BY u.nombre`);
   return rows;
 };
 
 /**
- * Busca un usuario por su ID. Incluye detalles del rol.
+ * Busca un usuario por su ID.
  * @param {number} id 
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`
-    SELECT u.id, u.correo, u.nombre, u.numero,
-           r.id AS rol_id, r.nombre AS rol_nombre
-    FROM usuario u
-    LEFT JOIN rol r ON u.rol = r.id
-    WHERE u.id = ?
-  `, [id]);
+  const [rows] = await db.query(`${BASE_QUERY} WHERE u.id = ?`, [id]);
   return rows[0] || null;
 };
 
 /**
- * Busca un usuario por su correo electrónico.
- * IMPORTANTE: Este método retorna el hash de la contraseña para procesos de Login.
+ * Busca un usuario por correo (incluye contraseña para login).
  * @param {string} correo 
- * @returns {Promise<Object|null>} Fila completa del usuario.
+ * @returns {Promise<Object|null>}
  */
 const findByCorreo = async (correo) => {
   const [rows] = await db.query('SELECT * FROM usuario WHERE correo = ?', [correo]);
@@ -49,36 +48,60 @@ const findByCorreo = async (correo) => {
 };
 
 /**
- * Registra un nuevo usuario en la plataforma.
- * @param {Object} data - { correo, contrasena (hash), nombre, numero, rol }
- * @returns {Promise<Object>} El usuario creado (sin contraseña).
+ * Crea un nuevo usuario.
+ * @param {Object} data - { nombre, correo, contrasena, numero, rol, estado?, tipoDocumento?, licencia?, perfil? }
+ * @returns {Promise<Object>}
  */
-const create = async ({ correo, contrasena, nombre, numero, rol }) => {
+const create = async ({ nombre, correo, contrasena, numero, rol, estado = true, tipoDocumento, licencia, perfil }) => {
   const [result] = await db.query(
-    'INSERT INTO usuario (correo, contrasena, nombre, numero, rol) VALUES (?, ?, ?, ?, ?)',
-    [correo, contrasena, nombre, numero || null, rol || null]
+    `INSERT INTO usuario 
+     (nombre, correo, contrasena, numero, rol, estado, tipoDocumento, licencia, perfil) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      nombre,
+      correo,
+      contrasena,
+      numero || null,
+      rol || null,
+      estado ? 1 : 0,
+      tipoDocumento || null,
+      licencia || null,
+      perfil || null
+    ]
   );
   return findById(result.insertId);
 };
 
 /**
- * Actualiza la información de perfil del usuario.
+ * Actualiza parcialmente un usuario.
  * @param {number} id 
- * @param {Object} data - { nombre, numero, rol }
+ * @param {Object} data - Campos a actualizar (todos opcionales)
  * @returns {Promise<Object>}
  */
-const update = async (id, { nombre, numero, rol }) => {
-  await db.query(
-    'UPDATE usuario SET nombre = ?, numero = ?, rol = ? WHERE id = ?',
-    [nombre, numero || null, rol || null, id]
-  );
+const update = async (id, data) => {
+  const fields = [];
+  const values = [];
+  const allowedFields = ['nombre', 'correo', 'numero', 'rol', 'estado', 'tipoDocumento', 'licencia', 'perfil'];
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      fields.push(`${field} = ?`);
+      // Convertir estado booleano a 0/1
+      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
+    }
+  }
+  if (fields.length === 0) {
+    return findById(id);
+  }
+  values.push(id);
+  const query = `UPDATE usuario SET ${fields.join(', ')} WHERE id = ?`;
+  await db.query(query, values);
   return findById(id);
 };
 
 /**
- * Sobrescribe la contraseña actual por un nuevo hash cifrado.
+ * Actualiza la contraseña de un usuario.
  * @param {number} id 
- * @param {string} contrasena - Nuevo hash generado.
+ * @param {string} contrasena - Hash de la nueva contraseña
  * @returns {Promise<void>}
  */
 const updateContrasena = async (id, contrasena) => {
@@ -86,7 +109,7 @@ const updateContrasena = async (id, contrasena) => {
 };
 
 /**
- * Elimina una cuenta de usuario.
+ * Elimina un usuario.
  * @param {number} id 
  * @returns {Promise<boolean>}
  */

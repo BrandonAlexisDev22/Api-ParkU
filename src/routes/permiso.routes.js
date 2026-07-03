@@ -1,11 +1,41 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/permiso.controller');
+const ctrl = require('../controllers/permiso.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
  * tags:
  *   name: Permisos
  *   description: Definición de acciones atómicas del sistema (RBAC)
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Permiso:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID del permiso
+ *         nombre:
+ *           type: string
+ *           description: Nombre del permiso
+ *     PermisoCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *     PermisoUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
  */
 
 /**
@@ -63,28 +93,29 @@ router.get('/:id', ctrl.getById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nombre
- *             properties:
- *               nombre:
- *                 type: string
- *                 example: "CREAR_RESERVA"
+ *             $ref: '#/components/schemas/PermisoCreate'
  *     responses:
  *       201:
  *         description: Permiso creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Permiso'
  *       400:
- *         description: El nombre es requerido
+ *         description: Datos inválidos o nombre faltante
  *       409:
  *         description: Ya existe un permiso con ese nombre
  */
-router.post('/', ctrl.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.create
+);
 
 /**
  * @swagger
  * /api/permisos/{id}:
  *   put:
- *     summary: Actualiza el nombre de un permiso
+ *     summary: Actualiza el nombre de un permiso (parcial o total)
  *     tags: [Permisos]
  *     parameters:
  *       - in: path
@@ -97,22 +128,25 @@ router.post('/', ctrl.create);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nombre
- *             properties:
- *               nombre:
- *                 type: string
- *                 example: "ELIMINAR_RESERVA"
+ *             $ref: '#/components/schemas/PermisoUpdate'
  *     responses:
  *       200:
  *         description: Permiso actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Permiso'
+ *       400:
+ *         description: Datos inválidos
  *       404:
  *         description: Permiso no encontrado
  *       409:
  *         description: El nombre ya está en uso por otro permiso
  */
-router.put('/:id', ctrl.update);
+router.put('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.update
+);
 
 /**
  * @swagger
@@ -131,7 +165,12 @@ router.put('/:id', ctrl.update);
  *         description: Permiso eliminado correctamente
  *       404:
  *         description: Permiso no encontrado
+ *       409:
+ *         description: No se puede eliminar porque está asignado a algún rol
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

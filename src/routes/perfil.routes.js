@@ -1,11 +1,51 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/perfil.controller');
+const ctrl = require('../controllers/perfil.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
  * tags:
  *   name: Perfiles
  *   description: Gestión de categorías de usuario (Estudiantes, Empleados, etc.)
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Perfil:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del perfil.
+ *         nombre:
+ *           type: string
+ *           description: Nombre del perfil.
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *           description: Descripción opcional.
+ *     PerfilCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *     PerfilUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *           nullable: true
  */
 
 /**
@@ -62,29 +102,29 @@ router.get('/:id', ctrl.getById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nombre
- *             properties:
- *               nombre:
- *                 type: string
- *                 example: "Visitante"
- *               descripcion:
- *                 type: string
- *                 example: "Usuarios externos a la institución"
+ *             $ref: '#/components/schemas/PerfilCreate'
  *     responses:
  *       201:
  *         description: Perfil creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Perfil'
  *       400:
- *         description: El nombre es obligatorio
+ *         description: Datos inválidos o faltantes
+ *       409:
+ *         description: Ya existe un perfil con ese nombre
  */
-router.post('/', ctrl.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.create
+);
 
 /**
  * @swagger
  * /api/perfiles/{id}:
  *   put:
- *     summary: Actualiza un perfil existente
+ *     summary: Actualiza un perfil existente (parcial o total)
  *     tags: [Perfiles]
  *     parameters:
  *       - in: path
@@ -97,16 +137,25 @@ router.post('/', ctrl.create);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Perfil'
+ *             $ref: '#/components/schemas/PerfilUpdate'
  *     responses:
  *       200:
  *         description: Perfil actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Perfil'
  *       400:
  *         description: Datos de entrada inválidos
  *       404:
  *         description: Perfil no encontrado
+ *       409:
+ *         description: Conflicto - nombre duplicado
  */
-router.put('/:id', ctrl.update);
+router.put('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.update
+);
 
 /**
  * @swagger
@@ -121,11 +170,16 @@ router.put('/:id', ctrl.update);
  *         schema:
  *           type: integer
  *     responses:
- *       200:
- *         description: Perfil eliminado
+ *       204:
+ *         description: Perfil eliminado correctamente
  *       404:
  *         description: Perfil no encontrado
+ *       409:
+ *         description: No se puede eliminar porque está en uso
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

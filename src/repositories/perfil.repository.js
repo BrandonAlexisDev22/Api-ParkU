@@ -1,67 +1,92 @@
 /**
- * @module PerfilRepository
- * @description Capa de acceso a datos para la tabla 'perfil'.
- * Gestiona las categorías institucionales a las que pertenecen los conductores.
+ * @module PermisoRepository
+ * @description Capa de acceso a datos para la tabla 'permiso'.
+ * Gestiona los permisos del sistema (ej. crear_usuarios, eliminar_celdas, etc.).
  */
 
 const db = require('../config/database');
 
 /**
- * Recupera todos los perfiles registrados en el sistema.
- * @returns {Promise<Array>} Lista de perfiles (id, nombre, descripcion).
+ * Consulta base.
+ * @constant {string}
+ */
+const BASE_QUERY = 'SELECT * FROM permiso';
+
+/**
+ * Recupera todos los permisos registrados, ordenados por nombre.
+ * @returns {Promise<Array>} Lista de permisos.
  */
 const findAll = async () => {
-  const [rows] = await db.query('SELECT * FROM perfil');
+  const [rows] = await db.query(`${BASE_QUERY} ORDER BY nombre`);
   return rows;
 };
 
 /**
- * Busca un perfil específico por su ID.
- * @param {number} id - Identificador único del perfil.
- * @returns {Promise<Object|null>} El objeto del perfil o null si no existe.
+ * Busca un permiso por su ID.
+ * @param {number} id
+ * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query('SELECT * FROM perfil WHERE id = ?', [id]);
+  const [rows] = await db.query(`${BASE_QUERY} WHERE id = ?`, [id]);
   return rows[0] || null;
 };
 
 /**
- * Crea una nueva categoría de perfil.
- * @param {Object} data - Objeto con los datos del perfil.
- * @param {string} data.nombre - Nombre del perfil (ej. Estudiante).
- * @param {string} [data.descripcion] - Detalles adicionales sobre el perfil.
- * @returns {Promise<Object>} El perfil recién creado.
+ * Busca un permiso por su nombre exacto (para validaciones de unicidad).
+ * @param {string} nombre
+ * @returns {Promise<Object|null>}
  */
-const create = async ({ nombre, descripcion }) => {
+const findByNombre = async (nombre) => {
+  const [rows] = await db.query(`${BASE_QUERY} WHERE nombre = ?`, [nombre]);
+  return rows[0] || null;
+};
+
+/**
+ * Crea un nuevo permiso.
+ * @param {Object} data - { nombre }
+ * @returns {Promise<Object>} Permiso creado.
+ */
+const create = async ({ nombre }) => {
   const [result] = await db.query(
-    'INSERT INTO perfil (nombre, descripcion) VALUES (?, ?)',
-    [nombre, descripcion || null]
+    'INSERT INTO permiso (nombre) VALUES (?)',
+    [nombre]
   );
   return findById(result.insertId);
 };
 
 /**
- * Actualiza la información de un perfil existente.
- * @param {number} id - ID del perfil a modificar.
- * @param {Object} data - { nombre, descripcion }
- * @returns {Promise<Object>} El perfil con los datos actualizados.
+ * Actualiza parcialmente un permiso existente.
+ * @param {number} id
+ * @param {Object} data - { nombre }
+ * @returns {Promise<Object>} Permiso actualizado.
  */
-const update = async (id, { nombre, descripcion }) => {
-  await db.query(
-    'UPDATE perfil SET nombre = ?, descripcion = ? WHERE id = ?',
-    [nombre, descripcion || null, id]
-  );
+const update = async (id, data) => {
+  const fields = [];
+  const values = [];
+  if (data.nombre !== undefined) {
+    fields.push('nombre = ?');
+    values.push(data.nombre);
+  }
+
+  if (fields.length === 0) {
+    // Si no se envía ningún campo, devolver sin cambios
+    return findById(id);
+  }
+
+  values.push(id);
+  const query = `UPDATE permiso SET ${fields.join(', ')} WHERE id = ?`;
+  await db.query(query, values);
   return findById(id);
 };
 
 /**
- * Elimina un perfil de la base de datos.
- * @param {number} id - ID del perfil a eliminar.
- * @returns {Promise<boolean>} True si la eliminación fue exitosa.
+ * Elimina un permiso de la base de datos.
+ * @param {number} id
+ * @returns {Promise<boolean>} True si se eliminó.
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM perfil WHERE id = ?', [id]);
+  const [result] = await db.query('DELETE FROM permiso WHERE id = ?', [id]);
   return result.affectedRows > 0;
 };
 
-module.exports = { findAll, findById, create, update, remove };
+module.exports = { findAll, findById, findByNombre, create, update, remove };

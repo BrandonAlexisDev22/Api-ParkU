@@ -1,7 +1,7 @@
 /**
  * @module ReservaRepository
  * @description Capa de persistencia para la gestión de reservas de celdas.
- * Implementa lógica compleja de validación de traslape de horarios.
+ * Alineado con el modelo Reserva (celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado).
  */
 
 const db = require('../config/database');
@@ -12,7 +12,7 @@ const db = require('../config/database');
  */
 const BASE_QUERY = `
   SELECT r.*, v.placa,
-         c.id  AS celda_id,
+         c.id  AS celda_id,  -- alias para evitar conflicto con r.celda
          p.nombre AS parqueadero_nombre
   FROM reserva r
   LEFT JOIN vehiculo v     ON r.vehiculo = v.id
@@ -67,7 +67,6 @@ const findByCelda = async (celdaId) => {
 
 /**
  * Detecta conflictos de horario para una celda.
- * Utiliza lógica de exclusión para encontrar cualquier traslape temporal.
  * @param {number} celdaId - ID de la celda a verificar.
  * @param {string} inicio - Fecha/Hora de inicio deseada.
  * @param {string} fin - Fecha/Hora de fin deseada.
@@ -81,40 +80,60 @@ const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
       AND NOT (fechaHora_fin <= ? OR fechaHora_inicio >= ?)
   `;
   const params = [celdaId, inicio, fin];
-  
-  if (excludeId) { 
-    query += ' AND id != ?'; 
-    params.push(excludeId); 
+  if (excludeId) {
+    query += ' AND id != ?';
+    params.push(excludeId);
   }
-  
   const [rows] = await db.query(query, params);
   return rows;
 };
 
 /**
  * Crea una nueva reserva en el sistema.
- * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin }
+ * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado? }
+ * @param {number} data.celda
+ * @param {number} data.vehiculo
+ * @param {string} data.fechaHora_inicio
+ * @param {string} data.fechaHora_fin
+ * @param {number} [data.estado=1] - Estado inicial (1 = activa)
  * @returns {Promise<Object>} La reserva creada con sus joins.
  */
-const create = async ({ celda, vehiculo, fechaHora_inicio, fechaHora_fin }) => {
+const create = async ({ celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado = 1 }) => {
   const [result] = await db.query(
-    'INSERT INTO reserva (celda, vehiculo, fechaHora_inicio, fechaHora_fin) VALUES (?, ?, ?, ?)',
-    [celda || null, vehiculo || null, fechaHora_inicio, fechaHora_fin]
+    'INSERT INTO reserva (celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado) VALUES (?, ?, ?, ?, ?)',
+    [celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado]
   );
   return findById(result.insertId);
 };
 
 /**
- * Actualiza los datos o el horario de una reserva.
+ * Actualiza parcialmente una reserva existente.
  * @param {number} id 
- * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin }
+ * @param {Object} data - Campos a actualizar (todos opcionales).
+ * @param {number} [data.celda]
+ * @param {number} [data.vehiculo]
+ * @param {string} [data.fechaHora_inicio]
+ * @param {string} [data.fechaHora_fin]
+ * @param {number} [data.estado]
  * @returns {Promise<Object>}
  */
-const update = async (id, { celda, vehiculo, fechaHora_inicio, fechaHora_fin }) => {
-  await db.query(
-    'UPDATE reserva SET celda=?, vehiculo=?, fechaHora_inicio=?, fechaHora_fin=? WHERE id=?',
-    [celda || null, vehiculo || null, fechaHora_inicio, fechaHora_fin, id]
-  );
+const update = async (id, data) => {
+  const fields = [];
+  const values = [];
+  const allowedFields = ['celda', 'vehiculo', 'fechaHora_inicio', 'fechaHora_fin', 'estado'];
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      fields.push(`${field} = ?`);
+      values.push(data[field]);
+    }
+  }
+  if (fields.length === 0) {
+    // Si no se envía ningún campo, devolver sin cambios
+    return findById(id);
+  }
+  values.push(id);
+  const query = `UPDATE reserva SET ${fields.join(', ')} WHERE id = ?`;
+  await db.query(query, values);
   return findById(id);
 };
 
@@ -128,4 +147,13 @@ const remove = async (id) => {
   return result.affectedRows > 0;
 };
 
-module.exports = { findAll, findById, findByVehiculo, findByCelda, findConflictos, create, update, remove };
+module.exports = {
+  findAll,
+  findById,
+  findByVehiculo,
+  findByCelda,
+  findConflictos,
+  create,
+  update,
+  remove,
+};

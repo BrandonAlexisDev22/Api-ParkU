@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const ctrl   = require('../controllers/reserva.controller');
+const ctrl = require('../controllers/reserva.controller');
+// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
@@ -112,34 +113,21 @@ router.get('/:id', ctrl.getById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - celda
- *               - vehiculo
- *               - fechaHora_inicio
- *               - fechaHora_fin
- *             properties:
- *               celda:
- *                 type: integer
- *               vehiculo:
- *                 type: integer
- *               fechaHora_inicio:
- *                 type: string
- *                 format: date-time
- *                 example: "2026-03-20T10:00:00Z"
- *               fechaHora_fin:
- *                 type: string
- *                 format: date-time
- *                 example: "2026-03-20T12:00:00Z"
+ *             $ref: '#/components/schemas/ReservaCreate'
  *     responses:
  *       201:
  *         description: Reserva creada con éxito
  *       400:
  *         description: Fechas inválidas o en el pasado
+ *       404:
+ *         description: Celda o vehículo no encontrado
  *       409:
  *         description: Conflicto - La celda ya está reservada en ese horario
  */
-router.post('/', ctrl.create);
+router.post('/',
+  // verificarToken, verificarRol(['admin', 'operador']),
+  ctrl.create
+);
 
 /**
  * @swagger
@@ -158,14 +146,25 @@ router.post('/', ctrl.create);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Reserva'
+ *             $ref: '#/components/schemas/ReservaUpdate'
  *     responses:
  *       200:
  *         description: Reserva modificada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Reserva'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Reserva no encontrada
  *       409:
  *         description: El nuevo horario choca con otra reserva existente
  */
-router.put('/:id', ctrl.update);
+router.put('/:id',
+  // verificarToken, verificarRol(['admin', 'operador']),
+  ctrl.update
+);
 
 /**
  * @swagger
@@ -182,7 +181,14 @@ router.put('/:id', ctrl.update);
  *     responses:
  *       204:
  *         description: Reserva eliminada correctamente
+ *       404:
+ *         description: Reserva no encontrada
+ *       409:
+ *         description: No se puede eliminar porque está referenciada
  */
-router.delete('/:id', ctrl.remove);
+router.delete('/:id',
+  // verificarToken, verificarRol(['admin']),
+  ctrl.remove
+);
 
 module.exports = router;

@@ -10,6 +10,45 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Rol:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID único del rol.
+ *         nombre:
+ *           type: string
+ *           description: Nombre del rol.
+ *         permisos:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: integer
+ *               nombre:
+ *                 type: string
+ *           description: Lista de permisos asociados.
+ *     RolCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *     RolUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ */
+
+/**
+ * @swagger
  * /roles:
  *   get:
  *     summary: Obtener todos los roles
@@ -24,9 +63,13 @@ const { handleError } = require('../helpers/errorHandler');
  *               items:
  *                 $ref: '#/components/schemas/Rol'
  */
-const getAll = async (req, res) => { 
-  try { res.json(await svc.getAll()); } 
-  catch(e) { handleError(res,e); } 
+const getAll = async (req, res) => {
+  try {
+    const data = await svc.getAll();
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -52,9 +95,13 @@ const getAll = async (req, res) => {
  *       404:
  *         description: Rol no encontrado
  */
-const getById = async (req, res) => { 
-  try { res.json(await svc.getById(req.params.id)); } 
-  catch(e) { handleError(res,e); } 
+const getById = async (req, res) => {
+  try {
+    const data = await svc.getById(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -68,13 +115,7 @@ const getById = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *                 description: Nombre del rol
- *             required:
- *               - nombre
+ *             $ref: '#/components/schemas/RolCreate'
  *     responses:
  *       201:
  *         description: Rol creado exitosamente
@@ -82,17 +123,25 @@ const getById = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Rol'
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       409:
+ *         description: Ya existe un rol con ese nombre
  */
-const create = async (req, res) => { 
-  try { res.status(201).json(await svc.create(req.body.nombre)); } 
-  catch(e) { handleError(res,e); } 
+const create = async (req, res) => {
+  try {
+    const newRol = await svc.create(req.body);
+    res.status(201).json(newRol);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
  * @swagger
  * /roles/{id}:
  *   put:
- *     summary: Actualizar un rol por ID
+ *     summary: Actualizar un rol (parcial o total)
  *     tags: [Roles]
  *     parameters:
  *       - in: path
@@ -106,13 +155,7 @@ const create = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               nombre:
- *                 type: string
- *                 description: Nuevo nombre del rol
- *             required:
- *               - nombre
+ *             $ref: '#/components/schemas/RolUpdate'
  *     responses:
  *       200:
  *         description: Rol actualizado
@@ -120,10 +163,20 @@ const create = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Rol'
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Rol no encontrado
+ *       409:
+ *         description: Conflicto - nombre duplicado
  */
-const update = async (req, res) => { 
-  try { res.json(await svc.update(req.params.id, req.body.nombre)); } 
-  catch(e) { handleError(res,e); } 
+const update = async (req, res) => {
+  try {
+    const updated = await svc.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
 /**
@@ -142,27 +195,24 @@ const update = async (req, res) => {
  *     responses:
  *       204:
  *         description: Rol eliminado correctamente
+ *       404:
+ *         description: Rol no encontrado
+ *       409:
+ *         description: No se puede eliminar porque está asignado a algún usuario
  */
-const remove = async (req, res) => { 
-  try { await svc.remove(req.params.id); res.status(204).send(); } 
-  catch(e) { handleError(res,e); } 
+const remove = async (req, res) => {
+  try {
+    await svc.remove(req.params.id);
+    res.status(204).send();
+  } catch (e) {
+    handleError(res, e);
+  }
 };
 
-module.exports = { getAll, getById, create, update, remove };
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Rol:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID del rol
- *         nombre:
- *           type: string
- *           description: Nombre del rol
- *       required:
- *         - nombre
- */
+module.exports = {
+  getAll,
+  getById,
+  create,
+  update,
+  remove,
+};
