@@ -1,5 +1,5 @@
 /**
- * @module NovedadRepository
+ * @module NovedadesRepository
  * @description Capa de acceso a datos para la tabla 'novedades'.
  * Gestiona incidentes, novedades y evidencias asociadas a vehículos y movimientos.
  */

@@ -5,7 +5,7 @@
  *   description: Endpoints para gestionar novedades e incidentes
  */
 
-const svc = require('../services/novedad.service');
+const svc = require('../services/novedades.service');
 const { handleError } = require('../helpers/errorHandler');
 
 // (Los schemas se definen en el servicio, pero los referenciamos aquí)

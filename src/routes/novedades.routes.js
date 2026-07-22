@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const ctrl = require('../controllers/novedad.controller');
+const ctrl = require('../controllers/novedades.controller');
 // const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
 
 /**

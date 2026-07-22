@@ -4,9 +4,9 @@
  * Alineado con el modelo Novedad.
  */
 
-const repo = require('../repositories/novedad.repository');
+const repo = require('../repositories/novedades.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
-const movimientoRepo = require('../repositories/ingresoSalida.repository'); // asumiendo que existe
+const movimientoRepo = require('../repositories/entradaSalida.repository'); // asumiendo que existe
 const usuarioRepo = require('../repositories/usuario.repository');
 
 /**

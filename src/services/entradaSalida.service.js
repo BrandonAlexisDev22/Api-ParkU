@@ -4,7 +4,7 @@
  * y la actualización de disponibilidad de celdas (coherente con el modelo Celda).
  */
 
-const repo = require('../repositories/ingresoSalida.repository');
+const repo = require('../repositories/entradaSalida.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 
