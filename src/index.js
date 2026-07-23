@@ -126,7 +126,7 @@ app.post('/api/auth/registro', require('./controllers/usuario.controller').creat
 // ── MIDDLEWARE DE AUTENTICACIÓN (Aplica a todas las rutas siguientes) ───────
 // ────────────────────────────────────────────────────────────────────────────
 
-app.use(verificarToken);
+// app.use(verificarToken);
 
 // ────────────────────────────────────────────────────────────────────────────
 // ── RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN) ──────────────────────────────
@@ -231,6 +231,52 @@ app.use('/api/reservas', require('./routes/reserva.routes'));
  *   description: Registro de incidencias y novedades
  */
 app.use('/api/reportes', require('./routes/novedades.routes'));
+
+
+/**
+ * @swagger
+ * /api:
+ *   get:
+ *     summary: Información general de la API
+ *     tags: [Información]
+ *     responses:
+ *       200:
+ *         description: Información general de ParkU API
+ */
+app.get('/api', (req, res) => {
+  res.json({
+    nombre: 'ParkU API',
+    version: '1.0.0',
+    descripcion: 'API REST para la gestión integral de parqueaderos',
+    estado: 'operativa',
+    tecnologia: {
+      backend: 'Node.js',
+      framework: 'Express.js',
+      autenticacion: 'JWT',
+      documentacion: 'Swagger',
+      baseDeDatos: process.env.DB_NAME
+    },
+    endpoints: {
+      salud: '/api/salud',
+      login: '/api/auth/login',
+      registro: '/api/auth/registro',
+      usuarios: '/api/usuarios',
+      roles: '/api/roles',
+      permisos: '/api/permisos',
+      perfiles: '/api/perfiles',
+      conductores: '/api/conductores',
+      vehiculos: '/api/vehiculos',
+      parqueaderos: '/api/parqueaderos',
+      celdas: '/api/celdas',
+      entradasSalidas: '/api/entradas-salidas',
+      reservas: '/api/reservas',
+      reportes: '/api/reportes',
+      documentacion: '/api-docs'
+    },
+    fecha: new Date().toISOString()
+  });
+});
+
 
 // ────────────────────────────────────────────────────────────────────────────
 // ── DOCUMENTACIÓN SWAGGER ───────────────────────────────────────────────────
