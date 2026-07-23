@@ -43,7 +43,7 @@ app.use(morgan('combined'));
  *       200:
  *         description: Servidor funcionando correctamente
  */
-app.get('/api/salud', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date(),
