@@ -243,7 +243,7 @@ app.use('/api/reportes', require('./routes/novedades.routes'));
  *       200:
  *         description: Información general de ParkU API
  */
-app.get('/api', (req, res) => {
+app.get('/', (req, res) => {
   res.json({
     nombre: 'ParkU API',
     version: '1.0.0',
