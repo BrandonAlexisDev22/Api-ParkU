@@ -7,9 +7,4 @@ const pool = new Pool({
   },
 });
 
-
-//CONSULTA DE PRUEBA
-const result = await pool.query("SELECT * FROM users");
-console.log(result.rows);
-
 export default pool;

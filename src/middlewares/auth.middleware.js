@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
  * @param {Object} req - Express request
  * @param {Object} res - Express response
  * @param {Function} next - Express next
+ * 
  */
 const verificarToken = (req, res, next) => {
   try {
