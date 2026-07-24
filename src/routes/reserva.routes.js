@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/reserva.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,10 +11,84 @@ const ctrl = require('../controllers/reserva.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Reserva:
+ *       type: object
+ *       required:
+ *         - celda
+ *         - vehiculo_id
+ *         - fecha_hora_inicio
+ *         - fecha_hora_fin
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental de la reserva.
+ *         celda:
+ *           type: integer
+ *           description: ID de la celda reservada.
+ *         usuario_id:
+ *           type: integer
+ *           description: ID del usuario que realizó la reserva.
+ *         vehiculo_id:
+ *           type: integer
+ *           description: ID del vehículo asociado a la reserva.
+ *         fecha_hora_inicio:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora de inicio.
+ *         fecha_hora_fin:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora de finalización.
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *           description: true = Activa, false = Cancelada/Finalizada.
+ *     ReservaCreate:
+ *       type: object
+ *       required:
+ *         - celda
+ *         - vehiculo_id
+ *         - fecha_hora_inicio
+ *         - fecha_hora_fin
+ *       properties:
+ *         celda:
+ *           type: integer
+ *         vehiculo_id:
+ *           type: integer
+ *         fecha_hora_inicio:
+ *           type: string
+ *           format: date-time
+ *         fecha_hora_fin:
+ *           type: string
+ *           format: date-time
+ *     ReservaUpdate:
+ *       type: object
+ *       properties:
+ *         celda:
+ *           type: integer
+ *         vehiculo_id:
+ *           type: integer
+ *         fecha_hora_inicio:
+ *           type: string
+ *           format: date-time
+ *         fecha_hora_fin:
+ *           type: string
+ *           format: date-time
+ *         estado:
+ *           type: boolean
+ *           description: true = Activa, false = Cancelada/Finalizada.
+ */
+
+/**
+ * @swagger
  * /api/reservas:
  *   get:
  *     summary: Obtiene todas las reservas
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Listado de reservas obtenido con éxito
@@ -24,8 +98,16 @@ const ctrl = require('../controllers/reserva.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -33,6 +115,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene las reservas de un vehículo específico
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: vehiculoId
@@ -49,8 +133,13 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
+router.get('/vehiculo/:vehiculoId',
+  verificarToken,
+  ctrl.getByVehiculo
+);
 
 /**
  * @swagger
@@ -58,6 +147,8 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *   get:
  *     summary: Obtiene las reservas de una celda específica
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: celdaId
@@ -74,8 +165,13 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Reserva'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/celda/:celdaId', ctrl.getByCelda);
+router.get('/celda/:celdaId',
+  verificarToken,
+  ctrl.getByCelda
+);
 
 /**
  * @swagger
@@ -83,6 +179,8 @@ router.get('/celda/:celdaId', ctrl.getByCelda);
  *   get:
  *     summary: Obtiene una reserva por su ID
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -96,10 +194,15 @@ router.get('/celda/:celdaId', ctrl.getByCelda);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Reserva'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Reserva no encontrada
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -108,6 +211,8 @@ router.get('/:id', ctrl.getById);
  *     summary: Crea una nueva reserva
  *     description: Valida que no existan solapamientos horarios en la celda elegida.
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -119,13 +224,15 @@ router.get('/:id', ctrl.getById);
  *         description: Reserva creada con éxito
  *       400:
  *         description: Fechas inválidas o en el pasado
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Celda o vehículo no encontrado
  *       409:
  *         description: Conflicto - La celda ya está reservada en ese horario
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken, // Cualquier usuario autenticado puede crear reservas
   ctrl.create
 );
 
@@ -135,6 +242,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza una reserva
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -156,13 +265,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Reserva'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Reserva no encontrada
  *       409:
  *         description: El nuevo horario choca con otra reserva existente
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -172,6 +286,8 @@ router.put('/:id',
  *   delete:
  *     summary: Cancela o elimina una reserva
  *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -181,13 +297,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Reserva eliminada correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Reserva no encontrada
  *       409:
  *         description: No se puede eliminar porque está referenciada
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

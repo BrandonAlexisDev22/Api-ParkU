@@ -1,12 +1,69 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/usuario.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
  * tags:
  *   name: Usuarios
  *   description: Gestión de cuentas, autenticación y seguridad de acceso
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Usuario:
+ *       type: object
+ *       required:
+ *         - correo
+ *         - contrasena
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del usuario.
+ *         correo:
+ *           type: string
+ *           format: email
+ *           description: Correo electrónico único.
+ *         contrasena:
+ *           type: string
+ *           description: Contraseña encriptada (no visible en respuestas).
+ *         rol:
+ *           type: integer
+ *           description: ID del rol asignado.
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *           description: true = Activo, false = Inactivo.
+ *         refresh_token:
+ *           type: string
+ *           nullable: true
+ *           description: Token de renovación de sesión.
+ *     UsuarioCreate:
+ *       type: object
+ *       required:
+ *         - correo
+ *         - contrasena
+ *       properties:
+ *         correo:
+ *           type: string
+ *           format: email
+ *         contrasena:
+ *           type: string
+ *         rol:
+ *           type: integer
+ *           default: 3
+ *     UsuarioUpdate:
+ *       type: object
+ *       properties:
+ *         correo:
+ *           type: string
+ *           format: email
+ *         rol:
+ *           type: integer
+ *         estado:
+ *           type: boolean
  */
 
 /**
@@ -47,7 +104,9 @@ const ctrl = require('../controllers/usuario.controller');
  *       401:
  *         description: Credenciales inválidas
  */
-router.post('/login', ctrl.login);
+router.post('/login',
+  ctrl.login
+);
 
 /**
  * @swagger
@@ -55,6 +114,8 @@ router.post('/login', ctrl.login);
  *   get:
  *     summary: Listar todos los usuarios
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de usuarios obtenida
@@ -64,8 +125,16 @@ router.post('/login', ctrl.login);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Usuario'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -73,6 +142,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtener usuario por ID
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -86,10 +157,18 @@ router.get('/', ctrl.getAll);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Usuario'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Usuario no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -97,6 +176,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Registrar un nuevo usuario
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -112,11 +193,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Usuario'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       409:
  *         description: El correo ya está registrado
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -126,6 +212,8 @@ router.post('/',
  *   put:
  *     summary: Actualizar datos de perfil (parcial o total)
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -147,13 +235,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Usuario'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Usuario no encontrado
  *       409:
  *         description: El correo ya está en uso
  */
 router.put('/:id',
-  // verificarToken,
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
 );
 
@@ -163,6 +256,8 @@ router.put('/:id',
  *   patch:
  *     summary: Cambiar contraseña de usuario
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -189,12 +284,14 @@ router.put('/:id',
  *       400:
  *         description: Faltan datos
  *       401:
- *         description: La contraseña actual es incorrecta
+ *         description: No autorizado - Token requerido o contraseña incorrecta
+ *       403:
+ *         description: Prohibido - No puedes cambiar contraseña de otro usuario
  *       404:
  *         description: Usuario no encontrado
  */
 router.patch('/:id/contrasena',
-  // verificarToken,
+  verificarToken,
   ctrl.cambiarContrasena
 );
 
@@ -204,6 +301,8 @@ router.patch('/:id/contrasena',
  *   delete:
  *     summary: Eliminar una cuenta de usuario
  *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -213,11 +312,16 @@ router.patch('/:id/contrasena',
  *     responses:
  *       204:
  *         description: Usuario eliminado
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Usuario no encontrado
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

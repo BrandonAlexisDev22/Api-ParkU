@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/rolPermiso.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,10 +11,49 @@ const ctrl = require('../controllers/rolPermiso.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     RolPermiso:
+ *       type: object
+ *       required:
+ *         - rol
+ *         - permiso
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental de la asignación.
+ *         rol:
+ *           type: integer
+ *           description: ID del rol.
+ *         permiso:
+ *           type: integer
+ *           description: ID del permiso.
+ *         rol_nombre:
+ *           type: string
+ *           description: Nombre del rol (solo en respuestas con JOIN).
+ *         permiso_nombre:
+ *           type: string
+ *           description: Nombre del permiso (solo en respuestas con JOIN).
+ *     RolPermisoCreate:
+ *       type: object
+ *       required:
+ *         - rol
+ *         - permiso
+ *       properties:
+ *         rol:
+ *           type: integer
+ *         permiso:
+ *           type: integer
+ */
+
+/**
+ * @swagger
  * /api/roles-permisos:
  *   get:
  *     summary: Obtiene todas las asociaciones rol-permiso
  *     tags: [Asignación de Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Listado completo de asignaciones
@@ -24,8 +63,16 @@ const ctrl = require('../controllers/rolPermiso.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/RolPermiso'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -33,6 +80,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene los permisos asociados a un rol específico
  *     tags: [Asignación de Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: rolId
@@ -49,10 +98,18 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/RolPermiso'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Rol no encontrado
  */
-router.get('/rol/:rolId', ctrl.getByRol);
+router.get('/rol/:rolId',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getByRol
+);
 
 /**
  * @swagger
@@ -60,6 +117,8 @@ router.get('/rol/:rolId', ctrl.getByRol);
  *   post:
  *     summary: Asigna un permiso a un rol
  *     tags: [Asignación de Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -75,13 +134,18 @@ router.get('/rol/:rolId', ctrl.getByRol);
  *               $ref: '#/components/schemas/RolPermiso'
  *       400:
  *         description: Faltan campos requeridos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: El rol o el permiso no existen
  *       409:
  *         description: El permiso ya está asignado a este rol
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -91,6 +155,8 @@ router.post('/',
  *   delete:
  *     summary: Revoca un permiso de un rol (Elimina la asociación)
  *     tags: [Asignación de Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -101,11 +167,16 @@ router.post('/',
  *     responses:
  *       204:
  *         description: Permiso revocado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Registro no encontrado
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

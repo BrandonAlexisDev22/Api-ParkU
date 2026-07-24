@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/celda.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -80,6 +80,8 @@ const ctrl = require('../controllers/celda.controller');
  *   get:
  *     summary: Obtiene todas las celdas
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de todas las celdas
@@ -89,8 +91,13 @@ const ctrl = require('../controllers/celda.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Celda'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -98,6 +105,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Lista solo las celdas disponibles de un parqueadero
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: parqueaderoId
@@ -114,8 +123,13 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Celda'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/parqueadero/:parqueaderoId/disponibles', ctrl.getDisponibles);
+router.get('/parqueadero/:parqueaderoId/disponibles',
+  verificarToken,
+  ctrl.getDisponibles
+);
 
 /**
  * @swagger
@@ -123,6 +137,8 @@ router.get('/parqueadero/:parqueaderoId/disponibles', ctrl.getDisponibles);
  *   get:
  *     summary: Obtiene celdas por ID de parqueadero
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: parqueaderoId
@@ -139,8 +155,13 @@ router.get('/parqueadero/:parqueaderoId/disponibles', ctrl.getDisponibles);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Celda'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/parqueadero/:parqueaderoId', ctrl.getByParqueadero);
+router.get('/parqueadero/:parqueaderoId',
+  verificarToken,
+  ctrl.getByParqueadero
+);
 
 /**
  * @swagger
@@ -148,6 +169,8 @@ router.get('/parqueadero/:parqueaderoId', ctrl.getByParqueadero);
  *   get:
  *     summary: Obtiene celdas por tipo de vehículo
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: tipo
@@ -167,8 +190,13 @@ router.get('/parqueadero/:parqueaderoId', ctrl.getByParqueadero);
  *                 $ref: '#/components/schemas/Celda'
  *       400:
  *         description: Tipo no válido
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/tipo/:tipo', ctrl.getByTipo);
+router.get('/tipo/:tipo',
+  verificarToken,
+  ctrl.getByTipo
+);
 
 /**
  * @swagger
@@ -176,6 +204,8 @@ router.get('/tipo/:tipo', ctrl.getByTipo);
  *   get:
  *     summary: Obtiene celdas por usabilidad
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: usabilidad
@@ -195,8 +225,13 @@ router.get('/tipo/:tipo', ctrl.getByTipo);
  *                 $ref: '#/components/schemas/Celda'
  *       400:
  *         description: Usabilidad no válida
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/usabilidad/:usabilidad', ctrl.getByUsabilidad);
+router.get('/usabilidad/:usabilidad',
+  verificarToken,
+  ctrl.getByUsabilidad
+);
 
 /**
  * @swagger
@@ -204,6 +239,8 @@ router.get('/usabilidad/:usabilidad', ctrl.getByUsabilidad);
  *   get:
  *     summary: Obtiene una celda por su ID
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -218,10 +255,15 @@ router.get('/usabilidad/:usabilidad', ctrl.getByUsabilidad);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Celda'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Celda no encontrada
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -229,6 +271,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Crea una nueva celda
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -244,11 +288,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Celda'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Parqueadero no encontrado
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin', 'operador']), // Descomentar si se requiere autenticación
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.create
 );
 
@@ -258,6 +307,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza una celda (parcial o totalmente)
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -280,11 +331,16 @@ router.post('/',
  *               $ref: '#/components/schemas/Celda'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Celda no encontrada
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -294,6 +350,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina una celda
  *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -304,11 +362,16 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Celda eliminada correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Celda no encontrada
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

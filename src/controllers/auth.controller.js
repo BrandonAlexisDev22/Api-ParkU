@@ -1,206 +1,261 @@
-/**
- * @module AuthController
- * @description Controlador de autenticación y autorización
- */
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
+const PasswordUtil = require('../utils/password.util');
+const { query, queryOne } = require('../config/database');
+const { generarToken, generarRefreshToken } = require('../middlewares/auth.middleware');
 
-const usuarioSvc = require('../services/usuario.service');
-const { generarToken } = require('../middleware/auth.middleware');
-const { handleError } = require('../helpers/errorHandler');
-
-/**
- * Registro de nuevo usuario
- * @swagger
- * /api/auth/registro:
- *   post:
- *     summary: Registrar nuevo usuario
- *     tags: [Autenticación]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - correo
- *               - contrasena
- *               - nombre
- *             properties:
- *               correo:
- *                 type: string
- *                 format: email
- *               contrasena:
- *                 type: string
- *                 minLength: 6
- *               nombre:
- *                 type: string
- *               numero:
- *                 type: string
- *     responses:
- *       201:
- *         description: Usuario creado exitosamente
- *       400:
- *         description: Validación fallida
- *       409:
- *         description: El correo ya está registrado
- */
-const registro = async (req, res) => {
-  try {
-    const { correo, contrasena, nombre, numero } = req.body;
-
-    // Validaciones básicas
-    if (!correo || !contrasena || !nombre) {
-      return res.status(400).json({
-        status: 400,
-        message: 'Correo, contraseña y nombre son requeridos'
-      });
-    }
-
-    if (contrasena.length < 6) {
-      return res.status(400).json({
-        status: 400,
-        message: 'La contraseña debe tener al menos 6 caracteres'
-      });
-    }
-
-    // Crear usuario
-    const usuario = await usuarioSvc.create({
-      correo,
-      contrasena,
-      nombre,
-      numero,
-      rol: 2 // rol por defecto (conductor/usuario)
-    });
-
-    // Generar token
-    const token = generarToken(usuario);
-
-    res.status(201).json({
-      status: 201,
-      message: 'Usuario registrado exitosamente',
-      data: {
-        usuario,
-        token
+class AuthController {
+  /**
+   * POST /api/auth/register - Registro de usuario
+   */
+  static async register(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array().map(err => ({
+            field: err.param,
+            message: err.msg
+          }))
+        });
       }
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-};
 
-/**
- * Inicio de sesión
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Iniciar sesión
- *     tags: [Autenticación]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - correo
- *               - contrasena
- *             properties:
- *               correo:
- *                 type: string
- *                 format: email
- *               contrasena:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *                 usuario:
- *                   type: object
- *       401:
- *         description: Credenciales inválidas
- */
-const login = async (req, res) => {
-  try {
-    const { correo, contrasena } = req.body;
+      const { correo, contrasena, nombre, numero, rol = 3 } = req.body;
 
-    if (!correo || !contrasena) {
-      return res.status(400).json({
-        status: 400,
-        message: 'Correo y contraseña son requeridos'
+      // Verificar si el correo ya existe
+      const exists = await queryOne('SELECT id FROM usuario WHERE correo = $1', [correo]);
+      if (exists) {
+        return res.status(400).json({
+          success: false,
+          message: 'El correo ya está registrado'
+        });
+      }
+
+      // Encriptar contraseña
+      const hashedPassword = await PasswordUtil.hash(contrasena);
+
+      // Crear usuario
+      const result = await query(
+        `INSERT INTO usuario (correo, contraseña, rol, estado) 
+         VALUES ($1, $2, $3, TRUE) 
+         RETURNING id, correo, rol, estado`,
+        [correo, hashedPassword, rol]
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Usuario registrado exitosamente',
+        data: result[0]
+      });
+    } catch (error) {
+      console.error('Error en register:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
       });
     }
+  }
 
-    const usuarioData = await usuarioSvc.login(correo, contrasena);
-    const token = generarToken(usuarioData);
-
-    res.json({
-      status: 200,
-      message: 'Login exitoso',
-      data: {
-        usuario: usuarioData,
-        token
+  /**
+   * POST /api/auth/login - Inicio de sesión
+   */
+  static async login(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array().map(err => ({
+            field: err.param,
+            message: err.msg
+          }))
+        });
       }
-    });
-  } catch (error) {
-    handleError(res, error);
+
+      const { correo, contrasena } = req.body;
+
+      // Buscar usuario
+      const user = await queryOne(
+        'SELECT id, correo, contraseña, rol, estado FROM usuario WHERE correo = $1',
+        [correo]
+      );
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Credenciales inválidas'
+        });
+      }
+
+      if (!user.estado) {
+        return res.status(403).json({
+          success: false,
+          message: 'Usuario inactivo. Contacte al administrador'
+        });
+      }
+
+      // Verificar contraseña
+      const isPasswordValid = await PasswordUtil.compare(contrasena, user.contraseña);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Credenciales inválidas'
+        });
+      }
+
+      // Generar tokens
+      const payload = {
+        id: user.id,
+        correo: user.correo,
+        rol: user.rol
+      };
+
+      const token = generarToken(payload);
+      const refreshToken = generarRefreshToken(payload);
+
+      // Guardar refresh token en BD
+      await query('UPDATE usuario SET refresh_token = $1 WHERE id = $2', [
+        refreshToken,
+        user.id
+      ]);
+
+      // Eliminar datos sensibles
+      delete user.contraseña;
+      delete user.refresh_token;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login exitoso',
+        data: {
+          user,
+          token,
+          refreshToken,
+          expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+        }
+      });
+    } catch (error) {
+      console.error('Error en login:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
   }
-};
 
-/**
- * Verificar token actual
- * @swagger
- * /api/auth/verificar:
- *   get:
- *     summary: Verificar token actual
- *     tags: [Autenticación]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Token válido
- */
-const verificar = (req, res) => {
-  res.json({
-    status: 200,
-    message: 'Token válido',
-    data: req.usuario
-  });
-};
-
-/**
- * Renovar token
- * @swagger
- * /api/auth/renovar:
- *   post:
- *     summary: Renovar token de acceso
- *     tags: [Autenticación]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Token renovado exitosamente
- */
-const renovarToken = (req, res) => {
-  try {
-    const token = generarToken(req.usuario);
-    res.json({
-      status: 200,
-      message: 'Token renovado exitosamente',
-      data: { token }
-    });
-  } catch (error) {
-    handleError(res, error);
+  /**
+   * GET /api/auth/verificar - Verificar token JWT
+   */
+  static async verificar(req, res) {
+    try {
+      // El middleware verificarToken ya validó el token
+      // y guardó el usuario en req.usuario
+      return res.status(200).json({
+        success: true,
+        message: 'Token válido',
+        data: {
+          usuario: req.usuario
+        }
+      });
+    } catch (error) {
+      console.error('Error en verificar:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
   }
-};
 
-module.exports = {
-  registro,
-  login,
-  verificar,
-  renovarToken
-};
+  /**
+   * POST /api/auth/refresh-token - Renovar token de acceso
+   */
+  static async refreshToken(req, res) {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'Refresh token requerido'
+        });
+      }
+
+      // Verificar refresh token
+      let decoded;
+      try {
+        decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+      } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            success: false,
+            message: 'Refresh token expirado. Inicia sesión nuevamente'
+          });
+        }
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token inválido'
+        });
+      }
+
+      // Verificar que el refresh token coincida con el guardado
+      const user = await queryOne(
+        'SELECT id, correo, rol FROM usuario WHERE id = $1 AND refresh_token = $2',
+        [decoded.id, refreshToken]
+      );
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token inválido'
+        });
+      }
+
+      // Generar nuevo token
+      const newToken = generarToken({
+        id: user.id,
+        correo: user.correo,
+        rol: user.rol
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          token: newToken,
+          expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+        }
+      });
+    } catch (error) {
+      console.error('Error en refreshToken:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  /**
+   * POST /api/auth/logout - Cerrar sesión
+   */
+  static async logout(req, res) {
+    try {
+      const userId = req.usuario?.id;
+
+      if (userId) {
+        await query('UPDATE usuario SET refresh_token = NULL WHERE id = $1', [userId]);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Logout exitoso'
+      });
+    } catch (error) {
+      console.error('Error en logout:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al cerrar sesión'
+      });
+    }
+  }
+}
+
+module.exports = AuthController;

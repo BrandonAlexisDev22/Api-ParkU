@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/conductor.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -119,6 +119,8 @@ const ctrl = require('../controllers/conductor.controller');
  *   get:
  *     summary: Obtiene todos los conductores
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de conductores obtenida con éxito
@@ -128,8 +130,13 @@ const ctrl = require('../controllers/conductor.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Conductor'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -137,6 +144,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene solo los conductores activos
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de conductores con estado = true
@@ -146,8 +155,13 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Conductor'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/activos', ctrl.getActivos);
+router.get('/activos',
+  verificarToken,
+  ctrl.getActivos
+);
 
 /**
  * @swagger
@@ -155,6 +169,8 @@ router.get('/activos', ctrl.getActivos);
  *   get:
  *     summary: Busca un conductor por su número de documento
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: documento
@@ -169,10 +185,15 @@ router.get('/activos', ctrl.getActivos);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Conductor'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: No existe conductor con ese documento
  */
-router.get('/documento/:documento', ctrl.getByDocumento);
+router.get('/documento/:documento',
+  verificarToken,
+  ctrl.getByDocumento
+);
 
 /**
  * @swagger
@@ -180,6 +201,8 @@ router.get('/documento/:documento', ctrl.getByDocumento);
  *   get:
  *     summary: Busca conductores por correo electrónico
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: correo
@@ -197,8 +220,13 @@ router.get('/documento/:documento', ctrl.getByDocumento);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Conductor'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/correo/:correo', ctrl.getByCorreo);
+router.get('/correo/:correo',
+  verificarToken,
+  ctrl.getByCorreo
+);
 
 /**
  * @swagger
@@ -206,6 +234,8 @@ router.get('/correo/:correo', ctrl.getByCorreo);
  *   get:
  *     summary: Obtiene un conductor por su ID
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -220,10 +250,15 @@ router.get('/correo/:correo', ctrl.getByCorreo);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Conductor'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Conductor no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -231,6 +266,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Registra un nuevo conductor
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -246,11 +283,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Conductor'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       409:
  *         description: Documento o correo ya registrado
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.create
 );
 
@@ -260,6 +302,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza la información de un conductor
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -282,11 +326,16 @@ router.post('/',
  *               $ref: '#/components/schemas/Conductor'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Registro no encontrado
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -296,6 +345,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina un registro de conductor
  *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -306,11 +357,16 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Registro eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Conductor no encontrado
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

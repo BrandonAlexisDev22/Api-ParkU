@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/novedades.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,10 +11,111 @@ const ctrl = require('../controllers/novedades.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Novedad:
+ *       type: object
+ *       required:
+ *         - descripcion
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental de la novedad.
+ *         vehiculo:
+ *           type: integer
+ *           nullable: true
+ *           description: ID del vehículo relacionado.
+ *         encargado:
+ *           type: string
+ *           nullable: true
+ *           description: Persona que reporta o atiende la novedad.
+ *         descripcion:
+ *           type: string
+ *           description: Descripción del incidente.
+ *         evidencia:
+ *           type: string
+ *           nullable: true
+ *           description: Ruta o URL de la evidencia.
+ *         ingreso_salida:
+ *           type: integer
+ *           nullable: true
+ *           description: ID del movimiento relacionado.
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha y hora del registro.
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *           default: OTRO
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *           default: MEDIA
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *           description: true = Pendiente, false = Resuelta.
+ *         placa:
+ *           type: string
+ *           description: Placa del vehículo (solo en respuestas con JOIN).
+ *     NovedadCreate:
+ *       type: object
+ *       required:
+ *         - descripcion
+ *       properties:
+ *         vehiculo:
+ *           type: integer
+ *           nullable: true
+ *         encargado:
+ *           type: string
+ *           nullable: true
+ *         descripcion:
+ *           type: string
+ *         evidencia:
+ *           type: string
+ *           nullable: true
+ *         ingreso_salida:
+ *           type: integer
+ *           nullable: true
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *           default: OTRO
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *           default: MEDIA
+ *     NovedadUpdate:
+ *       type: object
+ *       properties:
+ *         encargado:
+ *           type: string
+ *           nullable: true
+ *         descripcion:
+ *           type: string
+ *         evidencia:
+ *           type: string
+ *           nullable: true
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *         estado:
+ *           type: boolean
+ *           description: true = Pendiente, false = Resuelta.
+ */
+
+/**
+ * @swagger
  * /api/novedades:
  *   get:
  *     summary: Obtiene todas las novedades
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de novedades
@@ -24,8 +125,16 @@ const ctrl = require('../controllers/novedades.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -33,6 +142,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene novedades por vehículo
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: vehiculoId
@@ -48,8 +159,16 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
+router.get('/vehiculo/:vehiculoId',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getByVehiculo
+);
 
 /**
  * @swagger
@@ -57,6 +176,8 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *   get:
  *     summary: Obtiene novedades por movimiento
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: movimientoId
@@ -72,8 +193,16 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/movimiento/:movimientoId', ctrl.getByMovimiento);
+router.get('/movimiento/:movimientoId',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getByMovimiento
+);
 
 /**
  * @swagger
@@ -81,6 +210,8 @@ router.get('/movimiento/:movimientoId', ctrl.getByMovimiento);
  *   get:
  *     summary: Filtra novedades por tipo, prioridad y/o estado
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: tipo
@@ -105,8 +236,16 @@ router.get('/movimiento/:movimientoId', ctrl.getByMovimiento);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/filtros', ctrl.getByFiltros);
+router.get('/filtros',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getByFiltros
+);
 
 /**
  * @swagger
@@ -114,6 +253,8 @@ router.get('/filtros', ctrl.getByFiltros);
  *   get:
  *     summary: Obtiene una novedad por ID
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -127,10 +268,18 @@ router.get('/filtros', ctrl.getByFiltros);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Novedad no encontrada
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -138,6 +287,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Crea una nueva novedad
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -153,11 +304,13 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Novedad'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Referencia no encontrada
  */
 router.post('/',
-  // verificarToken,
+  verificarToken, // Cualquier usuario autenticado puede crear novedades
   ctrl.create
 );
 
@@ -167,6 +320,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza una novedad
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -186,11 +341,16 @@ router.post('/',
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Novedad'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Novedad no encontrada
  */
 router.put('/:id',
-  // verificarToken,
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -200,6 +360,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina una novedad
  *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -209,11 +371,16 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Novedad eliminada
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Novedad no encontrada
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

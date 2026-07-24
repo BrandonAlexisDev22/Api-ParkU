@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/rol.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,10 +11,41 @@ const ctrl = require('../controllers/rol.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Rol:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del rol.
+ *         nombre:
+ *           type: string
+ *           description: Nombre del rol (ej. "admin", "operador", "usuario").
+ *     RolCreate:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *     RolUpdate:
+ *       type: object
+ *       properties:
+ *         nombre:
+ *           type: string
+ */
+
+/**
+ * @swagger
  * /api/roles:
  *   get:
  *     summary: Obtiene todos los roles
  *     tags: [Roles]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de roles obtenida
@@ -24,8 +55,16 @@ const ctrl = require('../controllers/rol.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Rol'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -33,6 +72,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene un rol por ID
  *     tags: [Roles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -46,10 +87,18 @@ router.get('/', ctrl.getAll);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Rol'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Rol no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -57,6 +106,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Crea un nuevo rol
  *     tags: [Roles]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -72,11 +123,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Rol'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       409:
  *         description: El nombre del rol ya existe
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -86,6 +142,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza un rol (parcial o total)
  *     tags: [Roles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -107,13 +165,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Rol'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Rol no encontrado
  *       409:
  *         description: Conflicto - nombre duplicado
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
 );
 
@@ -123,6 +186,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina un rol
  *     tags: [Roles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -132,13 +197,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Rol eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Rol no encontrado
  *       409:
  *         description: No se puede eliminar porque está asignado a algún usuario
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

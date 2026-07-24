@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/parqueadero.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -100,6 +100,8 @@ const ctrl = require('../controllers/parqueadero.controller');
  *   get:
  *     summary: Obtiene la lista de todos los parqueaderos
  *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de sedes obtenida con éxito
@@ -109,8 +111,13 @@ const ctrl = require('../controllers/parqueadero.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Parqueadero'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -118,6 +125,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene un parqueadero por su ID
  *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -132,10 +141,15 @@ router.get('/', ctrl.getAll);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Parqueadero'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Parqueadero no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -143,6 +157,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Crea una nueva sede de parqueadero
  *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -158,11 +174,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Parqueadero'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       409:
  *         description: Ya existe un parqueadero con ese nombre
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -172,6 +193,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza la información de una sede (parcial o total)
  *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -194,13 +217,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Parqueadero'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Parqueadero no encontrado
  *       409:
  *         description: El nuevo nombre ya está en uso por otra sede
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
 );
 
@@ -210,6 +238,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina una sede del sistema
  *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -220,13 +250,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Parqueadero eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Parqueadero no encontrado
  *       409:
  *         description: No se puede eliminar porque tiene celdas asociadas (integridad referencial)
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

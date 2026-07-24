@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/entradaSalida.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -72,6 +72,8 @@ const ctrl = require('../controllers/entradaSalida.controller');
  *   get:
  *     summary: Obtiene todo el historial de movimientos
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Historial completo obtenido
@@ -81,8 +83,14 @@ const ctrl = require('../controllers/entradaSalida.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/EntradaSalida'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -90,6 +98,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Filtra movimientos por rango de fechas
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: desde
@@ -116,8 +126,16 @@ router.get('/', ctrl.getAll);
  *                 $ref: '#/components/schemas/EntradaSalida'
  *       400:
  *         description: Faltan parámetros de fecha
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/filtro', ctrl.getByFecha);
+router.get('/filtro',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getByFecha
+);
 
 /**
  * @swagger
@@ -125,6 +143,8 @@ router.get('/filtro', ctrl.getByFecha);
  *   get:
  *     summary: Historial de movimientos de un vehículo específico
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: vehiculoId
@@ -141,8 +161,16 @@ router.get('/filtro', ctrl.getByFecha);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/EntradaSalida'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
+router.get('/vehiculo/:vehiculoId',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getByVehiculo
+);
 
 /**
  * @swagger
@@ -150,6 +178,8 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *   get:
  *     summary: Obtiene un registro específico por ID
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -164,10 +194,18 @@ router.get('/vehiculo/:vehiculoId', ctrl.getByVehiculo);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/EntradaSalida'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Registro no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -176,6 +214,8 @@ router.get('/:id', ctrl.getById);
  *     summary: Registra el ingreso de un vehículo
  *     description: Registra la entrada y cambia automáticamente el estado de la celda a OCUPADO
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -191,13 +231,18 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/EntradaSalida'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Vehículo o celda no encontrados
  *       409:
  *         description: Conflicto - La celda ya está ocupada o el vehículo ya tiene una entrada activa
  */
 router.post('/entrada',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.registrarEntrada
 );
 
@@ -208,6 +253,8 @@ router.post('/entrada',
  *     summary: Registra la salida de un vehículo
  *     description: Registra la salida y libera la celda cambiándola a DISPONIBLE
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -223,13 +270,18 @@ router.post('/entrada',
  *               $ref: '#/components/schemas/EntradaSalida'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Vehículo o celda no encontrados
  *       409:
  *         description: Conflicto - El vehículo no tiene una entrada activa
  */
 router.post('/salida',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.registrarSalida
 );
 
@@ -239,6 +291,8 @@ router.post('/salida',
  *   delete:
  *     summary: Elimina un registro del historial (uso administrativo)
  *     tags: [Control de Acceso]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -249,11 +303,16 @@ router.post('/salida',
  *     responses:
  *       204:
  *         description: Registro eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Registro no encontrado
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

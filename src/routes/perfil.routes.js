@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/perfil.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -54,6 +54,8 @@ const ctrl = require('../controllers/perfil.controller');
  *   get:
  *     summary: Obtiene todos los perfiles registrados
  *     tags: [Perfiles]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de perfiles cargada exitosamente
@@ -63,8 +65,16 @@ const ctrl = require('../controllers/perfil.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Perfil'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -72,6 +82,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene un perfil por su ID
  *     tags: [Perfiles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -86,10 +98,18 @@ router.get('/', ctrl.getAll);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Perfil'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Perfil no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -97,6 +117,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Crea un nuevo perfil de usuario
  *     tags: [Perfiles]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -112,11 +134,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Perfil'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       409:
  *         description: Ya existe un perfil con ese nombre
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.create
 );
 
@@ -126,6 +153,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza un perfil existente (parcial o total)
  *     tags: [Perfiles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -147,13 +176,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Perfil'
  *       400:
  *         description: Datos de entrada inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Perfil no encontrado
  *       409:
  *         description: Conflicto - nombre duplicado
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -163,6 +197,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina un perfil
  *     tags: [Perfiles]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -172,13 +208,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Perfil eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Perfil no encontrado
  *       409:
  *         description: No se puede eliminar porque está en uso
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

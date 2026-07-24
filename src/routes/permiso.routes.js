@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/permiso.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -44,6 +44,8 @@ const ctrl = require('../controllers/permiso.controller');
  *   get:
  *     summary: Obtiene la lista de todos los permisos definidos
  *     tags: [Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de permisos obtenida con éxito
@@ -53,8 +55,16 @@ const ctrl = require('../controllers/permiso.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Permiso'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -62,6 +72,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene un permiso por su ID
  *     tags: [Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -76,10 +88,18 @@ router.get('/', ctrl.getAll);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Permiso'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Permiso no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -88,6 +108,8 @@ router.get('/:id', ctrl.getById);
  *     summary: Crea un nuevo permiso
  *     description: El nombre debe ser único y preferiblemente en mayúsculas (ej. "EDITAR_USUARIOS").
  *     tags: [Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -103,11 +125,16 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Permiso'
  *       400:
  *         description: Datos inválidos o nombre faltante
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       409:
  *         description: Ya existe un permiso con ese nombre
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -117,6 +144,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza el nombre de un permiso (parcial o total)
  *     tags: [Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -138,13 +167,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Permiso'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Permiso no encontrado
  *       409:
  *         description: El nombre ya está en uso por otro permiso
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
 );
 
@@ -154,6 +188,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina un permiso del sistema
  *     tags: [Permisos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -163,13 +199,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Permiso eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Permiso no encontrado
  *       409:
  *         description: No se puede eliminar porque está asignado a algún rol
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

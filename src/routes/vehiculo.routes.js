@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/vehiculo.controller');
-// const { verificarToken, verificarRol } = require('../middleware/auth.middleware');
+const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,10 +11,113 @@ const ctrl = require('../controllers/vehiculo.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Vehiculo:
+ *       type: object
+ *       required:
+ *         - tipo
+ *         - marca
+ *         - placa
+ *         - conductor
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID autoincremental del vehículo.
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
+ *           description: Tipo de vehículo.
+ *         marca:
+ *           type: string
+ *           description: Marca del vehículo.
+ *         modelo:
+ *           type: string
+ *           nullable: true
+ *           description: Modelo del vehículo.
+ *         placa:
+ *           type: string
+ *           description: Placa única del vehículo.
+ *         color:
+ *           type: string
+ *           nullable: true
+ *           description: Color del vehículo.
+ *         conductor:
+ *           type: integer
+ *           description: ID del conductor asociado.
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *           description: Observaciones adicionales.
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *           description: true = Activo, false = Inactivo.
+ *         conductor_nombre:
+ *           type: string
+ *           description: Nombre del conductor (solo en respuestas con JOIN).
+ *     VehiculoCreate:
+ *       type: object
+ *       required:
+ *         - tipo
+ *         - marca
+ *         - placa
+ *         - conductor
+ *       properties:
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
+ *         marca:
+ *           type: string
+ *         modelo:
+ *           type: string
+ *           nullable: true
+ *         placa:
+ *           type: string
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         conductor:
+ *           type: integer
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         estado:
+ *           type: boolean
+ *           default: true
+ *     VehiculoUpdate:
+ *       type: object
+ *       properties:
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
+ *         marca:
+ *           type: string
+ *         modelo:
+ *           type: string
+ *           nullable: true
+ *         placa:
+ *           type: string
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         conductor:
+ *           type: integer
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         estado:
+ *           type: boolean
+ */
+
+/**
+ * @swagger
  * /api/vehiculos:
  *   get:
  *     summary: Obtiene todos los vehículos registrados
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Lista de vehículos obtenida con éxito
@@ -24,8 +127,13 @@ const ctrl = require('../controllers/vehiculo.controller');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Vehiculo'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/', ctrl.getAll);
+router.get('/',
+  verificarToken,
+  ctrl.getAll
+);
 
 /**
  * @swagger
@@ -33,6 +141,8 @@ router.get('/', ctrl.getAll);
  *   get:
  *     summary: Obtiene vehículos asociados a un conductor específico
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: conductorId
@@ -49,8 +159,13 @@ router.get('/', ctrl.getAll);
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Vehiculo'
+ *       401:
+ *         description: No autorizado - Token requerido
  */
-router.get('/conductor/:conductorId', ctrl.getByConductor);
+router.get('/conductor/:conductorId',
+  verificarToken,
+  ctrl.getByConductor
+);
 
 /**
  * @swagger
@@ -58,6 +173,8 @@ router.get('/conductor/:conductorId', ctrl.getByConductor);
  *   get:
  *     summary: Obtiene un vehículo por su ID
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -71,10 +188,15 @@ router.get('/conductor/:conductorId', ctrl.getByConductor);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Vehiculo'
+ *       401:
+ *         description: No autorizado - Token requerido
  *       404:
  *         description: Vehículo no encontrado
  */
-router.get('/:id', ctrl.getById);
+router.get('/:id',
+  verificarToken,
+  ctrl.getById
+);
 
 /**
  * @swagger
@@ -82,6 +204,8 @@ router.get('/:id', ctrl.getById);
  *   post:
  *     summary: Registra un nuevo vehículo
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -97,13 +221,18 @@ router.get('/:id', ctrl.getById);
  *               $ref: '#/components/schemas/Vehiculo'
  *       400:
  *         description: Datos faltantes
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Conductor no encontrado
  *       409:
  *         description: La placa ya existe en el sistema
  */
 router.post('/',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.create
 );
 
@@ -113,6 +242,8 @@ router.post('/',
  *   put:
  *     summary: Actualiza la información de un vehículo (parcial o total)
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -134,13 +265,18 @@ router.post('/',
  *               $ref: '#/components/schemas/Vehiculo'
  *       400:
  *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
  *       404:
  *         description: Vehículo no encontrado
  *       409:
  *         description: La nueva placa ya pertenece a otro vehículo
  */
 router.put('/:id',
-  // verificarToken, verificarRol(['admin', 'operador']),
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
   ctrl.update
 );
 
@@ -150,6 +286,8 @@ router.put('/:id',
  *   delete:
  *     summary: Elimina un vehículo del sistema
  *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -159,13 +297,18 @@ router.put('/:id',
  *     responses:
  *       204:
  *         description: Vehículo eliminado correctamente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
  *       404:
  *         description: Vehículo no encontrado
  *       409:
  *         description: No se puede eliminar porque tiene registros asociados
  */
 router.delete('/:id',
-  // verificarToken, verificarRol(['admin']),
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 
