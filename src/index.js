@@ -144,6 +144,28 @@ app.use((req, res) => {
   });
 });
 
+
+
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() AS fecha");
+
+    res.status(200).json({
+      success: true,
+      message: "Conexión exitosa con Neon PostgreSQL",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("❌ Error conectando a Neon:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error de conexión con la base de datos",
+      error: error.message,
+    });
+  }
+});
+
 // =============================================
 // 6. MANEJADOR DE ERRORES GLOBAL
 // =============================================

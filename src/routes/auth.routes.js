@@ -2,24 +2,32 @@ const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
 
-// Controllers
+// =============================================
+// CONTROLLERS
+// =============================================
+
 const authCtrl = require('../controllers/auth.controller');
 
-// Middlewares
+// =============================================
+// MIDDLEWARES
+// =============================================
+
 const { verificarToken } = require('../middlewares/auth.middleware');
-const { validate } = require('../middlewares/validation.middleware');
+
+// Middleware de validación
+const { validate } = require('../middlewares/validators/auth.validator');
 
 // =============================================
 // RATE LIMITING
 // =============================================
 
-// Límite de intentos de login/registro
+// Límite de intentos de login y registro
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // máximo 10 peticiones por IP
+  max: 10, // Máximo 10 peticiones por IP
   message: {
     status: 429,
-    message: 'Demasiadas solicitudes, intente más tarde'
+    message: 'Demasiadas solicitudes, intente más tarde',
   },
 });
 
@@ -27,16 +35,25 @@ const authLimiter = rateLimit({
 // VALIDACIONES
 // =============================================
 
+// Validación de Login
 const loginValidation = [
-  body('correo').isEmail().withMessage('Correo inválido').normalizeEmail(),
-  body('contrasena').notEmpty().withMessage('Contraseña requerida'),
+  body('correo')
+    .isEmail()
+    .withMessage('Correo inválido')
+    .normalizeEmail(),
+
+  body('contrasena')
+    .notEmpty()
+    .withMessage('Contraseña requerida'),
 ];
 
+// Validación de Registro
 const registerValidation = [
   body('correo')
     .isEmail()
     .withMessage('Correo inválido')
     .normalizeEmail(),
+
   body('contrasena')
     .isLength({ min: 8 })
     .withMessage('La contraseña debe tener al menos 8 caracteres')
@@ -46,15 +63,18 @@ const registerValidation = [
     .withMessage('La contraseña debe tener al menos una minúscula')
     .matches(/[0-9]/)
     .withMessage('La contraseña debe tener al menos un número'),
+
   body('nombre')
     .notEmpty()
     .withMessage('Nombre requerido'),
+
   body('numero')
     .optional()
     .isMobilePhone('any')
     .withMessage('Número de teléfono inválido'),
 ];
 
+// Validación de Refresh Token
 const refreshValidation = [
   body('refreshToken')
     .notEmpty()
@@ -62,7 +82,7 @@ const refreshValidation = [
 ];
 
 // =============================================
-// RUTAS
+// RUTAS DE AUTENTICACIÓN
 // =============================================
 
 /**
@@ -71,6 +91,10 @@ const refreshValidation = [
  *   name: Autenticación
  *   description: Endpoints de autenticación y autorización
  */
+
+// =============================================
+// LOGIN
+// =============================================
 
 /**
  * @swagger
@@ -99,37 +123,23 @@ const refreshValidation = [
  *     responses:
  *       200:
  *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: integer
- *                   example: 200
- *                 message:
- *                   type: string
- *                   example: "Login exitoso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     token:
- *                       type: string
- *                     refreshToken:
- *                       type: string
- *                     usuario:
- *                       type: object
  *       401:
  *         description: Credenciales inválidas
  *       429:
  *         description: Demasiadas solicitudes
  */
-router.post('/login',
+
+router.post(
+  '/login',
   authLimiter,
   loginValidation,
   validate,
   authCtrl.login
 );
+
+// =============================================
+// REGISTRO
+// =============================================
 
 /**
  * @swagger
@@ -176,12 +186,18 @@ router.post('/login',
  *       429:
  *         description: Demasiadas solicitudes
  */
-router.post('/registro',
+
+router.post(
+  '/registro',
   authLimiter,
   registerValidation,
   validate,
-  authCtrl.registro
+  authCtrl.register
 );
+
+// =============================================
+// VERIFICAR TOKEN
+// =============================================
 
 /**
  * @swagger
@@ -194,26 +210,19 @@ router.post('/registro',
  *     responses:
  *       200:
  *         description: Token válido
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: integer
- *                   example: 200
- *                 message:
- *                   type: string
- *                   example: "Token válido"
- *                 usuario:
- *                   type: object
  *       401:
  *         description: Token inválido o expirado
  */
-router.get('/verificar',
+
+router.get(
+  '/verificar',
   verificarToken,
   authCtrl.verificar
 );
+
+// =============================================
+// REFRESH TOKEN
+// =============================================
 
 /**
  * @swagger
@@ -235,24 +244,20 @@ router.get('/verificar',
  *     responses:
  *       200:
  *         description: Nuevo token generado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: integer
- *                   example: 200
- *                 token:
- *                   type: string
  *       401:
  *         description: Refresh token inválido o expirado
  */
-router.post('/refresh-token',
+
+router.post(
+  '/refresh-token',
   refreshValidation,
   validate,
   authCtrl.refreshToken
 );
+
+// =============================================
+// LOGOUT
+// =============================================
 
 /**
  * @swagger
@@ -268,9 +273,15 @@ router.post('/refresh-token',
  *       401:
  *         description: Token inválido o expirado
  */
-router.post('/logout',
+
+router.post(
+  '/logout',
   verificarToken,
   authCtrl.logout
 );
+
+// =============================================
+// EXPORTAR ROUTER
+// =============================================
 
 module.exports = router;
