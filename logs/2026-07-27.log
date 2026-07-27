@@ -1,0 +1,9 @@
+{"timestamp":"2026-07-27T18:21:25.696Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T18:21:33.352Z","level":"INFO","message":"Recibida señal SIGINT, cerrando servidor..."}
+{"timestamp":"2026-07-27T18:23:10.758Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T18:23:13.941Z","level":"INFO","message":"GET /api/health 200 - 162ms","data":{"ip":"::1","userAgent":"curl/8.21.0"}}
+{"timestamp":"2026-07-27T21:05:34.564Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:06:08.343Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:06:11.941Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:11:13.262Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:18:16.940Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}

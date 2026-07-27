@@ -6,7 +6,9 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { swaggerDocs } = require('./config/swagger');
-const { testConnection } = require('./config/database');
+const { testConnection, pool, query } = require('./config/database');
+const Logger = require('./utils/logger.util');
+const { auditLog, auditLoginAttempt, auditTokenExpired } = require('./middlewares/audit.middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,11 +45,26 @@ app.use('/api', globalLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Morgan para logging
-app.use(morgan('combined'));
+// Morgan para logging (con Logger personalizado)
+app.use((req, res, next) => {
+  Logger.http(req, res, next);
+});
 
 // =============================================
-// 2. RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
+// 2. MIDDLEWARES DE AUDITORÍA
+// =============================================
+
+// Auditoría de login fallidos
+app.use('/api/auth/login', auditLoginAttempt);
+
+// Auditoría de tokens expirados
+app.use(auditTokenExpired);
+
+// Auditoría de mutaciones (POST, PUT, PATCH, DELETE)
+app.use(auditLog);
+
+// =============================================
+// 3. RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
 // =============================================
 
 // Health check
@@ -60,6 +77,34 @@ app.get('/api/health', async (req, res) => {
     database: dbConnected ? 'connected' : 'disconnected',
     uptime: process.uptime()
   });
+});
+
+// Test de conexión a base de datos
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const result = await query('SELECT NOW() AS fecha_hora, current_database() AS base_datos');
+    res.status(200).json({
+      success: true,
+      message: '✅ Conexión exitosa con PostgreSQL',
+      data: {
+        fecha_hora: result[0]?.fecha_hora,
+        base_datos: result[0]?.base_datos,
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT
+      }
+    });
+  } catch (error) {
+    Logger.error('Error conectando a PostgreSQL', {
+      error: error.message,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME
+    });
+    res.status(500).json({
+      success: false,
+      message: '❌ Error de conexión con la base de datos',
+      error: error.message
+    });
+  }
 });
 
 // Información general de la API
@@ -78,6 +123,7 @@ app.get('/', (req, res) => {
     },
     endpoints: {
       salud: '/api/health',
+      test_db: '/api/test-db',
       login: '/api/auth/login',
       registro: '/api/auth/registro',
       verificar: '/api/auth/verificar',
@@ -90,12 +136,12 @@ app.get('/', (req, res) => {
 });
 
 // =============================================
-// 3. RUTAS DE AUTENTICACIÓN (PÚBLICAS)
+// 4. RUTAS DE AUTENTICACIÓN (PÚBLICAS)
 // =============================================
 app.use('/api/auth', require('./routes/auth.routes'));
 
 // =============================================
-// 4. RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN)
+// 5. RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN)
 // =============================================
 
 // Gestión de Usuarios
@@ -135,43 +181,34 @@ app.use('/api/reservas', require('./routes/reserva.routes'));
 app.use('/api/novedades', require('./routes/novedades.routes'));
 
 // =============================================
-// 5. MANEJADOR DE RUTAS NO ENCONTRADAS (404)
+// 6. MANEJADOR DE RUTAS NO ENCONTRADAS (404)
 // =============================================
 app.use((req, res) => {
+  Logger.warn('Ruta no encontrada', {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip
+  });
+  
   res.status(404).json({
     success: false,
     message: 'Ruta no encontrada'
   });
 });
 
-
-
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW() AS fecha");
-
-    res.status(200).json({
-      success: true,
-      message: "Conexión exitosa con Neon PostgreSQL",
-      data: result.rows[0],
-    });
-  } catch (error) {
-    console.error("❌ Error conectando a Neon:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Error de conexión con la base de datos",
-      error: error.message,
-    });
-  }
-});
-
 // =============================================
-// 6. MANEJADOR DE ERRORES GLOBAL
+// 7. MANEJADOR DE ERRORES GLOBAL
 // =============================================
 app.use((err, req, res, next) => {
-  console.error('❌ Error no controlado:', err.message);
-  console.error(err.stack);
+  // Log del error
+  Logger.error('Error no controlado', {
+    message: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    usuario: req.usuario?.id || 'anónimo'
+  });
   
   res.status(500).json({
     success: false,
@@ -180,7 +217,7 @@ app.use((err, req, res, next) => {
 });
 
 // =============================================
-// 7. INICIAR SERVIDOR
+// 8. INICIAR SERVIDOR
 // =============================================
 app.listen(PORT, async () => {
   console.log(`
@@ -192,6 +229,7 @@ app.listen(PORT, async () => {
 ║  💾 Base de datos: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}
 ║  🔐 Autenticación: JWT
 ║  📡 Health check: http://localhost:${PORT}/api/health
+║  🧪 Test DB: http://localhost:${PORT}/api/test-db
 ╚═══════════════════════════════════════════════════════════════╝
   `);
   
@@ -200,17 +238,24 @@ app.listen(PORT, async () => {
   
   // Probar conexión a BD
   await testConnection();
+  
+  Logger.info('Servidor iniciado correctamente', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // =============================================
-// 8. CIERRE GRACEFUL (Graceful Shutdown)
+// 9. CIERRE GRACEFUL (Graceful Shutdown)
 // =============================================
 process.on('SIGTERM', () => {
+  Logger.info('Recibida señal SIGTERM, cerrando servidor...');
   console.log('🛑 Recibida señal SIGTERM, cerrando servidor...');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
+  Logger.info('Recibida señal SIGINT, cerrando servidor...');
   console.log('🛑 Recibida señal SIGINT, cerrando servidor...');
   process.exit(0);
 });
