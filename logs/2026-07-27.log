@@ -7,3 +7,5 @@
 {"timestamp":"2026-07-27T21:06:11.941Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
 {"timestamp":"2026-07-27T21:11:13.262Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
 {"timestamp":"2026-07-27T21:18:16.940Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:43:00.146Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-27T21:43:10.747Z","level":"INFO","message":"Recibida señal SIGINT, cerrando servidor..."}
