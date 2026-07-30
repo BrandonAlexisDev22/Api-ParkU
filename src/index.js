@@ -110,28 +110,10 @@ app.get('/api/test-db', async (req, res) => {
 // Información general de la API
 app.get('/', (req, res) => {
   res.json({
-    nombre: 'ParkU API',
-    version: '1.0.0',
-    descripcion: 'API REST para la gestión integral de parqueaderos',
-    estado: 'operativa',
-    tecnologia: {
-      backend: 'Node.js',
-      framework: 'Express.js',
-      autenticacion: 'JWT',
-      documentacion: 'Swagger',
-      baseDeDatos: process.env.DB_NAME
-    },
-    endpoints: {
-      salud: '/api/health',
-      test_db: '/api/test-db',
-      login: '/api/auth/login',
-      registro: '/api/auth/registro',
-      verificar: '/api/auth/verificar',
-      refresh: '/api/auth/refresh-token',
-      logout: '/api/auth/logout',
-      documentacion: '/api-docs'
-    },
-    fecha: new Date().toISOString()
+    success: true,
+    message: "ParkU API",
+    version: "1.0.0",
+    status: "OK"
   });
 });
 
