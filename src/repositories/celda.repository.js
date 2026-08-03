@@ -22,44 +22,42 @@ const BASE_QUERY = `
  * @returns {Promise<Array>} Listado de celdas con datos del parqueadero.
  */
 const findAll = async () => {
-  const [rows] = await db.query(BASE_QUERY);
-  return rows;
+  // db.query ya retorna result.rows (un array), no hay que desestructurar
+  return await db.query(BASE_QUERY);
 };
 
 /**
  * Busca una celda por su identificador.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>} Objeto con los campos del modelo o null.
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE c.id = ?`, [id]);
-  return rows[0] || null;
+  // Postgres usa $1, $2... como placeholders, no '?'
+  return await db.queryOne(`${BASE_QUERY} WHERE c.id = $1`, [id]);
 };
 
 /**
  * Obtiene todas las celdas de un parqueadero específico.
- * @param {number} parqueaderoId 
+ * @param {number} parqueaderoId
  * @returns {Promise<Array>}
  */
 const findByParqueadero = async (parqueaderoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE c.parqueadero = ?`,
+  return await db.query(
+    `${BASE_QUERY} WHERE c.parqueadero = $1`,
     [parqueaderoId]
   );
-  return rows;
 };
 
 /**
  * Filtra celdas disponibles (estado_celda = 'DISPONIBLE') en un parqueadero.
- * @param {number} parqueaderoId 
+ * @param {number} parqueaderoId
  * @returns {Promise<Array>}
  */
 const findDisponibles = async (parqueaderoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE c.parqueadero = ? AND c.estado_celda = 'DISPONIBLE'`,
+  return await db.query(
+    `${BASE_QUERY} WHERE c.parqueadero = $1 AND c.estado_celda = 'DISPONIBLE'`,
     [parqueaderoId]
   );
-  return rows;
 };
 
 /**
@@ -72,11 +70,14 @@ const findDisponibles = async (parqueaderoId) => {
  * @returns {Promise<Object>} La celda recién creada (con nombre del parqueadero).
  */
 const create = async ({ parqueadero, tipo, usabilidad, estado_celda = 'DISPONIBLE' }) => {
-  const [result] = await db.query(
-    'INSERT INTO celda (parqueadero, tipo, usabilidad, estado_celda) VALUES (?, ?, ?, ?)',
+  // RETURNING id reemplaza a insertId (que no existe en pg)
+  const nueva = await db.queryOne(
+    `INSERT INTO celda (parqueadero, tipo, usabilidad, estado_celda)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id`,
     [parqueadero, tipo, usabilidad, estado_celda]
   );
-  return findById(result.insertId);
+  return findById(nueva.id);
 };
 
 /**
@@ -92,16 +93,18 @@ const update = async (id, { tipo, usabilidad, estado_celda }) => {
   // Construir dinámicamente la cláusula SET solo con los campos proporcionados
   const fields = [];
   const values = [];
+  let i = 1; // contador para $1, $2, $3...
+
   if (tipo !== undefined) {
-    fields.push('tipo = ?');
+    fields.push(`tipo = $${i++}`);
     values.push(tipo);
   }
   if (usabilidad !== undefined) {
-    fields.push('usabilidad = ?');
+    fields.push(`usabilidad = $${i++}`);
     values.push(usabilidad);
   }
   if (estado_celda !== undefined) {
-    fields.push('estado_celda = ?');
+    fields.push(`estado_celda = $${i++}`);
     values.push(estado_celda);
   }
 
@@ -111,19 +114,21 @@ const update = async (id, { tipo, usabilidad, estado_celda }) => {
   }
 
   values.push(id);
-  const query = `UPDATE celda SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+  const queryText = `UPDATE celda SET ${fields.join(', ')} WHERE id = $${i}`;
+  await db.query(queryText, values);
   return findById(id);
 };
 
 /**
  * Elimina una celda de la base de datos.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>} True si se eliminó algún registro.
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM celda WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  // Se usa pool.query directo porque necesitamos rowCount,
+  // y db.query() solo devuelve las filas (rows), no el objeto result completo.
+  const result = await db.pool.query('DELETE FROM celda WHERE id = $1', [id]);
+  return result.rowCount > 0;
 };
 
 module.exports = { findAll, findById, findByParqueadero, findDisponibles, create, update, remove };
