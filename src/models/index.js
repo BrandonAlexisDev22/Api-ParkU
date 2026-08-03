@@ -4,8 +4,8 @@
  */
 
 const { sequelize } = require('../config/database');
-const Celda = require('./Celda');
-const Parqueadero = require('./Parqueadero');
+const Celda = require('./celdas.models');
+const Parqueadero = require('./parqueaderos.models');
 
 // Una celda pertenece a un parqueadero (FK: celda.parqueadero -> parqueadero.id)
 Celda.belongsTo(Parqueadero, {

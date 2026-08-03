@@ -1,0 +1,22 @@
+{"timestamp":"2026-08-03T20:13:08.911Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-03T20:13:17.292Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-03T20:13:42.376Z","level":"INFO","message":"GET / 200 - 4ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:13:42.446Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/favicon.ico","ip":"::1"}}
+{"timestamp":"2026-08-03T20:13:42.448Z","level":"WARN","message":"GET /favicon.ico 404 - 3ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:13:52.836Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/parqueaderos","ip":"::1"}}
+{"timestamp":"2026-08-03T20:13:52.838Z","level":"WARN","message":"GET /parqueaderos 404 - 2ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:14:05.317Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/parqueadero","ip":"::1"}}
+{"timestamp":"2026-08-03T20:14:05.319Z","level":"WARN","message":"GET /parqueadero 404 - 2ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:14:48.787Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/parqueaderos","ip":"::1"}}
+{"timestamp":"2026-08-03T20:14:48.789Z","level":"WARN","message":"GET /parqueaderos 404 - 2ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:15:02.507Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/parqueadero","ip":"::1"}}
+{"timestamp":"2026-08-03T20:15:02.509Z","level":"WARN","message":"GET /api/parqueadero 404 - 3ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:15:07.007Z","level":"WARN","message":"GET /api/parqueaderos 401 - 2ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:15:25.197Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-03T20:15:25.206Z","level":"WARN","message":"GET /api/parqueaderos 501 - 1297ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:15:30.733Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/.well-known/appspecific/com.chrome.devtools.json","ip":"::1"}}
+{"timestamp":"2026-08-03T20:15:30.735Z","level":"WARN","message":"GET /.well-known/appspecific/com.chrome.devtools.json 404 - 2ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-03T20:15:44.346Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-03T20:16:58.995Z","level":"WARN","message":"GET /api/celdas 401 - 4ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-03T20:19:37.420Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-03T20:24:29.373Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}

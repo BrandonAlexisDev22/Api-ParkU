@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
-const { query, queryOne } = require('../config/database');
+const { Usuario } = require('../models');
 const { generarToken, generarRefreshToken } = require('../middlewares/auth.middleware');
 
 class AuthController {
   /**
-   * POST /api/auth/register - Registro de usuario
+   * POST /api/auth/registro - Registro de usuario
    */
   static async register(req, res) {
     try {
@@ -21,11 +21,15 @@ class AuthController {
         });
       }
 
-      const { correo, contrasena, nombre, numero, rol = 3 } = req.body;
+      const { correo, contrasena, nombre, numero } = req.body;
+      // 🔒 El rol NUNCA se toma del body. Todo registro público es rol=3 (Usuario).
+      // Si necesitas crear Admins/Supervisores, hazlo desde un endpoint protegido
+      // (verificarToken + verificarRol([1])), no desde el registro público.
+      const rol = 3;
 
       // Verificar si el correo ya existe
-      const exists = await queryOne('SELECT id FROM usuario WHERE correo = $1', [correo]);
-      if (exists) {
+      const existe = await Usuario.findOne({ where: { correo } });
+      if (existe) {
         return res.status(400).json({
           success: false,
           message: 'El correo ya está registrado'
@@ -35,18 +39,27 @@ class AuthController {
       // Encriptar contraseña
       const hashedPassword = await PasswordUtil.hash(contrasena);
 
-      // Crear usuario
-      const result = await query(
-        `INSERT INTO usuario (correo, contraseña, rol, estado) 
-         VALUES ($1, $2, $3, TRUE) 
-         RETURNING id, correo, rol, estado`,
-        [correo, hashedPassword, rol]
-      );
+      // Crear usuario (ahora sí se guardan nombre y numero)
+      const nuevo = await Usuario.create({
+        correo,
+        contrasena: hashedPassword,
+        nombre,
+        numero,
+        rol,
+        estado: true,
+      });
 
       return res.status(201).json({
         success: true,
         message: 'Usuario registrado exitosamente',
-        data: result[0]
+        data: {
+          id: nuevo.id,
+          correo: nuevo.correo,
+          nombre: nuevo.nombre,
+          numero: nuevo.numero,
+          rol: nuevo.rol,
+          estado: nuevo.estado,
+        }
       });
     } catch (error) {
       console.error('Error en register:', error);
@@ -76,10 +89,7 @@ class AuthController {
       const { correo, contrasena } = req.body;
 
       // Buscar usuario
-      const user = await queryOne(
-        'SELECT id, correo, contraseña, rol, estado FROM usuario WHERE correo = $1',
-        [correo]
-      );
+      const user = await Usuario.findOne({ where: { correo } });
 
       if (!user) {
         return res.status(401).json({
@@ -96,7 +106,7 @@ class AuthController {
       }
 
       // Verificar contraseña
-      const isPasswordValid = await PasswordUtil.compare(contrasena, user.contraseña);
+      const isPasswordValid = await PasswordUtil.compare(contrasena, user.contrasena);
       if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
@@ -115,20 +125,20 @@ class AuthController {
       const refreshToken = generarRefreshToken(payload);
 
       // Guardar refresh token en BD
-      await query('UPDATE usuario SET refresh_token = $1 WHERE id = $2', [
-        refreshToken,
-        user.id
-      ]);
+      await user.update({ refresh_token: refreshToken });
 
-      // Eliminar datos sensibles
-      delete user.contraseña;
-      delete user.refresh_token;
-
+      // Respuesta sin datos sensibles
       return res.status(200).json({
         success: true,
         message: 'Login exitoso',
         data: {
-          user,
+          user: {
+            id: user.id,
+            correo: user.correo,
+            nombre: user.nombre,
+            rol: user.rol,
+            estado: user.estado,
+          },
           token,
           refreshToken,
           expiresIn: process.env.JWT_EXPIRES_IN || '7d'
@@ -198,10 +208,9 @@ class AuthController {
       }
 
       // Verificar que el refresh token coincida con el guardado
-      const user = await queryOne(
-        'SELECT id, correo, rol FROM usuario WHERE id = $1 AND refresh_token = $2',
-        [decoded.id, refreshToken]
-      );
+      const user = await Usuario.findOne({
+        where: { id: decoded.id, refresh_token: refreshToken }
+      });
 
       if (!user) {
         return res.status(401).json({
@@ -241,7 +250,7 @@ class AuthController {
       const userId = req.usuario?.id;
 
       if (userId) {
-        await query('UPDATE usuario SET refresh_token = NULL WHERE id = $1', [userId]);
+        await Usuario.update({ refresh_token: null }, { where: { id: userId } });
       }
 
       return res.status(200).json({

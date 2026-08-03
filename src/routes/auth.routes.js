@@ -250,6 +250,7 @@ router.get(
 
 router.post(
   '/refresh-token',
+  authLimiter,
   refreshValidation,
   validate,
   authCtrl.refreshToken
