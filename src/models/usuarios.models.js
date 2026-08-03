@@ -18,16 +18,17 @@ const Usuario = sequelize.define('Usuario', {
     unique: true,
     validate: { isEmail: true },
   },
+  nombre: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: "nombre"
+  },
   contrasena: {
     type: DataTypes.STRING,
     allowNull: false,
     field: 'contrasena', // el nombre real de la columna en la BD
   },
-  numero: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  rol: {
+  rol_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 3, // 1=Admin, 2=Supervisor, 3=Usuario
@@ -37,10 +38,10 @@ const Usuario = sequelize.define('Usuario', {
     allowNull: false,
     defaultValue: true,
   },
-  refresh_token: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
+  // refresh_token: {
+  //   type: DataTypes.STRING,
+  //   allowNull: true,
+  // },
 }, {
   tableName: 'usuario',
   timestamps: false,

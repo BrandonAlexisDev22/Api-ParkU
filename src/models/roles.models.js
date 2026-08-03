@@ -1,30 +1,25 @@
 /**
- * @module RoleModel
- * @description
- * Clase que representa la entidad Rol dentro del sistema ParkU.
- * Sincronizada con la tabla 'rol' de la base de datos.
+ * @module RolModel
+ * @description Modelo Sequelize para la tabla 'rol'.
  */
 
-class Role {
-  /**
-   * @param {number} id - Identificador único del rol
-   * @param {string} nombre - Nombre del rol
-   * @param {Array<Object>} [permisos=[]] - Lista de permisos asociados al rol
-   */
-  constructor(id, nombre, permisos = []) {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-    /** @type {number} */
-    this.id = id;
+const Rol = sequelize.define('Rol', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  nombre: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+}, {
+  tableName: 'rol',
+  timestamps: false,
+});
 
-    /** @type {string} */
-    this.nombre = nombre;
-
-    /**
-     * @type {Array<Object>}
-     * Permisos obtenidos mediante JOIN con rol_permiso y permiso
-     */
-    this.permisos = permisos;
-  }
-}
-
-module.exports = Role;
+module.exports = Rol;

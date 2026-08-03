@@ -25,7 +25,7 @@ class AuthController {
       // 🔒 El rol NUNCA se toma del body. Todo registro público es rol=3 (Usuario).
       // Si necesitas crear Admins/Supervisores, hazlo desde un endpoint protegido
       // (verificarToken + verificarRol([1])), no desde el registro público.
-      const rol = 3;
+      const rol = 1;
 
       // Verificar si el correo ya existe
       const existe = await Usuario.findOne({ where: { correo } });

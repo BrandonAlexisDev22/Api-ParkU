@@ -1,33 +1,26 @@
 /**
- * @module RolePermissionModel
- * @description
- * Clase que representa la relación entre Roles y Permisos.
- * Sincronizada con la tabla 'rol_permiso' de la base de datos.
+ * @module RolPermisoModel
+ * @description Modelo Sequelize para la tabla intermedia 'rol_permiso'
+ * (relación muchos-a-muchos entre Rol y Permiso).
  */
 
-class RolePermission {
-  /**
-   * @param {number} id - Identificador único de la relación
-   * @param {number} rol - ID del rol asociado
-   * @param {number} permiso - ID del permiso asociado
-   */
-  constructor(id, rol, permiso) {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-    /** @type {number} */
-    this.id = id;
+const RolPermiso = sequelize.define('RolPermiso', {
+  rol: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    allowNull: false,
+  },
+  permiso: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    allowNull: false,
+  },
+}, {
+  tableName: 'rol_permiso',
+  timestamps: false,
+});
 
-    /**
-     * @type {number}
-     * Referencia a rol.id
-     */
-    this.rol = rol;
-
-    /**
-     * @type {number}
-     * Referencia a permiso.id
-     */
-    this.permiso = permiso;
-  }
-}
-
-module.exports = RolePermission;
+module.exports = RolPermiso;

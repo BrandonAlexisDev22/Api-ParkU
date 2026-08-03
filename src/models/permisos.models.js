@@ -1,24 +1,25 @@
 /**
  * @module PermisoModel
- * @description
- * Clase que representa la entidad Permiso dentro del sistema ParkU.
- * Sincronizada con la tabla 'permiso' de la base de datos.
+ * @description Modelo Sequelize para la tabla 'permiso'.
  */
 
-class Permiso {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-  /**
-   * @param {number} id - Identificador único del permiso
-   * @param {string} nombre - Nombre del permiso
-   */
-  constructor(id, nombre) {
-
-    /** @type {number} */
-    this.id = id;
-
-    /** @type {string} */
-    this.nombre = nombre;
-  }
-}
+const Permiso = sequelize.define('Permiso', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  nombre: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+}, {
+  tableName: 'permiso',
+  timestamps: false,
+});
 
 module.exports = Permiso;
