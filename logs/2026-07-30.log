@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-30T18:20:50.494Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-07-30T18:20:57.543Z","level":"INFO","message":"Recibida señal SIGINT, cerrando servidor..."}
