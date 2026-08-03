@@ -1,14 +1,14 @@
 /**
  * ====================================================
  * MIDDLEWARE DE AUTENTICACIÓN Y AUTORIZACIÓN
- * VERSIÓN POSTGRESQL
+ * VERSIÓN SEQUELIZE
  * ====================================================
- * 
+ *
  * @module AuthMiddleware
  */
 
 const jwt = require('jsonwebtoken');
-const { queryOne } = require('../config/database');
+const { Usuario, sequelize } = require('../models');
 
 /**
  * ====================================================
@@ -18,7 +18,7 @@ const { queryOne } = require('../config/database');
 const verificarToken = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       return res.status(401).json({
         status: 401,
@@ -42,13 +42,10 @@ const verificarToken = async (req, res, next) => {
       });
     }
 
-    // ✅ CAMBIO: PostgreSQL usa $1 en lugar de ? y queryOne
-    const user = await queryOne(
-      `SELECT id, correo, rol, estado 
-       FROM usuario 
-       WHERE id = $1 AND estado = TRUE`,
-      [decoded.id]
-    );
+    const user = await Usuario.findOne({
+      where: { id: decoded.id, estado: true },
+      attributes: ['id', 'correo', 'rol', 'estado'],
+    });
 
     if (!user) {
       return res.status(401).json({
@@ -62,7 +59,7 @@ const verificarToken = async (req, res, next) => {
       correo: user.correo,
       rol: user.rol
     };
-    
+
     next();
   } catch (error) {
     console.error('Error en verificarToken:', error);
@@ -80,7 +77,7 @@ const verificarToken = async (req, res, next) => {
  */
 const verificarRol = (rolesRequeridos) => {
   const rolesArray = Array.isArray(rolesRequeridos) ? rolesRequeridos : [rolesRequeridos];
-  
+
   return async (req, res, next) => {
     try {
       if (!req.usuario) {
@@ -112,6 +109,10 @@ const verificarRol = (rolesRequeridos) => {
  * ====================================================
  * verificarPermiso - Middleware de autorización por permiso
  * ====================================================
+ * NOTA: requiere modelos Permiso y RolPermiso (aún no migrados).
+ * Si no tienes esas tablas/modelos todavía, no uses este middleware
+ * en tus rutas hasta que los creemos.
+ * ====================================================
  */
 const verificarPermiso = (permisoRequerido) => {
   return async (req, res, next) => {
@@ -123,16 +124,17 @@ const verificarPermiso = (permisoRequerido) => {
         });
       }
 
-      // ✅ CAMBIO: PostgreSQL usa $1, $2 en lugar de ?, ?
-      const permiso = await queryOne(
-        `SELECT p.nombre 
+      const [resultado] = await sequelize.query(
+        `SELECT p.nombre
          FROM rol_permiso rp
          INNER JOIN permiso p ON rp.permiso = p.id
-         WHERE rp.rol = $1 AND p.nombre = $2`,
-        [req.usuario.rol, permisoRequerido]
+         WHERE rp.rol = :rol AND p.nombre = :permiso`,
+        {
+          replacements: { rol: req.usuario.rol, permiso: permisoRequerido },
+        }
       );
 
-      if (!permiso) {
+      if (!resultado || resultado.length === 0) {
         return res.status(403).json({
           status: 403,
           message: `No tienes el permiso requerido: ${permisoRequerido}`
@@ -158,7 +160,7 @@ const verificarPermiso = (permisoRequerido) => {
 const verificarTokenOpcional = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -167,7 +169,7 @@ const verificarTokenOpcional = async (req, res, next) => {
         // Si el token es inválido, simplemente ignoramos
       }
     }
-    
+
     next();
   } catch (error) {
     next();

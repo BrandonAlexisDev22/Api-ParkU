@@ -1,56 +1,49 @@
 /**
  * @module UsuarioModel
- * @description
- * Clase que representa la entidad Usuario dentro del sistema ParkU.
- * Sincronizada con la tabla 'usuario' de la base de datos en Railway.
+ * @description Modelo Sequelize para la tabla 'usuario'.
  */
 
-class Usuario {
-  /**
-   * @param {number} id - Identificador único (id en SQL)
-   * @param {string} nombre - Nombre completo del usuario
-   * @param {string} correo - Correo electrónico (único)
-   * @param {string} contrasena - Contraseña encriptada (contrasena en SQL)
-   * @param {string} numero - Número de teléfono o contacto
-   * @param {number} rol - ID del rol asociado (rol en SQL)
-   * @param {number} [estado=1] - Estado (1: activo, 0: inactivo)
-   */
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-
-
-  constructor(id, nombre, correo, contrasena, numero, rol, estado = true, tipoDocumento, perfil,licencia ) {
-
-    
-    /** @type {number} */
-    this.id = id; // Cambiado de id_usuario a id
-
-    /** @type {string} */
-    this.nombre = nombre;
-
-    /** @type {string} */
-    this.correo = correo;
-
-    /** @type {string} */
-    this.contrasena = contrasena; // Cambiado de password a contrasena
-
-    /** @type {string} */
-    this.numero = numero; // Nuevo campo presente en tu SQL
-
-    /** @type {number} */
-    this.rol = rol; // Cambiado de rol_id a rol
-
-    /** @type {number} */
-    this.estado = estado; 
-
-    /** @type {tipoDocumento} */
-    this.tipoDocumento = tipoDocumento
-
-    /**  @type {licencia}*/ 
-    this.licencia = licencia;
-
-    /** @type {perfil} */
-    this.perfil = perfil;
-  }
-}
+const Usuario = sequelize.define('Usuario', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  correo: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: { isEmail: true },
+  },
+  contrasena: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: 'contrasena', // el nombre real de la columna en la BD
+  },
+  numero: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  rol: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 3, // 1=Admin, 2=Supervisor, 3=Usuario
+  },
+  estado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+  refresh_token: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+}, {
+  tableName: 'usuario',
+  timestamps: false,
+});
 
 module.exports = Usuario;
