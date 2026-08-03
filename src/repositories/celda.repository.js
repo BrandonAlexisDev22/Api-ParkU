@@ -1,39 +1,50 @@
 /**
  * @module CeldaRepository
- * @description Operaciones de base de datos para la tabla 'celda',
- * alineadas con el modelo Celda (tipo, usabilidad, estado_celda).
+ * @description Operaciones de base de datos para la tabla 'celda' usando Sequelize.
  * Incluye JOIN con parqueadero para obtener el nombre de la sede.
  */
 
-const db = require('../config/database');
+const { Celda, Parqueadero } = require('../models');
 
 /**
- * Consulta base que une celda con parqueadero.
- * @constant {string}
+ * Aplana el resultado de Sequelize para mantener el mismo shape
+ * que tenía la versión anterior con SQL manual (parqueadero_nombre plano).
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
  */
-const BASE_QUERY = `
-  SELECT c.*, p.nombre AS parqueadero_nombre
-  FROM celda c
-  JOIN parqueadero p ON c.parqueadero = p.id
-`;
+const mapCelda = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  const { Parqueadero: parq, ...resto } = plano;
+  return {
+    ...resto,
+    parqueadero_nombre: parq ? parq.nombre : null,
+  };
+};
+
+const includeParqueadero = {
+  model: Parqueadero,
+  as: 'Parqueadero',
+  attributes: ['nombre'],
+};
 
 /**
  * Recupera todas las celdas del sistema.
- * @returns {Promise<Array>} Listado de celdas con datos del parqueadero.
+ * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  // db.query ya retorna result.rows (un array), no hay que desestructurar
-  return await db.query(BASE_QUERY);
+  const rows = await Celda.findAll({ include: [includeParqueadero] });
+  return rows.map(mapCelda);
 };
 
 /**
  * Busca una celda por su identificador.
  * @param {number} id
- * @returns {Promise<Object|null>} Objeto con los campos del modelo o null.
+ * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  // Postgres usa $1, $2... como placeholders, no '?'
-  return await db.queryOne(`${BASE_QUERY} WHERE c.id = $1`, [id]);
+  const row = await Celda.findByPk(id, { include: [includeParqueadero] });
+  return mapCelda(row);
 };
 
 /**
@@ -42,10 +53,11 @@ const findById = async (id) => {
  * @returns {Promise<Array>}
  */
 const findByParqueadero = async (parqueaderoId) => {
-  return await db.query(
-    `${BASE_QUERY} WHERE c.parqueadero = $1`,
-    [parqueaderoId]
-  );
+  const rows = await Celda.findAll({
+    where: { parqueadero: parqueaderoId },
+    include: [includeParqueadero],
+  });
+  return rows.map(mapCelda);
 };
 
 /**
@@ -54,81 +66,87 @@ const findByParqueadero = async (parqueaderoId) => {
  * @returns {Promise<Array>}
  */
 const findDisponibles = async (parqueaderoId) => {
-  return await db.query(
-    `${BASE_QUERY} WHERE c.parqueadero = $1 AND c.estado_celda = 'DISPONIBLE'`,
-    [parqueaderoId]
-  );
+  const rows = await Celda.findAll({
+    where: { parqueadero: parqueaderoId, estado_celda: 'DISPONIBLE' },
+    include: [includeParqueadero],
+  });
+  return rows.map(mapCelda);
+};
+
+/**
+ * Filtra celdas por tipo (aprovecha el índice/enum en vez de filtrar en memoria).
+ * @param {string} tipo
+ * @returns {Promise<Array>}
+ */
+const findByTipo = async (tipo) => {
+  const rows = await Celda.findAll({
+    where: { tipo },
+    include: [includeParqueadero],
+  });
+  return rows.map(mapCelda);
+};
+
+/**
+ * Filtra celdas por usabilidad.
+ * @param {string} usabilidad
+ * @returns {Promise<Array>}
+ */
+const findByUsabilidad = async (usabilidad) => {
+  const rows = await Celda.findAll({
+    where: { usabilidad },
+    include: [includeParqueadero],
+  });
+  return rows.map(mapCelda);
 };
 
 /**
  * Crea una nueva celda en la base de datos.
- * @param {Object} data - Datos de la celda.
- * @param {number} data.parqueadero - ID del parqueadero.
- * @param {string} data.tipo - Tipo de celda (CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA).
- * @param {string} data.usabilidad - Usabilidad (GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA).
- * @param {string} [data.estado_celda='DISPONIBLE'] - Estado inicial (DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA).
- * @returns {Promise<Object>} La celda recién creada (con nombre del parqueadero).
+ * @param {Object} data
+ * @returns {Promise<Object>}
  */
 const create = async ({ parqueadero, tipo, usabilidad, estado_celda = 'DISPONIBLE' }) => {
-  // RETURNING id reemplaza a insertId (que no existe en pg)
-  const nueva = await db.queryOne(
-    `INSERT INTO celda (parqueadero, tipo, usabilidad, estado_celda)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id`,
-    [parqueadero, tipo, usabilidad, estado_celda]
-  );
+  const nueva = await Celda.create({ parqueadero, tipo, usabilidad, estado_celda });
   return findById(nueva.id);
 };
 
 /**
  * Actualiza parcialmente una celda existente.
- * @param {number} id - Identificador de la celda.
- * @param {Object} data - Campos a actualizar (todos opcionales).
- * @param {string} [data.tipo] - Nuevo tipo.
- * @param {string} [data.usabilidad] - Nueva usabilidad.
- * @param {string} [data.estado_celda] - Nuevo estado.
- * @returns {Promise<Object>} La celda actualizada (con nombre del parqueadero).
+ * @param {number} id
+ * @param {Object} data
+ * @returns {Promise<Object>}
  */
 const update = async (id, { tipo, usabilidad, estado_celda }) => {
-  // Construir dinámicamente la cláusula SET solo con los campos proporcionados
-  const fields = [];
-  const values = [];
-  let i = 1; // contador para $1, $2, $3...
+  const cambios = {};
+  if (tipo !== undefined) cambios.tipo = tipo;
+  if (usabilidad !== undefined) cambios.usabilidad = usabilidad;
+  if (estado_celda !== undefined) cambios.estado_celda = estado_celda;
 
-  if (tipo !== undefined) {
-    fields.push(`tipo = $${i++}`);
-    values.push(tipo);
-  }
-  if (usabilidad !== undefined) {
-    fields.push(`usabilidad = $${i++}`);
-    values.push(usabilidad);
-  }
-  if (estado_celda !== undefined) {
-    fields.push(`estado_celda = $${i++}`);
-    values.push(estado_celda);
-  }
-
-  if (fields.length === 0) {
-    // Si no se envía ningún campo, devolvemos la celda sin cambios
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
 
-  values.push(id);
-  const queryText = `UPDATE celda SET ${fields.join(', ')} WHERE id = $${i}`;
-  await db.query(queryText, values);
+  await Celda.update(cambios, { where: { id } });
   return findById(id);
 };
 
 /**
  * Elimina una celda de la base de datos.
  * @param {number} id
- * @returns {Promise<boolean>} True si se eliminó algún registro.
+ * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  // Se usa pool.query directo porque necesitamos rowCount,
-  // y db.query() solo devuelve las filas (rows), no el objeto result completo.
-  const result = await db.pool.query('DELETE FROM celda WHERE id = $1', [id]);
-  return result.rowCount > 0;
+  const filasEliminadas = await Celda.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, findByParqueadero, findDisponibles, create, update, remove };
+module.exports = {
+  findAll,
+  findById,
+  findByParqueadero,
+  findDisponibles,
+  findByTipo,
+  findByUsabilidad,
+  create,
+  update,
+  remove,
+};
