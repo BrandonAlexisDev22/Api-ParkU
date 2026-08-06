@@ -16,11 +16,6 @@ const { handleError } = require('../helpers/errorHandler');
  *       type: object
  *       required:
  *         - nombre
- *         - ubicacion
- *         - celdas_totales
- *         - celdas_movilidad_reducida
- *         - celdas_motos
- *         - celdas_carros
  *       properties:
  *         id:
  *           type: integer
@@ -32,18 +27,6 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: string
  *           nullable: true
  *           description: Ubicación física del parqueadero.
- *         celdas_totales:
- *           type: integer
- *           description: Total de celdas disponibles.
- *         celdas_movilidad_reducida:
- *           type: integer
- *           description: Total de celdas para movilidad reducida.
- *         celdas_motos:
- *           type: integer
- *           description: Total de celdas para motos.
- *         celdas_carros:
- *           type: integer
- *           description: Total de celdas para carros.
  *         estado:
  *           type: boolean
  *           default: true
@@ -52,24 +35,12 @@ const { handleError } = require('../helpers/errorHandler');
  *       type: object
  *       required:
  *         - nombre
- *         - celdas_totales
- *         - celdas_movilidad_reducida
- *         - celdas_motos
- *         - celdas_carros
  *       properties:
  *         nombre:
  *           type: string
  *         ubicacion:
  *           type: string
  *           nullable: true
- *         celdas_totales:
- *           type: integer
- *         celdas_movilidad_reducida:
- *           type: integer
- *         celdas_motos:
- *           type: integer
- *         celdas_carros:
- *           type: integer
  *         estado:
  *           type: boolean
  *           default: true
@@ -81,14 +52,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         ubicacion:
  *           type: string
  *           nullable: true
- *         celdas_totales:
- *           type: integer
- *         celdas_movilidad_reducida:
- *           type: integer
- *         celdas_motos:
- *           type: integer
- *         celdas_carros:
- *           type: integer
  *         estado:
  *           type: boolean
  */

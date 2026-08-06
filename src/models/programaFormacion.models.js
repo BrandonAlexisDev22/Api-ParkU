@@ -1,19 +1,19 @@
 /**
- * @module RolModel
- * @description Modelo Sequelize para la tabla 'rol'.
+ * @module ProgramaFormacionModel
+ * @description Modelo Sequelize para la tabla 'programa_formacion' (catálogo).
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Rol = sequelize.define('Rol', {
+const ProgramaFormacion = sequelize.define('ProgramaFormacion', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
   nombre: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
   },
@@ -23,10 +23,10 @@ const Rol = sequelize.define('Rol', {
     defaultValue: true,
   },
 }, {
-  tableName: 'rol',
+  tableName: 'programa_formacion',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Rol;
+module.exports = ProgramaFormacion;

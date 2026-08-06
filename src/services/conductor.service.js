@@ -1,117 +1,53 @@
 /**
  * @module ConductorService
- * @description Lógica de negocio para la gestión de perfiles de conductores.
- * Alineado con el modelo Conductor (nombre, tipo_documento, documento, licencia, correo, numero, perfil, estado).
+ * @description Lógica de negocio para la gestión de conductores.
+ * Alineado con la tabla real 'conductor' (esquema Postgres/SENA):
+ * usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
+ * direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
+ * centro_formacion_id, programa_formacion_id, vigencia, estado.
  */
 
 const repo = require('../repositories/conductor.repository');
+const usuarioRepo = require('../repositories/usuario.repository');
+const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
+const regionalFormacionRepo = require('../repositories/regionalFormacion.repository');
+const centroFormacionRepo = require('../repositories/centroFormacion.repository');
+const programaFormacionRepo = require('../repositories/programaFormacion.repository');
 
-// Constantes para validación de tipos de documento
 const TIPOS_DOCUMENTO = ['CC', 'CE', 'PAS', 'TI', 'NIT'];
 
+const validarCorreo = (correo) => {
+  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
+  }
+};
+
 /**
- * @swagger
- * components:
- *   schemas:
- *     Conductor:
- *       type: object
- *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del conductor.
- *         nombre:
- *           type: string
- *           description: Nombre completo del conductor.
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *           description: Tipo de documento de identidad.
- *         documento:
- *           type: integer
- *           description: Número de documento (único).
- *         licencia:
- *           type: string
- *           nullable: true
- *           description: Número de licencia de conducción.
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *           description: Correo electrónico.
- *         numero:
- *           type: string
- *           nullable: true
- *           description: Número telefónico.
- *         perfil:
- *           type: integer
- *           description: ID del perfil institucional (referencia a tabla perfil).
- *         estado:
- *           type: boolean
- *           default: true
- *           description: Estado del conductor (activo/inactivo).
- *         perfil_nombre:
- *           type: string
- *           description: Nombre del perfil (solo en respuestas con JOIN).
- *     ConductorCreate:
- *       type: object
- *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
- *       properties:
- *         nombre:
- *           type: string
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
- *           type: string
- *           nullable: true
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *         numero:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *         estado:
- *           type: boolean
- *           default: true
- *     ConductorUpdate:
- *       type: object
- *       properties:
- *         nombre:
- *           type: string
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
- *           type: string
- *           nullable: true
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *         numero:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *         estado:
- *           type: boolean
+ * Valida que las referencias a catálogos y usuario existan.
+ * @param {Object} data
  */
+const validarReferencias = async ({ usuario_id, tipo_usuario_id, regional_formacion_id, centro_formacion_id, programa_formacion_id }) => {
+  if (usuario_id) {
+    const usuario = await usuarioRepo.findById(usuario_id);
+    if (!usuario) throw { status: 404, message: 'El usuario indicado no existe' };
+  }
+  if (tipo_usuario_id !== undefined) {
+    const tipoUsuario = await tipoUsuarioRepo.findById(tipo_usuario_id);
+    if (!tipoUsuario) throw { status: 404, message: 'El tipo de usuario indicado no existe' };
+  }
+  if (regional_formacion_id !== undefined) {
+    const regional = await regionalFormacionRepo.findById(regional_formacion_id);
+    if (!regional) throw { status: 404, message: 'La regional de formación indicada no existe' };
+  }
+  if (centro_formacion_id !== undefined) {
+    const centro = await centroFormacionRepo.findById(centro_formacion_id);
+    if (!centro) throw { status: 404, message: 'El centro de formación indicado no existe' };
+  }
+  if (programa_formacion_id !== undefined) {
+    const programa = await programaFormacionRepo.findById(programa_formacion_id);
+    if (!programa) throw { status: 404, message: 'El programa de formación indicado no existe' };
+  }
+};
 
 /**
  * Obtiene la lista de todos los conductores.
@@ -121,7 +57,7 @@ const getAll = () => repo.findAll();
 
 /**
  * Busca un conductor por su identificador.
- * @param {number} id - ID del conductor.
+ * @param {number} id
  * @throws {Object} 404 si el conductor no existe.
  * @returns {Promise<Object>}
  */
@@ -138,13 +74,14 @@ const getById = async (id) => {
 const getActivos = () => repo.findActivos();
 
 /**
- * Busca un conductor por su número de documento.
- * @param {number} documento
+ * Busca un conductor por su documento (tipo + número).
+ * @param {string} tipoDocumento
+ * @param {string} numeroDocumento
  * @throws {Object} 404 si no existe.
  * @returns {Promise<Object>}
  */
-const getByDocumento = async (documento) => {
-  const item = await repo.findByDocumento(documento);
+const getByDocumento = async (tipoDocumento, numeroDocumento) => {
+  const item = await repo.findByDocumento(tipoDocumento, numeroDocumento);
   if (!item) throw { status: 404, message: 'Conductor no encontrado' };
   return item;
 };
@@ -157,100 +94,96 @@ const getByDocumento = async (documento) => {
 const getByCorreo = (correo) => repo.findByCorreo(correo);
 
 /**
- * Crea un nuevo registro de conductor.
- * @param {Object} data - Datos del conductor (todos los campos del modelo excepto id).
- * @param {string} data.nombre
- * @param {string} data.tipo_documento
- * @param {number} data.documento
- * @param {string|null} data.licencia
- * @param {string|null} data.correo
- * @param {string|null} data.numero
- * @param {number} data.perfil
- * @param {boolean} [data.estado=true]
+ * Crea un nuevo conductor.
+ * @param {Object} data
  * @throws {Object} 400 si faltan campos o son inválidos.
+ * @throws {Object} 404 si alguna referencia (usuario/catálogo) no existe.
  * @throws {Object} 409 si el documento o correo ya están registrados.
  * @returns {Promise<Object>} Conductor creado.
  */
-const create = async ({ nombre, tipo_documento, documento, licencia, correo, numero, perfil, estado = true }) => {
-  // Validar campos obligatorios
-  if (!nombre) throw { status: 400, message: 'El nombre es requerido' };
-  if (!tipo_documento) throw { status: 400, message: 'El tipo de documento es requerido' };
-  if (!documento) throw { status: 400, message: 'El número de documento es requerido' };
-  if (!perfil) throw { status: 400, message: 'El perfil es requerido' };
+const create = async (data) => {
+  const {
+    usuario_id, tipo_documento = 'CC', numero_documento, nombre_apellidos, correo,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
+    centro_formacion_id, programa_formacion_id, vigencia, estado = true,
+  } = data;
 
-  // Validar tipo de documento
+  if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
+  if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
+  if (!direccion) throw { status: 400, message: 'La dirección es requerida' };
+  if (!tipo_usuario_id) throw { status: 400, message: 'El tipo de usuario es requerido' };
+  if (!regional_formacion_id) throw { status: 400, message: 'La regional de formación es requerida' };
+  if (!centro_formacion_id) throw { status: 400, message: 'El centro de formación es requerido' };
+  if (!programa_formacion_id) throw { status: 400, message: 'El programa de formación es requerido' };
+  if (!vigencia) throw { status: 400, message: 'La vigencia es requerida' };
+
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
   }
+  validarCorreo(correo);
 
-  // Validar formato de correo (si se proporciona)
-  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-    throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
-  }
-
-  // Verificar unicidad de documento
-  const existeDoc = await repo.findByDocumento(documento);
+  const existeDoc = await repo.findByDocumento(tipo_documento, numero_documento);
   if (existeDoc) {
-    throw { status: 409, message: 'Ya existe un conductor con ese número de documento' };
+    throw { status: 409, message: 'Ya existe un conductor con ese tipo y número de documento' };
   }
 
-  // Verificar unicidad de correo (si se proporciona)
   if (correo) {
     const existeCorreo = await repo.findByCorreo(correo);
-    if (existeCorreo && existeCorreo.length > 0) {
+    if (existeCorreo.length > 0) {
       throw { status: 409, message: 'Ya existe un conductor con ese correo electrónico' };
     }
   }
 
-  // Crear el conductor
-  return repo.create({ nombre, tipo_documento, documento, licencia, correo, numero, perfil, estado });
+  await validarReferencias({ usuario_id, tipo_usuario_id, regional_formacion_id, centro_formacion_id, programa_formacion_id });
+
+  return repo.create({
+    usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
+    centro_formacion_id, programa_formacion_id, vigencia, estado,
+  });
 };
 
 /**
  * Actualiza parcialmente un conductor existente.
- * @param {number} id - ID del conductor.
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
- * @throws {Object} 404 si el conductor no existe.
+ * @throws {Object} 404 si el conductor o alguna referencia no existe.
  * @throws {Object} 400 si algún valor es inválido.
  * @throws {Object} 409 si el nuevo documento o correo ya están en uso.
  * @returns {Promise<Object>} Conductor actualizado.
  */
 const update = async (id, data) => {
-  // Verificar que el conductor existe
   const conductor = await getById(id);
 
-  // Validar tipo de documento si se envía
   if (data.tipo_documento && !TIPOS_DOCUMENTO.includes(data.tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
   }
+  if (data.correo !== undefined) validarCorreo(data.correo);
 
-  // Validar formato de correo si se envía
-  if (data.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo)) {
-    throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
-  }
-
-  // Si se actualiza el documento, verificar que no esté en uso por otro conductor
-  if (data.documento && data.documento !== conductor.documento) {
-    const existeDoc = await repo.findByDocumento(data.documento);
+  const tipoDocumentoFinal = data.tipo_documento !== undefined ? data.tipo_documento : conductor.tipo_documento;
+  const numeroDocumentoFinal = data.numero_documento !== undefined ? data.numero_documento : conductor.numero_documento;
+  if (data.tipo_documento !== undefined || data.numero_documento !== undefined) {
+    const existeDoc = await repo.findByDocumento(tipoDocumentoFinal, numeroDocumentoFinal);
     if (existeDoc && existeDoc.id !== id) {
-      throw { status: 409, message: 'Ya existe otro conductor con ese número de documento' };
+      throw { status: 409, message: 'Ya existe otro conductor con ese tipo y número de documento' };
     }
   }
 
-  // Si se actualiza el correo, verificar que no esté en uso por otro conductor
   if (data.correo && data.correo !== conductor.correo) {
     const existeCorreo = await repo.findByCorreo(data.correo);
-    if (existeCorreo && existeCorreo.length > 0 && existeCorreo.some(c => c.id !== id)) {
+    if (existeCorreo.some((c) => c.id !== id)) {
       throw { status: 409, message: 'Ya existe otro conductor con ese correo electrónico' };
     }
   }
+
+  await validarReferencias(data);
 
   return repo.update(id, data);
 };
 
 /**
- * Elimina un perfil de conductor (borrado físico).
- * @param {number} id - ID del conductor.
+ * Elimina un conductor (borrado físico).
+ * @param {number} id
  * @throws {Object} 404 si no existe.
  * @returns {Promise<boolean>}
  */

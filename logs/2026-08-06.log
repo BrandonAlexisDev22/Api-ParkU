@@ -1,0 +1,42 @@
+{"timestamp":"2026-08-06T18:49:40.469Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-06T18:52:43.013Z","level":"INFO","message":"POST /api/auth/registro 201 - 4537ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T18:53:37.532Z","level":"INFO","message":"POST /api/auth/login 200 - 1090ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T18:54:26.074Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T18:56:47.752Z","level":"INFO","message":"Recibida señal SIGINT, cerrando servidor..."}
+{"timestamp":"2026-08-06T19:24:25.305Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-06T19:24:25.319Z","level":"INFO","message":"GET /api/health 200 - 14579ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:24:26.321Z","level":"INFO","message":"GET /api/test-db 200 - 956ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:25:16.542Z","level":"WARN","message":"GET /api/catalogos/tipos-usuario 401 - 1ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:25:16.586Z","level":"WARN","message":"GET /api/roles 401 - 0ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:33:29.979Z","level":"INFO","message":"GET /api/health 200 - 6061ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:33:36.305Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-06T19:36:27.845Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-06T19:36:28.000Z","level":"INFO","message":"GET /api/health 200 - 11077ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:38:02.697Z","level":"INFO","message":"POST /api/auth/registro 201 - 6694ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:41:27.432Z","level":"INFO","message":"POST /api/auth/login 200 - 7635ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:11.443Z","level":"INFO","message":"GET /api/usuarios 200 - 5666ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:57.030Z","level":"INFO","message":"GET /api/roles 200 - 4508ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:57.959Z","level":"INFO","message":"GET /api/permisos 200 - 885ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:58.742Z","level":"INFO","message":"GET /api/roles-permisos 200 - 739ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:59.343Z","level":"INFO","message":"GET /api/celdas 200 - 559ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:42:59.624Z","level":"INFO","message":"GET /api/parqueaderos 200 - 240ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:43:21.454Z","level":"INFO","message":"GET /api/catalogos/tipos-usuario 200 - 1895ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:43:22.240Z","level":"INFO","message":"GET /api/catalogos/regionales-formacion 200 - 746ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:43:24.346Z","level":"INFO","message":"GET /api/catalogos/centros-formacion 200 - 2066ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:43:25.975Z","level":"INFO","message":"GET /api/catalogos/programas-formacion 200 - 1590ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:43:26.291Z","level":"INFO","message":"GET /api/conductores 200 - 277ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:47:28.465Z","level":"INFO","message":"GET /api/catalogos/tipos-usuario 200 - 7845ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:47:30.476Z","level":"INFO","message":"GET /api/catalogos/regionales-formacion 200 - 1971ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:47:31.366Z","level":"INFO","message":"GET /api/catalogos/centros-formacion 200 - 835ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:47:33.356Z","level":"INFO","message":"GET /api/catalogos/programas-formacion 200 - 1944ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:48:07.366Z","level":"INFO","message":"POST /api/conductores 201 - 5728ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:48:08.970Z","level":"WARN","message":"POST /api/conductores 409 - 1563ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:48:52.417Z","level":"INFO","message":"GET /api/conductores/documento?tipo_documento=CC&numero_documento=123456789 200 - 6110ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:48:53.459Z","level":"WARN","message":"POST /api/conductores 404 - 1000ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-08-06T19:51:33.401Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-06T19:51:38.856Z","level":"WARN","message":"GET /api/usuarios 401 - 3ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T19:51:41.357Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T19:52:41.313Z","level":"INFO","message":"POST /api/auth/login 200 - 3956ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T19:54:34.365Z","level":"INFO","message":"POST /api/auth/registro 201 - 2618ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T19:54:57.855Z","level":"INFO","message":"POST /api/auth/login 200 - 249ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T19:56:00.185Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}

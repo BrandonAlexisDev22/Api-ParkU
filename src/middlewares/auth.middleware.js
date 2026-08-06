@@ -44,7 +44,7 @@ const verificarToken = async (req, res, next) => {
 
     const user = await Usuario.findOne({
       where: { id: decoded.id, estado: true },
-      attributes: ['id', 'correo', 'rol', 'estado'],
+      attributes: ['id', 'correo', 'nombre', 'rol_id', 'estado'],
     });
 
     if (!user) {
@@ -57,7 +57,8 @@ const verificarToken = async (req, res, next) => {
     req.usuario = {
       id: user.id,
       correo: user.correo,
-      rol: user.rol
+      nombre: user.nombre,
+      rol: user.rol_id
     };
 
     next();
@@ -127,8 +128,8 @@ const verificarPermiso = (permisoRequerido) => {
       const [resultado] = await sequelize.query(
         `SELECT p.nombre
          FROM rol_permiso rp
-         INNER JOIN permiso p ON rp.permiso = p.id
-         WHERE rp.rol = :rol AND p.nombre = :permiso`,
+         INNER JOIN permiso p ON rp.permiso_id = p.id
+         WHERE rp.rol_id = :rol AND p.nombre = :permiso`,
         {
           replacements: { rol: req.usuario.rol, permiso: permisoRequerido },
         }

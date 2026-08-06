@@ -7,7 +7,7 @@ const handleError = (res, error) => {
     return res.status(error.status).json({ message: error.message });
   }
   console.error(error);
-  return res.status(501).json({ message: 'Error interno del servidor' });
+  return res.status(500).json({ message: 'Error interno del servidor' });
 };
 
 module.exports = { handleError };

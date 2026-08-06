@@ -13,14 +13,14 @@ const Usuario = sequelize.define('Usuario', {
     autoIncrement: true,
   },
   correo: {
-    type: DataTypes.STRING,
+    type: DataTypes.CITEXT,
     allowNull: false,
     unique: true,
     validate: { isEmail: true },
   },
   nombre: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: DataTypes.STRING(20),
+    allowNull: true,
     field: "nombre"
   },
   contrasena: {
@@ -30,21 +30,23 @@ const Usuario = sequelize.define('Usuario', {
   },
   rol_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 3, // 1=Admin, 2=Supervisor, 3=Usuario
+    allowNull: true,
+    defaultValue: 3, // 1=Vigilante, 2=Admin, 3=Conductor
   },
   estado: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true,
   },
-  // refresh_token: {
-  //   type: DataTypes.STRING,
-  //   allowNull: true,
-  // },
+  refresh_token: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 }, {
   tableName: 'usuario',
-  timestamps: false,
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
 module.exports = Usuario;

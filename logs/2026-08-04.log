@@ -1,0 +1,70 @@
+{"timestamp":"2026-08-04T00:37:15.958Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-04T01:19:40.590Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/auth/register","ip":"::1"}}
+{"timestamp":"2026-08-04T01:19:40.599Z","level":"WARN","message":"GET /api/auth/register 404 - 10ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:33:59.002Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"POST","url":"/api/auth/register","ip":"::1"}}
+{"timestamp":"2026-08-04T01:33:59.029Z","level":"WARN","message":"POST /api/auth/register 404 - 28ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:34:09.462Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/auth/register","ip":"::1"}}
+{"timestamp":"2026-08-04T01:34:09.501Z","level":"WARN","message":"GET /api/auth/register 404 - 39ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:34:16.434Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"POST","url":"/api/auth/register","ip":"::1"}}
+{"timestamp":"2026-08-04T01:34:16.436Z","level":"WARN","message":"POST /api/auth/register 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:41:40.422Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"POST","url":"/api/auth/register","ip":"::1"}}
+{"timestamp":"2026-08-04T01:41:40.425Z","level":"WARN","message":"POST /api/auth/register 404 - 3ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:44:26.369Z","level":"WARN","message":"POST /api/auth/registro 400 - 10ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:44:43.998Z","level":"WARN","message":"POST /api/auth/registro 400 - 2527ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:44:54.033Z","level":"INFO","message":"POST /api/auth/registro 201 - 491ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:47:15.833Z","level":"INFO","message":"POST /api/auth/login 200 - 1572ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:48:58.941Z","level":"WARN","message":"GET /api/usuarios 401 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:49:38.451Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T01:56:08.997Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.54.0"}}
+{"timestamp":"2026-08-04T20:14:45.307Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-04T20:14:45.316Z","level":"WARN","message":"POST /api/auth/registro 500 - 5734ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:15:02.969Z","level":"INFO","message":"POST /api/auth/registro 201 - 12219ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:16:27.395Z","level":"INFO","message":"POST /api/auth/login 200 - 738ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:20:13.785Z","level":"WARN","message":"GET /api/auth/verificar 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:21:34.635Z","level":"INFO","message":"POST /api/auth/login 200 - 1857ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:23:51.550Z","level":"INFO","message":"POST /api/auth/login 200 - 1171ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:25:00.425Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/auth/login","ip":"::1"}}
+{"timestamp":"2026-08-04T20:25:00.426Z","level":"WARN","message":"GET /api/auth/login 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:25:29.619Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/aut/verificar","ip":"::1"}}
+{"timestamp":"2026-08-04T20:25:29.620Z","level":"WARN","message":"GET /api/aut/verificar 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:25:53.782Z","level":"INFO","message":"GET /api/auth/verificar 200 - 744ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:27:07.636Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/usuarios%0A","ip":"::1"}}
+{"timestamp":"2026-08-04T20:27:07.638Z","level":"WARN","message":"GET /api/usuarios%0A 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:31:41.922Z","level":"WARN","message":"GET /api/usuarios 403 - 2106ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:32:44.910Z","level":"WARN","message":"GET /api/usuarios 403 - 853ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:33:45.503Z","level":"WARN","message":"POST /api/usuarios 403 - 886ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:34:01.928Z","level":"WARN","message":"POST /api/auth/registro 400 - 94ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:35:06.683Z","level":"INFO","message":"POST /api/auth/login 200 - 1701ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:36:06.078Z","level":"WARN","message":"POST /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:36:50.417Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"POST","url":"/api/login","ip":"::1"}}
+{"timestamp":"2026-08-04T20:36:50.419Z","level":"WARN","message":"POST /api/login 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:37:19.610Z","level":"INFO","message":"POST /api/auth/login 200 - 2103ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:38:17.211Z","level":"WARN","message":"POST /api/usuarios 403 - 1473ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:41:02.045Z","level":"INFO","message":"POST /api/auth/login 200 - 786ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:42:03.613Z","level":"WARN","message":"GET /api/usuarios 403 - 871ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:43:24.730Z","level":"INFO","message":"POST /api/auth/registro 201 - 1880ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:45:31.241Z","level":"INFO","message":"POST /api/auth/login 200 - 993ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:47:06.670Z","level":"WARN","message":"POST /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:48:20.820Z","level":"INFO","message":"POST /api/auth/login 200 - 937ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T20:49:53.212Z","level":"WARN","message":"POST /api/usuarios 403 - 1323ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:10:16.387Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-04T21:11:07.306Z","level":"WARN","message":"POST /api/usuarios 403 - 5537ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:11:23.256Z","level":"INFO","message":"POST /api/auth/login 200 - 405ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:12:09.218Z","level":"WARN","message":"GET /api/usuarios 401 - 0ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:12:53.383Z","level":"INFO","message":"POST /api/auth/login 200 - 1056ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:13:45.698Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:15:12.054Z","level":"INFO","message":"Recibida señal SIGINT, cerrando servidor..."}
+{"timestamp":"2026-08-04T21:15:25.608Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-04T21:23:42.729Z","level":"INFO","message":"POST /api/auth/registro 201 - 4529ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:24:45.294Z","level":"INFO","message":"POST /api/auth/login 200 - 1551ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:26:19.272Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:26:35.977Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/api/auth/login","ip":"::1"}}
+{"timestamp":"2026-08-04T21:26:35.978Z","level":"WARN","message":"GET /api/auth/login 404 - 2ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:26:56.902Z","level":"INFO","message":"POST /api/auth/login 200 - 994ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:27:24.395Z","level":"WARN","message":"POST /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:27:34.085Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:27:36.926Z","level":"WARN","message":"GET /api/usuarios 401 - 0ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:27:44.610Z","level":"WARN","message":"POST /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:27:59.510Z","level":"INFO","message":"POST /api/auth/login 200 - 6325ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:28:29.491Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-04T21:28:56.311Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}

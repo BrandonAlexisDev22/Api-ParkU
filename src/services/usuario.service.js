@@ -8,107 +8,6 @@ const bcrypt = require('bcryptjs');
 const repo = require('../repositories/usuario.repository');
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Usuario:
- *       type: object
- *       required:
- *         - nombre
- *         - correo
- *         - contrasena
- *       properties:
- *         id:
- *           type: integer
- *         nombre:
- *           type: string
- *         correo:
- *           type: string
- *           format: email
- *         contrasena:
- *           type: string
- *           writeOnly: true
- *         numero:
- *           type: string
- *           nullable: true
- *         rol:
- *           type: integer
- *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
- *         rol_nombre:
- *           type: string
- *           description: Nombre del rol (solo lectura)
- *     UsuarioCreate:
- *       type: object
- *       required:
- *         - nombre
- *         - correo
- *         - contrasena
- *       properties:
- *         nombre:
- *           type: string
- *         correo:
- *           type: string
- *           format: email
- *         contrasena:
- *           type: string
- *         numero:
- *           type: string
- *           nullable: true
- *         rol:
- *           type: integer
- *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
- *     UsuarioUpdate:
- *       type: object
- *       properties:
- *         nombre:
- *           type: string
- *         correo:
- *           type: string
- *           format: email
- *         numero:
- *           type: string
- *           nullable: true
- *         rol:
- *           type: integer
- *           nullable: true
- *         estado:
- *           type: boolean
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
- */
-
-/**
  * Obtiene todos los usuarios (sin contraseñas).
  * @returns {Promise<Array>}
  */
@@ -133,7 +32,8 @@ const getById = async (id) => {
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { nombre, correo, contrasena, numero, rol, estado, tipoDocumento, licencia, perfil } = data;
+  const { nombre, correo, contrasena, rol, estado } = data;
+
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
   }
@@ -142,16 +42,13 @@ const create = async (data) => {
   if (existe) throw { status: 409, message: 'El correo ya está registrado' };
 
   const hash = await bcrypt.hash(contrasena, 10);
+
   return repo.create({
     nombre,
     correo,
     contrasena: hash,
-    numero,
-    rol,
+    rol_id: rol || 3,
     estado: estado !== undefined ? estado : true,
-    tipoDocumento,
-    licencia,
-    perfil
   });
 };
 
@@ -178,7 +75,14 @@ const update = async (id, data) => {
     throw { status: 400, message: 'Para cambiar la contraseña use el endpoint específico' };
   }
 
-  return repo.update(id, data);
+  // ✅ CORREGIDO: Mapear 'rol' a 'rol_id' si viene en los datos
+  const updateData = { ...data };
+  if (updateData.rol !== undefined) {
+    updateData.rol_id = updateData.rol;
+    delete updateData.rol;
+  }
+
+  return repo.update(id, updateData);
 };
 
 /**

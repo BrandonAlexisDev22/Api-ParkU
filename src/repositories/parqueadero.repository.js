@@ -6,6 +6,16 @@
 const { Parqueadero } = require('../models');
 
 /**
+ * Busca un parqueadero por su nombre exacto.
+ * @param {string} nombre
+ * @returns {Promise<Object|null>}
+ */
+const findByNombre = async (nombre) => {
+  const row = await Parqueadero.findOne({ where: { nombre } });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Recupera todos los parqueaderos.
  * @returns {Promise<Array>}
  */
@@ -58,4 +68,4 @@ const remove = async (id) => {
   return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, create, update, remove };
+module.exports = { findAll, findById, findByNombre, create, update, remove };

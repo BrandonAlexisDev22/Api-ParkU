@@ -129,6 +129,7 @@ const refreshValidation = [
  *         description: Demasiadas solicitudes
  */
 
+
 router.post(
   '/login',
   authLimiter,
@@ -175,7 +176,7 @@ router.post(
  *               rol:
  *                 type: integer
  *                 example: 3
- *                 description: "1=Admin, 2=Supervisor, 3=Usuario"
+ *                 description: "1=Vigilante, 2=Admin, 3=Conductor"
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente

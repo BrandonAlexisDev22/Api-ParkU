@@ -15,32 +15,12 @@ const Parqueadero = sequelize.define('Parqueadero', {
     autoIncrement: true,
   },
   nombre: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(100),
     allowNull: false,
   },
   ubicacion: {
     type: DataTypes.STRING,
     allowNull: true,
-  },
-  celdas_totales: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
-  celdas_movilidad_reducida: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
-  celdas_motos: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
-  celdas_carros: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
   },
   estado: {
     type: DataTypes.BOOLEAN,
@@ -49,7 +29,9 @@ const Parqueadero = sequelize.define('Parqueadero', {
   },
 }, {
   tableName: 'parqueadero',
-  timestamps: false, // cambia a true si tu tabla tiene created_at/updated_at
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
 module.exports = Parqueadero;

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"correo\":\"test-migracion@parku.com\",\"contrasena\":\"Test1234!\"}')",
+      "Bash(curl -s http://localhost:3000/api/usuarios -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/roles -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/permisos -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/roles-permisos -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/celdas -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/parqueaderos -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/catalogos/tipos-usuario -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/catalogos/regionales-formacion -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/catalogos/centros-formacion -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/catalogos/programas-formacion -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s http://localhost:3000/api/conductores -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s -X POST http://localhost:3000/api/conductores -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc' -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(curl -s 'http://localhost:3000/api/conductores/documento?tipo_documento=CC&numero_documento=123456789' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc')",
+      "Bash(curl -s -w '\\\\nHTTP_STATUS:%{http_code}' -X POST http://localhost:3000/api/conductores -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImNvcnJlbyI6InRlc3QtbWlncmFjaW9uQHBhcmt1LmNvbSIsInJvbCI6MiwiaWF0IjoxNzg2MDQ1Mjg2LCJleHAiOjE3ODY2NTAwODZ9.1X2D7sSJab-4sRlgT60tXMQ9q9gezgo6KO4wAmgXvfc' -H 'Content-Type: application/json' -d '{ *)"
+    ]
+  }
+}

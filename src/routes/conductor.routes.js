@@ -10,107 +10,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Conductor:
- *       type: object
- *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del conductor.
- *         nombre:
- *           type: string
- *           description: Nombre completo del conductor.
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *           description: Tipo de documento de identidad.
- *         documento:
- *           type: integer
- *           description: Número de documento (único).
- *         licencia:
- *           type: string
- *           nullable: true
- *           description: Número de licencia de conducción.
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *           description: Correo electrónico.
- *         numero:
- *           type: string
- *           nullable: true
- *           description: Número telefónico.
- *         perfil:
- *           type: integer
- *           description: ID del perfil institucional (referencia a tabla perfil).
- *         estado:
- *           type: boolean
- *           default: true
- *           description: Estado del conductor (activo/inactivo).
- *         perfil_nombre:
- *           type: string
- *           description: Nombre del perfil (solo en respuestas con JOIN).
- *     ConductorCreate:
- *       type: object
- *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
- *       properties:
- *         nombre:
- *           type: string
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
- *           type: string
- *           nullable: true
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *         numero:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *         estado:
- *           type: boolean
- *           default: true
- *     ConductorUpdate:
- *       type: object
- *       properties:
- *         nombre:
- *           type: string
- *         tipo_documento:
- *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
- *           type: string
- *           nullable: true
- *         correo:
- *           type: string
- *           format: email
- *           nullable: true
- *         numero:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *         estado:
- *           type: boolean
+ * Los esquemas Conductor/ConductorCreate/ConductorUpdate se documentan en
+ * src/controllers/conductor.controller.js para evitar duplicidad.
  */
 
 /**
@@ -165,19 +66,24 @@ router.get('/activos',
 
 /**
  * @swagger
- * /api/conductores/documento/{documento}:
+ * /api/conductores/documento:
  *   get:
- *     summary: Busca un conductor por su número de documento
+ *     summary: Busca un conductor por tipo y número de documento
  *     tags: [Conductores]
  *     security:
  *       - BearerAuth: []
  *     parameters:
- *       - in: path
- *         name: documento
+ *       - in: query
+ *         name: tipo_documento
  *         required: true
  *         schema:
- *           type: integer
- *         description: Número de documento
+ *           type: string
+ *           enum: [CC, CE, PAS, TI, NIT]
+ *       - in: query
+ *         name: numero_documento
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Conductor encontrado
@@ -185,12 +91,14 @@ router.get('/activos',
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Conductor'
+ *       400:
+ *         description: Faltan parámetros
  *       401:
  *         description: No autorizado - Token requerido
  *       404:
  *         description: No existe conductor con ese documento
  */
-router.get('/documento/:documento',
+router.get('/documento',
   verificarToken,
   ctrl.getByDocumento
 );
@@ -292,7 +200,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.create
 );
 
@@ -335,7 +243,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.update
 );
 
@@ -366,7 +274,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarRol([2]), // Solo Admin (2)
   ctrl.remove
 );
 

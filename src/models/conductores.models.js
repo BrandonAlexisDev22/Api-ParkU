@@ -1,69 +1,81 @@
 /**
  * @module ConductorModel
- * @description
- * Clase que representa la entidad Conductor dentro del sistema ParkU.
- * Sincronizada con la tabla 'conductor' de la base de datos.
+ * @description Modelo Sequelize para la tabla 'conductor'.
  */
 
-class Conductor {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-  /**
-   * @param {number} id - Identificador único del conductor
-   * @param {string} nombre - Nombre completo del conductor
-   * @param {string} tipo_documento - Tipo de documento (CC, CE, PAS, etc.)
-   * @param {number} documento - Número de documento
-   * @param {string|null} licencia - Número de licencia de conducción
-   * @param {string|null} correo - Correo electrónico
-   * @param {string|null} numero - Número telefónico
-   * @param {number} perfil - ID del perfil asociado
-   * @param {boolean} estado - Estado del conductor
-   */
-  constructor(
-    id,
-    nombre,
-    tipo_documento,
-    documento,
-    licencia,
-    correo,
-    numero,
-    perfil,
-    estado = true
-  ) {
+const Conductor = sequelize.define('Conductor', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  usuario_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  tipo_documento: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'CC',
+  },
+  numero_documento: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+  },
+  nombre_apellidos: {
+    type: DataTypes.STRING(200),
+    allowNull: false,
+  },
+  correo: {
+    type: DataTypes.CITEXT,
+    allowNull: true,
+    unique: true,
+    validate: { isEmail: true },
+  },
+  direccion: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+  },
+  numero_telefonico: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
+  tipo_usuario_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  regional_formacion_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  centro_formacion_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  programa_formacion_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  vigencia: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  estado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+}, {
+  tableName: 'conductor',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  indexes: [
+    { unique: true, fields: ['tipo_documento', 'numero_documento'] },
+  ],
+});
 
-    /** @type {number} */
-    this.id = id;
-
-    /** @type {string} */
-    this.nombre = nombre;
-
-    /** @type {string} */
-    this.tipo_documento = tipo_documento;
-
-    /** @type {number} */
-    this.documento = documento;
-
-    /** @type {string|null} */
-    this.licencia = licencia;
-
-    /** @type {string|null} */
-    this.correo = correo;
-
-    /** @type {string|null} */
-    this.numero = numero;
-
-    /**
-     * Referencia a perfil.id
-     * @type {number}
-     */
-    this.perfil = perfil;
-
-    /**
-     * TRUE = Activo
-     * FALSE = Inactivo
-     * @type {boolean}
-     */
-    this.estado = estado;
-  }
-}
-
-module.exports = Conductor;q
+module.exports = Conductor;

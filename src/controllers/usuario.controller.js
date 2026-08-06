@@ -26,23 +26,11 @@ const { handleError } = require('../helpers/errorHandler');
  *         correo:
  *           type: string
  *           format: email
- *         numero:
- *           type: string
- *           nullable: true
  *         rol:
  *           type: integer
  *           nullable: true
  *         estado:
  *           type: boolean
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
  *         rol_nombre:
  *           type: string
  *     UsuarioCreate:
@@ -59,24 +47,12 @@ const { handleError } = require('../helpers/errorHandler');
  *           format: email
  *         contrasena:
  *           type: string
- *         numero:
- *           type: string
- *           nullable: true
  *         rol:
  *           type: integer
  *           nullable: true
  *         estado:
  *           type: boolean
  *           default: true
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
  *     UsuarioUpdate:
  *       type: object
  *       properties:
@@ -85,23 +61,11 @@ const { handleError } = require('../helpers/errorHandler');
  *         correo:
  *           type: string
  *           format: email
- *         numero:
- *           type: string
- *           nullable: true
  *         rol:
  *           type: integer
  *           nullable: true
  *         estado:
  *           type: boolean
- *         tipoDocumento:
- *           type: string
- *           nullable: true
- *         licencia:
- *           type: string
- *           nullable: true
- *         perfil:
- *           type: integer
- *           nullable: true
  */
 
 /**

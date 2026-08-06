@@ -1,41 +1,54 @@
 /**
  * @module RolPermisoRepository
- * @description Capa de acceso a datos para la tabla intermedia 'rol_permiso'.
+ * @description Capa de acceso a datos para la tabla intermedia 'rol_permiso' usando Sequelize.
  * Gestiona la asignación y revocación de capacidades específicas a los roles del sistema.
  */
 
-const db = require('../config/database');
+const { RolPermiso, Rol, Permiso } = require('../models');
+
+const includeRelaciones = [
+  { model: Rol, as: 'Rol', attributes: ['nombre'] },
+  { model: Permiso, as: 'Permiso', attributes: ['nombre'] },
+];
 
 /**
- * Consulta base con JOIN para obtener nombres de rol y permiso.
- * @constant {string}
+ * Aplana el resultado de Sequelize manteniendo el shape que tenía la versión
+ * anterior con SQL manual: { id, rol, permiso, rol_nombre, permiso_nombre }.
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
  */
-const BASE_QUERY = `
-  SELECT rp.id, rp.rol, rp.permiso,
-         r.nombre AS rol_nombre,
-         p.nombre AS permiso_nombre
-  FROM rol_permiso rp
-  JOIN rol r     ON rp.rol     = r.id
-  JOIN permiso p ON rp.permiso = p.id
-`;
+const mapRolPermiso = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  return {
+    id: plano.id,
+    rol: plano.rol_id,
+    permiso: plano.permiso_id,
+    rol_nombre: plano.Rol ? plano.Rol.nombre : null,
+    permiso_nombre: plano.Permiso ? plano.Permiso.nombre : null,
+  };
+};
 
 /**
  * Recupera todas las asociaciones con sus respectivos nombres.
- * @returns {Promise<Array>} Lista de objetos con detalle de Rol y Permiso.
+ * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY r.nombre, p.nombre`);
-  return rows;
+  const rows = await RolPermiso.findAll({
+    include: includeRelaciones,
+    order: [[{ model: Rol, as: 'Rol' }, 'nombre', 'ASC'], [{ model: Permiso, as: 'Permiso' }, 'nombre', 'ASC']],
+  });
+  return rows.map(mapRolPermiso);
 };
 
 /**
  * Busca una asociación por su ID primario.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE rp.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await RolPermiso.findByPk(id, { include: includeRelaciones });
+  return mapRolPermiso(row);
 };
 
 /**
@@ -44,25 +57,23 @@ const findById = async (id) => {
  * @returns {Promise<Array>}
  */
 const findByRol = async (rolId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE rp.rol = ? ORDER BY p.nombre`,
-    [rolId]
-  );
-  return rows;
+  const rows = await RolPermiso.findAll({
+    where: { rol_id: rolId },
+    include: includeRelaciones,
+    order: [[{ model: Permiso, as: 'Permiso' }, 'nombre', 'ASC']],
+  });
+  return rows.map(mapRolPermiso);
 };
 
 /**
  * Busca una asociación específica por rol y permiso (para validar duplicados).
- * @param {number} rolId 
- * @param {number} permisoId 
+ * @param {number} rolId
+ * @param {number} permisoId
  * @returns {Promise<Object|null>}
  */
 const findByRolAndPermiso = async (rolId, permisoId) => {
-  const [rows] = await db.query(
-    'SELECT * FROM rol_permiso WHERE rol = ? AND permiso = ?',
-    [rolId, permisoId]
-  );
-  return rows[0] || null;
+  const row = await RolPermiso.findOne({ where: { rol_id: rolId, permiso_id: permisoId } });
+  return row ? row.toJSON() : null;
 };
 
 /**
@@ -73,11 +84,8 @@ const findByRolAndPermiso = async (rolId, permisoId) => {
  * @returns {Promise<Object>} La asociación recién creada con nombres.
  */
 const create = async ({ rol, permiso }) => {
-  const [result] = await db.query(
-    'INSERT INTO rol_permiso (rol, permiso) VALUES (?, ?)',
-    [rol, permiso]
-  );
-  return findById(result.insertId);
+  const nuevo = await RolPermiso.create({ rol_id: rol, permiso_id: permiso });
+  return findById(nuevo.id);
 };
 
 /**
@@ -86,8 +94,8 @@ const create = async ({ rol, permiso }) => {
  * @returns {Promise<boolean>} True si la operación afectó alguna fila.
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM rol_permiso WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await RolPermiso.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
 module.exports = {

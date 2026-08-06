@@ -1,32 +1,31 @@
 /**
- * @module PermisoModel
- * @description Modelo Sequelize para la tabla 'permiso'.
+ * @module TipoUsuarioModel
+ * @description Modelo Sequelize para la tabla 'tipo_usuario' (catálogo).
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Permiso = sequelize.define('Permiso', {
+const TipoUsuario = sequelize.define('TipoUsuario', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
-  nombre: {
+  tipo_usuario: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
   },
-  estado: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: true,
+  descripcion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
 }, {
-  tableName: 'permiso',
+  tableName: 'tipo_usuario',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Permiso;
+module.exports = TipoUsuario;

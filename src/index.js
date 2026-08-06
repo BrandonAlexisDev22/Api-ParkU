@@ -6,7 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { swaggerDocs } = require('./config/swagger');
-const { testConnection, pool, query } = require('./config/database');
+const { testConnection, sequelize } = require('./config/database');
 const Logger = require('./utils/logger.util');
 const { auditLog, auditLoginAttempt, auditTokenExpired } = require('./middlewares/audit.middleware');
 
@@ -82,7 +82,7 @@ app.get('/api/health', async (req, res) => {
 // Test de conexión a base de datos
 app.get('/api/test-db', async (req, res) => {
   try {
-    const result = await query('SELECT NOW() AS fecha_hora, current_database() AS base_datos');
+    const [result] = await sequelize.query('SELECT NOW() AS fecha_hora, current_database() AS base_datos');
     res.status(200).json({
       success: true,
       message: '✅ Conexión exitosa con PostgreSQL',
@@ -143,6 +143,9 @@ app.use('/api/perfiles', require('./routes/perfil.routes'));
 
 // Gestión de Conductores
 app.use('/api/conductores', require('./routes/conductor.routes'));
+
+// Catálogos de referencia (tipo usuario, regional/centro/programa de formación)
+app.use('/api/catalogos', require('./routes/catalogos.routes'));
 
 // Gestión de Vehículos
 app.use('/api/vehiculos', require('./routes/vehiculo.routes'));

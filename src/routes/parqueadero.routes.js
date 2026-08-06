@@ -10,88 +10,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Parqueadero:
- *       type: object
- *       required:
- *         - nombre
- *         - ubicacion
- *         - celdas_totales
- *         - celdas_movilidad_reducida
- *         - celdas_motos
- *         - celdas_carros
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del parqueadero.
- *         nombre:
- *           type: string
- *           description: Nombre del parqueadero.
- *         ubicacion:
- *           type: string
- *           nullable: true
- *           description: Ubicación física del parqueadero.
- *         celdas_totales:
- *           type: integer
- *           description: Total de celdas disponibles.
- *         celdas_movilidad_reducida:
- *           type: integer
- *           description: Total de celdas para movilidad reducida.
- *         celdas_motos:
- *           type: integer
- *           description: Total de celdas para motos.
- *         celdas_carros:
- *           type: integer
- *           description: Total de celdas para carros.
- *         estado:
- *           type: boolean
- *           default: true
- *           description: Estado del parqueadero (activo/inactivo).
- *     ParqueaderoCreate:
- *       type: object
- *       required:
- *         - nombre
- *         - celdas_totales
- *         - celdas_movilidad_reducida
- *         - celdas_motos
- *         - celdas_carros
- *       properties:
- *         nombre:
- *           type: string
- *         ubicacion:
- *           type: string
- *           nullable: true
- *         celdas_totales:
- *           type: integer
- *         celdas_movilidad_reducida:
- *           type: integer
- *         celdas_motos:
- *           type: integer
- *         celdas_carros:
- *           type: integer
- *         estado:
- *           type: boolean
- *           default: true
- *     ParqueaderoUpdate:
- *       type: object
- *       properties:
- *         nombre:
- *           type: string
- *         ubicacion:
- *           type: string
- *           nullable: true
- *         celdas_totales:
- *           type: integer
- *         celdas_movilidad_reducida:
- *           type: integer
- *         celdas_motos:
- *           type: integer
- *         celdas_carros:
- *           type: integer
- *         estado:
- *           type: boolean
+ * Los esquemas Parqueadero/ParqueaderoCreate/ParqueaderoUpdate se documentan en
+ * src/controllers/parqueadero.controller.js para evitar duplicidad.
  */
 
 /**
@@ -183,7 +103,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarRol([2]), // Solo Admin (2)
   ctrl.create
 );
 
@@ -228,7 +148,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarRol([2]), // Solo Admin (2)
   ctrl.update
 );
 
@@ -261,7 +181,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarRol([2]), // Solo Admin (2)
   ctrl.remove
 );
 

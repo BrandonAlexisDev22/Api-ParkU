@@ -1,121 +1,152 @@
 /**
  * @module UsuarioRepository
- * @description Capa de acceso a datos para la tabla 'usuario'.
- * Alineado con el modelo Usuario (nombre, correo, contrasena, numero, rol, estado, tipoDocumento, licencia, perfil).
+ * @description Capa de acceso a datos para la tabla 'usuario' usando Sequelize.
+ * Incluye el nombre del rol a través de la asociación con 'rol'.
  */
 
-const db = require('../config/database');
+const { Usuario, Rol } = require('../models');
+
+const includeRol = {
+  model: Rol,
+  as: 'rol',
+  attributes: ['nombre'],
+};
 
 /**
- * Consulta base para obtener todos los campos excepto contraseña (seguridad).
- * @constant {string}
+ * Aplana el resultado de Sequelize para mantener el mismo shape que tenía
+ * la versión anterior con SQL manual (rol_nombre plano, sin contraseña).
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
  */
-const BASE_QUERY = `
-  SELECT u.id, u.nombre, u.correo, u.numero, u.rol, u.estado,
-         u.tipoDocumento, u.licencia, u.perfil,
-         r.nombre AS rol_nombre
-  FROM usuario u
-  LEFT JOIN rol r ON u.rol = r.id
-`;
+const mapUsuario = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  const { rol, ...resto } = plano;
+  return {
+    ...resto,
+    rol_nombre: rol ? rol.nombre : null,
+  };
+};
+
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'rol_id', 'estado'];
 
 /**
- * Recupera todos los usuarios con detalles del rol.
+ * Recupera todos los usuarios con el nombre de su rol.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY u.nombre`);
-  return rows;
+  const rows = await Usuario.findAll({
+    attributes: ATRIBUTOS_PUBLICOS,
+    include: [includeRol],
+    order: [['nombre', 'ASC']],
+  });
+  return rows.map(mapUsuario);
 };
 
 /**
  * Busca un usuario por su ID.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE u.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await Usuario.findOne({
+    where: { id },
+    attributes: ATRIBUTOS_PUBLICOS,
+    include: [includeRol],
+  });
+  return mapUsuario(row);
 };
 
 /**
  * Busca un usuario por correo (incluye contraseña para login).
- * @param {string} correo 
+ * @param {string} correo
  * @returns {Promise<Object|null>}
  */
 const findByCorreo = async (correo) => {
-  const [rows] = await db.query('SELECT * FROM usuario WHERE correo = ?', [correo]);
-  return rows[0] || null;
+  const row = await Usuario.findOne({ where: { correo } });
+  return row ? row.toJSON() : null;
+};
+
+/**
+ * Busca un usuario por refresh_token.
+ * @param {string} refreshToken
+ * @returns {Promise<Object|null>}
+ */
+const findByRefreshToken = async (refreshToken) => {
+  const row = await Usuario.findOne({ where: { refresh_token: refreshToken } });
+  return row ? row.toJSON() : null;
 };
 
 /**
  * Crea un nuevo usuario.
- * @param {Object} data - { nombre, correo, contrasena, numero, rol, estado?, tipoDocumento?, licencia?, perfil? }
+ * @param {Object} data - { correo, nombre, contrasena, rol_id, estado?, refresh_token? }
  * @returns {Promise<Object>}
  */
-const create = async ({ nombre, correo, contrasena, numero, rol, estado = true, tipoDocumento, licencia, perfil }) => {
-  const [result] = await db.query(
-    `INSERT INTO usuario 
-     (nombre, correo, contrasena, numero, rol, estado, tipoDocumento, licencia, perfil) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      nombre,
-      correo,
-      contrasena,
-      numero || null,
-      rol || null,
-      estado ? 1 : 0,
-      tipoDocumento || null,
-      licencia || null,
-      perfil || null
-    ]
-  );
-  return findById(result.insertId);
+const create = async (data) => {
+  const { correo, nombre, contrasena, rol_id, estado = true, refresh_token = null } = data;
+  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, refresh_token });
+  return findById(nuevo.id);
 };
 
 /**
  * Actualiza parcialmente un usuario.
- * @param {number} id 
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales)
  * @returns {Promise<Object>}
  */
 const update = async (id, data) => {
-  const fields = [];
-  const values = [];
-  const allowedFields = ['nombre', 'correo', 'numero', 'rol', 'estado', 'tipoDocumento', 'licencia', 'perfil'];
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'refresh_token'];
+  const cambios = {};
   for (const field of allowedFields) {
-    if (data[field] !== undefined) {
-      fields.push(`${field} = ?`);
-      // Convertir estado booleano a 0/1
-      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
-    }
+    if (data[field] !== undefined) cambios[field] = data[field];
   }
-  if (fields.length === 0) {
+
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  values.push(id);
-  const query = `UPDATE usuario SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+
+  await Usuario.update(cambios, { where: { id } });
   return findById(id);
 };
 
 /**
  * Actualiza la contraseña de un usuario.
- * @param {number} id 
+ * @param {number} id
  * @param {string} contrasena - Hash de la nueva contraseña
  * @returns {Promise<void>}
  */
 const updateContrasena = async (id, contrasena) => {
-  await db.query('UPDATE usuario SET contrasena = ? WHERE id = ?', [contrasena, id]);
+  await Usuario.update({ contrasena }, { where: { id } });
+};
+
+/**
+ * Actualiza el refresh_token de un usuario.
+ * @param {number} id
+ * @param {string|null} refreshToken - Nuevo refresh token o null para eliminarlo
+ * @returns {Promise<void>}
+ */
+const updateRefreshToken = async (id, refreshToken) => {
+  await Usuario.update({ refresh_token: refreshToken }, { where: { id } });
 };
 
 /**
  * Elimina un usuario.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM usuario WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await Usuario.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, findByCorreo, create, update, updateContrasena, remove };
+module.exports = {
+  findAll,
+  findById,
+  findByCorreo,
+  findByRefreshToken,
+  create,
+  update,
+  updateContrasena,
+  updateRefreshToken,
+  remove,
+};

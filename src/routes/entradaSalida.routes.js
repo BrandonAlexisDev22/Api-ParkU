@@ -88,7 +88,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.getAll
 );
 
@@ -133,7 +133,7 @@ router.get('/',
  */
 router.get('/filtro',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.getByFecha
 );
 
@@ -168,7 +168,7 @@ router.get('/filtro',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.getByVehiculo
 );
 
@@ -203,7 +203,7 @@ router.get('/vehiculo/:vehiculoId',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.getById
 );
 
@@ -242,7 +242,7 @@ router.get('/:id',
  */
 router.post('/entrada',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.registrarEntrada
 );
 
@@ -281,7 +281,7 @@ router.post('/entrada',
  */
 router.post('/salida',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Supervisor (2)
+  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
   ctrl.registrarSalida
 );
 
@@ -312,7 +312,7 @@ router.post('/salida',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarRol([2]), // Solo Admin (2)
   ctrl.remove
 );
 

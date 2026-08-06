@@ -1,19 +1,19 @@
 /**
- * @module RolModel
- * @description Modelo Sequelize para la tabla 'rol'.
+ * @module RegionalFormacionModel
+ * @description Modelo Sequelize para la tabla 'regional_formacion' (catálogo).
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Rol = sequelize.define('Rol', {
+const RegionalFormacion = sequelize.define('RegionalFormacion', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
   nombre: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
   },
@@ -23,10 +23,10 @@ const Rol = sequelize.define('Rol', {
     defaultValue: true,
   },
 }, {
-  tableName: 'rol',
+  tableName: 'regional_formacion',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
 
-module.exports = Rol;
+module.exports = RegionalFormacion;

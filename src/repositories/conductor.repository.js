@@ -1,60 +1,81 @@
 /**
  * @module ConductorRepository
- * @description Operaciones de base de datos para la tabla 'conductor',
- * alineadas con el modelo Conductor (nombre, tipo_documento, documento,
- * licencia, correo, numero, perfil, estado).
+ * @description Operaciones de base de datos para la tabla 'conductor' usando Sequelize.
+ * Incluye los nombres de las tablas de catálogo relacionadas (tipo de usuario,
+ * regional/centro/programa de formación) mediante JOIN.
  */
 
-const db = require('../config/database');
+const { Conductor, TipoUsuario, RegionalFormacion, CentroFormacion, ProgramaFormacion, Usuario } = require('../models');
+
+const includeCatalogos = [
+  { model: TipoUsuario, as: 'tipoUsuario', attributes: ['tipo_usuario'] },
+  { model: RegionalFormacion, as: 'regionalFormacion', attributes: ['nombre'] },
+  { model: CentroFormacion, as: 'centroFormacion', attributes: ['nombre'] },
+  { model: ProgramaFormacion, as: 'programaFormacion', attributes: ['nombre'] },
+  { model: Usuario, as: 'usuario', attributes: ['id', 'correo', 'nombre'] },
+];
 
 /**
- * Consulta base para obtener todos los campos del modelo, incluyendo
- * el nombre del perfil (opcional) mediante JOIN.
- * @constant {string}
+ * Aplana el resultado de Sequelize para exponer los nombres de catálogo
+ * como campos planos de solo lectura (tipo_usuario_nombre, etc.).
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
  */
-const BASE_QUERY = `
-  SELECT c.*, p.nombre AS perfil_nombre
-  FROM conductor c
-  LEFT JOIN perfil p ON c.perfil = p.id
-`;
+const mapConductor = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  const { tipoUsuario, regionalFormacion, centroFormacion, programaFormacion, usuario, ...resto } = plano;
+  return {
+    ...resto,
+    tipo_usuario_nombre: tipoUsuario ? tipoUsuario.tipo_usuario : null,
+    regional_formacion_nombre: regionalFormacion ? regionalFormacion.nombre : null,
+    centro_formacion_nombre: centroFormacion ? centroFormacion.nombre : null,
+    programa_formacion_nombre: programaFormacion ? programaFormacion.nombre : null,
+    usuario_correo: usuario ? usuario.correo : null,
+  };
+};
 
 /**
- * Obtiene todos los conductores con sus datos y nombre de perfil.
+ * Obtiene todos los conductores con sus catálogos relacionados.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(BASE_QUERY);
-  return rows;
+  const rows = await Conductor.findAll({ include: includeCatalogos, order: [['nombre_apellidos', 'ASC']] });
+  return rows.map(mapConductor);
 };
 
 /**
  * Busca un conductor por su ID.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE c.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await Conductor.findByPk(id, { include: includeCatalogos });
+  return mapConductor(row);
 };
 
 /**
- * Busca conductores por número de documento (único).
- * @param {number} documento 
+ * Busca un conductor por su documento (tipo + número, clave compuesta única).
+ * @param {string} tipoDocumento
+ * @param {string} numeroDocumento
  * @returns {Promise<Object|null>}
  */
-const findByDocumento = async (documento) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE c.documento = ?`, [documento]);
-  return rows[0] || null;
+const findByDocumento = async (tipoDocumento, numeroDocumento) => {
+  const row = await Conductor.findOne({
+    where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+    include: includeCatalogos,
+  });
+  return mapConductor(row);
 };
 
 /**
  * Busca conductores por correo electrónico.
- * @param {string} correo 
+ * @param {string} correo
  * @returns {Promise<Array>}
  */
 const findByCorreo = async (correo) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE c.correo = ?`, [correo]);
-  return rows;
+  const rows = await Conductor.findAll({ where: { correo }, include: includeCatalogos });
+  return rows.map(mapConductor);
 };
 
 /**
@@ -62,76 +83,73 @@ const findByCorreo = async (correo) => {
  * @returns {Promise<Array>}
  */
 const findActivos = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE c.estado = true`);
-  return rows;
+  const rows = await Conductor.findAll({ where: { estado: true }, include: includeCatalogos, order: [['nombre_apellidos', 'ASC']] });
+  return rows.map(mapConductor);
 };
 
 /**
  * Crea un nuevo conductor.
- * @param {Object} data - Datos del modelo (todos excepto id).
- * @param {string} data.nombre
- * @param {string} data.tipo_documento
- * @param {number} data.documento
- * @param {string|null} data.licencia
- * @param {string|null} data.correo
- * @param {string|null} data.numero
- * @param {number} data.perfil - ID del perfil.
- * @param {boolean} [data.estado=true] - Estado inicial.
- * @returns {Promise<Object>} Conductor creado con JOIN.
+ * @param {Object} data
+ * @returns {Promise<Object>} Conductor creado con catálogos.
  */
-const create = async ({ nombre, tipo_documento, documento, licencia, correo, numero, perfil, estado = true }) => {
-  const [result] = await db.query(
-    `INSERT INTO conductor 
-     (nombre, tipo_documento, documento, licencia, correo, numero, perfil, estado) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [nombre, tipo_documento, documento, licencia || null, correo || null, numero || null, perfil, estado ? 1 : 0]
-  );
-  return findById(result.insertId);
+const create = async (data) => {
+  const {
+    usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
+    centro_formacion_id, programa_formacion_id, vigencia, estado = true,
+  } = data;
+
+  const nuevo = await Conductor.create({
+    usuario_id: usuario_id || null,
+    tipo_documento,
+    numero_documento,
+    nombre_apellidos,
+    correo: correo || null,
+    direccion,
+    numero_telefonico: numero_telefonico || null,
+    tipo_usuario_id,
+    regional_formacion_id,
+    centro_formacion_id,
+    programa_formacion_id,
+    vigencia,
+    estado,
+  });
+  return findById(nuevo.id);
 };
 
 /**
  * Actualiza parcialmente un conductor.
- * @param {number} id 
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
- * @param {string} [data.nombre]
- * @param {string} [data.tipo_documento]
- * @param {number} [data.documento]
- * @param {string} [data.licencia]
- * @param {string} [data.correo]
- * @param {string} [data.numero]
- * @param {number} [data.perfil]
- * @param {boolean} [data.estado]
  * @returns {Promise<Object>} Conductor actualizado.
  */
 const update = async (id, data) => {
-  const fields = [];
-  const values = [];
-  const allowedFields = ['nombre', 'tipo_documento', 'documento', 'licencia', 'correo', 'numero', 'perfil', 'estado'];
+  const allowedFields = [
+    'usuario_id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo',
+    'direccion', 'numero_telefonico', 'tipo_usuario_id', 'regional_formacion_id',
+    'centro_formacion_id', 'programa_formacion_id', 'vigencia', 'estado',
+  ];
+  const cambios = {};
   for (const field of allowedFields) {
-    if (data[field] !== undefined) {
-      fields.push(`${field} = ?`);
-      // Convertir estado booleano a 0/1 para MySQL
-      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
-    }
+    if (data[field] !== undefined) cambios[field] = data[field];
   }
-  if (fields.length === 0) {
-    // Si no hay campos, devolvemos el registro sin cambios
+
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  values.push(id);
-  const query = `UPDATE conductor SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+
+  await Conductor.update(cambios, { where: { id } });
   return findById(id);
 };
 
 /**
  * Elimina un conductor (borrado físico).
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM conductor WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await Conductor.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
 module.exports = {

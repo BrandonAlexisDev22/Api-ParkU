@@ -49,6 +49,7 @@ const Celda = sequelize.define('Celda', {
   parqueadero: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    field: 'parqueadero_id',
   },
 
   /**
@@ -75,6 +76,7 @@ const Celda = sequelize.define('Celda', {
   usabilidad: {
     type: DataTypes.ENUM('GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA'),
     allowNull: false,
+    defaultValue: 'GENERAL',
   },
 
   /**
@@ -91,6 +93,7 @@ const Celda = sequelize.define('Celda', {
   estado_celda: {
     type: DataTypes.ENUM('DISPONIBLE', 'OCUPADO', 'MANTENIMIENTO', 'INACTIVA'),
     allowNull: false,
+    defaultValue: 'DISPONIBLE',
   },
 }, {
   /**
@@ -99,7 +102,9 @@ const Celda = sequelize.define('Celda', {
    * @property {boolean} timestamps - Habilita/deshabilita campos automáticos created_at/updated_at
    */
   tableName: 'celda',
-  timestamps: false, // pon true si tu tabla tiene created_at/updated_at
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
 /**

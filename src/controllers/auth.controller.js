@@ -21,11 +21,11 @@ class AuthController {
         });
       }
 
-      const { correo, contrasena, nombre, numero } = req.body;
-      // 🔒 El rol NUNCA se toma del body. Todo registro público es rol=3 (Usuario).
-      // Si necesitas crear Admins/Supervisores, hazlo desde un endpoint protegido
-      // (verificarToken + verificarRol([1])), no desde el registro público.
-      const rol = 1;
+      const { correo, contrasena, nombre } = req.body;
+      // 🔒 El rol NUNCA se toma del body. Todo registro público usa el rol_id
+      // por defecto del modelo (3 = Conductor). Si necesitas crear cuentas de
+      // Admin (2) o Vigilante (1), hazlo desde un endpoint protegido
+      // (verificarToken + verificarRol([2])), no desde el registro público.
 
       // Verificar si el correo ya existe
       const existe = await Usuario.findOne({ where: { correo } });
@@ -39,13 +39,10 @@ class AuthController {
       // Encriptar contraseña
       const hashedPassword = await PasswordUtil.hash(contrasena);
 
-      // Crear usuario (ahora sí se guardan nombre y numero)
       const nuevo = await Usuario.create({
         correo,
         contrasena: hashedPassword,
         nombre,
-        numero,
-        rol,
         estado: true,
       });
 
@@ -56,8 +53,7 @@ class AuthController {
           id: nuevo.id,
           correo: nuevo.correo,
           nombre: nuevo.nombre,
-          numero: nuevo.numero,
-          rol: nuevo.rol,
+          rol: nuevo.rol_id,
           estado: nuevo.estado,
         }
       });
@@ -118,7 +114,7 @@ class AuthController {
       const payload = {
         id: user.id,
         correo: user.correo,
-        rol: user.rol
+        rol: user.rol_id
       };
 
       const token = generarToken(payload);
@@ -136,7 +132,7 @@ class AuthController {
             id: user.id,
             correo: user.correo,
             nombre: user.nombre,
-            rol: user.rol,
+            rol: user.rol_id,
             estado: user.estado,
           },
           token,
@@ -223,7 +219,7 @@ class AuthController {
       const newToken = generarToken({
         id: user.id,
         correo: user.correo,
-        rol: user.rol
+        rol: user.rol_id
       });
 
       return res.status(200).json({

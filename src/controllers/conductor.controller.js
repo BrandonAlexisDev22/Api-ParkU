@@ -15,99 +15,145 @@ const { handleError } = require('../helpers/errorHandler');
  *     Conductor:
  *       type: object
  *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
+ *         - numero_documento
+ *         - nombre_apellidos
+ *         - direccion
+ *         - tipo_usuario_id
+ *         - regional_formacion_id
+ *         - centro_formacion_id
+ *         - programa_formacion_id
+ *         - vigencia
  *       properties:
  *         id:
  *           type: integer
  *           description: ID autoincremental del conductor.
- *         nombre:
- *           type: string
- *           description: Nombre completo del conductor.
+ *         usuario_id:
+ *           type: integer
+ *           nullable: true
+ *           description: ID de la cuenta de usuario asociada (opcional).
  *         tipo_documento:
  *           type: string
  *           enum: [CC, CE, PAS, TI, NIT]
- *           description: Tipo de documento de identidad.
- *         documento:
- *           type: integer
- *           description: Número de documento (único).
- *         licencia:
+ *           default: CC
+ *         numero_documento:
  *           type: string
- *           nullable: true
- *           description: Número de licencia de conducción.
+ *           description: Número de documento (único junto con tipo_documento).
+ *         nombre_apellidos:
+ *           type: string
  *         correo:
  *           type: string
  *           format: email
  *           nullable: true
- *           description: Correo electrónico.
- *         numero:
+ *         direccion:
+ *           type: string
+ *         numero_telefonico:
  *           type: string
  *           nullable: true
- *           description: Número telefónico.
- *         perfil:
+ *         tipo_usuario_id:
  *           type: integer
- *           description: ID del perfil institucional.
+ *         regional_formacion_id:
+ *           type: integer
+ *         centro_formacion_id:
+ *           type: integer
+ *         programa_formacion_id:
+ *           type: integer
+ *         vigencia:
+ *           type: string
+ *           format: date-time
  *         estado:
  *           type: boolean
  *           default: true
- *           description: Estado del conductor (activo/inactivo).
- *         perfil_nombre:
+ *         tipo_usuario_nombre:
  *           type: string
- *           description: Nombre del perfil (solo en respuestas con JOIN).
+ *           description: Solo en respuestas (JOIN).
+ *         regional_formacion_nombre:
+ *           type: string
+ *           description: Solo en respuestas (JOIN).
+ *         centro_formacion_nombre:
+ *           type: string
+ *           description: Solo en respuestas (JOIN).
+ *         programa_formacion_nombre:
+ *           type: string
+ *           description: Solo en respuestas (JOIN).
  *     ConductorCreate:
  *       type: object
  *       required:
- *         - nombre
- *         - tipo_documento
- *         - documento
- *         - perfil
+ *         - numero_documento
+ *         - nombre_apellidos
+ *         - direccion
+ *         - tipo_usuario_id
+ *         - regional_formacion_id
+ *         - centro_formacion_id
+ *         - programa_formacion_id
+ *         - vigencia
  *       properties:
- *         nombre:
- *           type: string
+ *         usuario_id:
+ *           type: integer
+ *           nullable: true
  *         tipo_documento:
  *           type: string
  *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
+ *           default: CC
+ *         numero_documento:
  *           type: string
- *           nullable: true
+ *         nombre_apellidos:
+ *           type: string
  *         correo:
  *           type: string
  *           format: email
  *           nullable: true
- *         numero:
+ *         direccion:
+ *           type: string
+ *         numero_telefonico:
  *           type: string
  *           nullable: true
- *         perfil:
+ *         tipo_usuario_id:
  *           type: integer
+ *         regional_formacion_id:
+ *           type: integer
+ *         centro_formacion_id:
+ *           type: integer
+ *         programa_formacion_id:
+ *           type: integer
+ *         vigencia:
+ *           type: string
+ *           format: date-time
  *         estado:
  *           type: boolean
  *           default: true
  *     ConductorUpdate:
  *       type: object
  *       properties:
- *         nombre:
- *           type: string
+ *         usuario_id:
+ *           type: integer
+ *           nullable: true
  *         tipo_documento:
  *           type: string
  *           enum: [CC, CE, PAS, TI, NIT]
- *         documento:
- *           type: integer
- *         licencia:
+ *         numero_documento:
  *           type: string
- *           nullable: true
+ *         nombre_apellidos:
+ *           type: string
  *         correo:
  *           type: string
  *           format: email
  *           nullable: true
- *         numero:
+ *         direccion:
+ *           type: string
+ *         numero_telefonico:
  *           type: string
  *           nullable: true
- *         perfil:
+ *         tipo_usuario_id:
  *           type: integer
+ *         regional_formacion_id:
+ *           type: integer
+ *         centro_formacion_id:
+ *           type: integer
+ *         programa_formacion_id:
+ *           type: integer
+ *         vigencia:
+ *           type: string
+ *           format: date-time
  *         estado:
  *           type: boolean
  */
@@ -164,17 +210,22 @@ const getActivos = async (req, res) => {
 
 /**
  * @swagger
- * /conductores/documento/{documento}:
+ * /conductores/documento:
  *   get:
- *     summary: Buscar un conductor por su número de documento
+ *     summary: Buscar un conductor por tipo y número de documento
  *     tags: [Conductores]
  *     parameters:
- *       - in: path
- *         name: documento
+ *       - in: query
+ *         name: tipo_documento
  *         required: true
  *         schema:
- *           type: integer
- *         description: Número de documento
+ *           type: string
+ *           enum: [CC, CE, PAS, TI, NIT]
+ *       - in: query
+ *         name: numero_documento
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Conductor encontrado
@@ -182,12 +233,18 @@ const getActivos = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Conductor'
+ *       400:
+ *         description: Faltan parámetros
  *       404:
  *         description: No existe conductor con ese documento
  */
 const getByDocumento = async (req, res) => {
   try {
-    const data = await svc.getByDocumento(req.params.documento);
+    const { tipo_documento, numero_documento } = req.query;
+    if (!tipo_documento || !numero_documento) {
+      return res.status(400).json({ message: 'tipo_documento y numero_documento son requeridos' });
+    }
+    const data = await svc.getByDocumento(tipo_documento, numero_documento);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -280,6 +337,8 @@ const getById = async (req, res) => {
  *               $ref: '#/components/schemas/Conductor'
  *       400:
  *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Alguna referencia (usuario/catálogo) no existe
  *       409:
  *         description: Documento o correo ya registrado
  */
