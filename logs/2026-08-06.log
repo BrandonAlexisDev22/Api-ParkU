@@ -40,3 +40,4 @@
 {"timestamp":"2026-08-06T19:54:34.365Z","level":"INFO","message":"POST /api/auth/registro 201 - 2618ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
 {"timestamp":"2026-08-06T19:54:57.855Z","level":"INFO","message":"POST /api/auth/login 200 - 249ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
 {"timestamp":"2026-08-06T19:56:00.185Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}
+{"timestamp":"2026-08-06T20:01:08.159Z","level":"WARN","message":"GET /api/usuarios 401 - 1ms","data":{"ip":"::1","userAgent":"PostmanRuntime/7.56.0"}}

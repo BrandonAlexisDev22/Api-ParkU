@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { swaggerDocs } = require('./config/swagger');
@@ -45,7 +44,7 @@ app.use('/api', globalLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Morgan para logging (con Logger personalizado)
+// Logging de requests HTTP (Logger personalizado)
 app.use((req, res, next) => {
   Logger.http(req, res, next);
 });

@@ -10,7 +10,7 @@ const { handleError } = require('../helpers/errorHandler');
 
 /**
  * @swagger
- * /catalogos/tipos-usuario:
+ * /api/catalogos/tipos-usuario:
  *   get:
  *     summary: Listar los tipos de usuario disponibles
  *     tags: [Catalogos]
@@ -28,7 +28,7 @@ const getTiposUsuario = async (req, res) => {
 
 /**
  * @swagger
- * /catalogos/regionales-formacion:
+ * /api/catalogos/regionales-formacion:
  *   get:
  *     summary: Listar las regionales de formación disponibles
  *     tags: [Catalogos]
@@ -46,7 +46,7 @@ const getRegionalesFormacion = async (req, res) => {
 
 /**
  * @swagger
- * /catalogos/centros-formacion:
+ * /api/catalogos/centros-formacion:
  *   get:
  *     summary: Listar los centros de formación disponibles
  *     tags: [Catalogos]
@@ -72,7 +72,7 @@ const getCentrosFormacion = async (req, res) => {
 
 /**
  * @swagger
- * /catalogos/programas-formacion:
+ * /api/catalogos/programas-formacion:
  *   get:
  *     summary: Listar los programas de formación disponibles
  *     tags: [Catalogos]
