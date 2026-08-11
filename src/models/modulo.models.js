@@ -1,25 +1,22 @@
 /**
- * @module PermisoModel
- * @description Modelo Sequelize para la tabla 'permiso'.
+ * @module ModuloModel
+ * @description Modelo Sequelize para la tabla 'modulo' (catálogo). Agrupa los permisos
+ * por área funcional (Usuarios, Parqueaderos, Reservas, etc.), FK obligatoria en 'permiso'.
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const Permiso = sequelize.define('Permiso', {
+const Modulo = sequelize.define('Modulo', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
-  modulo_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
   nombre: {
-    // Único solo junto con modulo_id (índice uq: modulo_id + nombre), no global.
     type: DataTypes.STRING(100),
     allowNull: false,
+    unique: true,
   },
   descripcion: {
     type: DataTypes.STRING(255),
@@ -31,8 +28,8 @@ const Permiso = sequelize.define('Permiso', {
     defaultValue: true,
   },
 }, {
-  tableName: 'permiso',
+  tableName: 'modulo',
   timestamps: false,
 });
 
-module.exports = Permiso;
+module.exports = Modulo;

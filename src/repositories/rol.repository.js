@@ -38,8 +38,8 @@ const findById = async (id) => {
  * @param {string} data.nombre
  * @returns {Promise<Object>}
  */
-const create = async ({ nombre }) => {
-  const nuevo = await Rol.create({ nombre });
+const create = async ({ nombre, descripcion, estado = true }) => {
+  const nuevo = await Rol.create({ nombre, descripcion, estado });
   return findById(nuevo.id);
 };
 
@@ -49,11 +49,15 @@ const create = async ({ nombre }) => {
  * @param {Object} data
  * @returns {Promise<Object>}
  */
-const update = async (id, { nombre }) => {
-  if (nombre === undefined) {
+const update = async (id, data) => {
+  const cambios = {};
+  for (const field of ['nombre', 'descripcion', 'estado']) {
+    if (data[field] !== undefined) cambios[field] = data[field];
+  }
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  await Rol.update({ nombre }, { where: { id } });
+  await Rol.update(cambios, { where: { id } });
   return findById(id);
 };
 

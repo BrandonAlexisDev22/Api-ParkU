@@ -1,130 +1,69 @@
 /**
- * ============================================================
  * @module CeldaModel
- * @description
- * Modelo de datos para la entidad "Celda" (espacio de estacionamiento).
- * Define la estructura y validaciones de una celda dentro de un parqueadero,
- * incluyendo su tipo, usabilidad y estado actual.
- * 
- * @requires sequelize - ORM para la definición del modelo y conexión a BD
- * @requires ../config/database - Configuración de conexión a la base de datos
- * ============================================================
+ * @description Modelo Sequelize para la tabla 'celda' (Proceso 03.2).
+ * celda.estado es la ÚNICA fuente de verdad de si una celda está libre: la mueven
+ * el ingreso/salida de vehículos, la aceptación de reservas y los triggers de la BD.
+ * No inferir disponibilidad desde ocupacion_celda ni disponibilidad_celda.
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-/**
- * Modelo Celda
- * @class Celda
- * @classdesc Representa un espacio de estacionamiento individual dentro de un parqueadero.
- * Cada celda tiene un tipo de vehículo permitido, una categoría de usabilidad,
- * y un estado que indica su disponibilidad.
- * 
- * @property {number} id - Identificador único de la celda (autoincrementable)
- * @property {number} parqueadero - ID del parqueadero al que pertenece la celda
- * @property {string} tipo - Tipo de vehículo permitido: CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA
- * @property {string} usabilidad - Categoría de uso: GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA
- * @property {string} estado_celda - Estado actual: DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA
- */
 const Celda = sequelize.define('Celda', {
-  /**
-   * ID único de la celda
-   * @type {number}
-   * @primaryKey
-   * @autoIncrement
-   */
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
-
-  /**
-   * ID del parqueadero al que pertenece esta celda
-   * @type {number}
-   * @required
-   * @foreignKey - Relaciona con el modelo Parqueadero
-   */
   parqueadero: {
     type: DataTypes.INTEGER,
     allowNull: false,
     field: 'parqueadero_id',
   },
-
-  /**
-   * Tipo de vehículo que puede ocupar la celda
-   * @type {string}
-   * @enum {CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA}
-   * @required
-   */
-  tipo: {
-    type: DataTypes.ENUM('CARRO', 'MOTO', 'MOVILIDAD_REDUCIDA', 'BICICLETA'),
+  numero: {
+    type: DataTypes.STRING(10),
     allowNull: false,
   },
-
-  /**
-   * Categoría de usabilidad de la celda
-   * @type {string}
-   * @enum {GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA}
-   * @required
-   * @description
-   * - GENERAL: Uso estándar para cualquier usuario
-   * - EJECUTIVO: Reservado para usuarios VIP o premium
-   * - MOVILIDAD_REDUCIDA: Espacio adaptado para personas con discapacidad
-   */
+  tipo: {
+    type: DataTypes.ENUM('CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'),
+    allowNull: false,
+  },
   usabilidad: {
-    type: DataTypes.ENUM('GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA'),
+    type: DataTypes.ENUM('GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'),
     allowNull: false,
     defaultValue: 'GENERAL',
   },
-
-  /**
-   * Estado operativo actual de la celda
-   * @type {string}
-   * @enum {DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA}
-   * @required
-   * @description
-   * - DISPONIBLE: Libre para ser ocupada
-   * - OCUPADO: Actualmente en uso por un vehículo
-   * - MANTENIMIENTO: Fuera de servicio por reparaciones
-   * - INACTIVA: Deshabilitada permanentemente
-   */
-  estado_celda: {
-    type: DataTypes.ENUM('DISPONIBLE', 'OCUPADO', 'MANTENIMIENTO', 'INACTIVA'),
+  estado: {
+    type: DataTypes.ENUM('DISPONIBLE', 'OCUPADA', 'RESERVADA', 'MANTENIMIENTO', 'INACTIVA'),
     allowNull: false,
     defaultValue: 'DISPONIBLE',
   },
+  observaciones: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  posicion_x: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  posicion_y: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  ancho: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  alto: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
 }, {
-  /**
-   * Configuración adicional del modelo
-   * @property {string} tableName - Nombre de la tabla en la base de datos
-   * @property {boolean} timestamps - Habilita/deshabilita campos automáticos created_at/updated_at
-   */
   tableName: 'celda',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
+  indexes: [
+    { unique: true, fields: ['parqueadero_id', 'numero'] },
+  ],
 });
 
-/**
- * @exports Celda
- * @description Exporta el modelo para ser utilizado en otros módulos
- * @example
- * // Importar y usar el modelo
- * const Celda = require('./models/CeldaModel');
- * 
- * // Crear una nueva celda
- * const nuevaCelda = await Celda.create({
- *   parqueadero: 1,
- *   tipo: 'CARRO',
- *   usabilidad: 'GENERAL',
- *   estado_celda: 'DISPONIBLE'
- * });
- * 
- * // Buscar celdas disponibles
- * const celdasDisponibles = await Celda.findAll({
- *   where: { estado_celda: 'DISPONIBLE' }
- * });
- */
 module.exports = Celda;

@@ -13,13 +13,14 @@ const Conductor = sequelize.define('Conductor', {
     autoIncrement: true,
   },
   usuario_id: {
+    // NULL = conductor registrado por vigilancia, sin cuenta propia.
     type: DataTypes.INTEGER,
     allowNull: true,
+    unique: true,
   },
   tipo_documento: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.ENUM('CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'),
     allowNull: false,
-    defaultValue: 'CC',
   },
   numero_documento: {
     type: DataTypes.STRING(20),
@@ -30,14 +31,13 @@ const Conductor = sequelize.define('Conductor', {
     allowNull: false,
   },
   correo: {
-    type: DataTypes.CITEXT,
+    type: DataTypes.STRING(255),
     allowNull: true,
-    unique: true,
     validate: { isEmail: true },
   },
   direccion: {
     type: DataTypes.STRING(255),
-    allowNull: false,
+    allowNull: true,
   },
   numero_telefonico: {
     type: DataTypes.STRING(20),
@@ -47,21 +47,28 @@ const Conductor = sequelize.define('Conductor', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  regional_formacion_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
+  // Datos de SOFIA Plus: texto libre, ya no son catálogos con FK propia.
+  regional_formacion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
-  centro_formacion_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
+  centro_formacion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
-  programa_formacion_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
+  programa_formacion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
   vigencia: {
-    type: DataTypes.DATE,
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  movilidad_reducida: {
+    // Habilita reservas tipo MOVILIDAD_REDUCIDA.
+    type: DataTypes.BOOLEAN,
     allowNull: false,
+    defaultValue: false,
   },
   estado: {
     type: DataTypes.BOOLEAN,
@@ -71,8 +78,8 @@ const Conductor = sequelize.define('Conductor', {
 }, {
   tableName: 'conductor',
   timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  createdAt: 'fecha_creacion',
+  updatedAt: false,
   indexes: [
     { unique: true, fields: ['tipo_documento', 'numero_documento'] },
   ],

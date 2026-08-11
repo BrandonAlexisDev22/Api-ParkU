@@ -12,7 +12,7 @@ const TipoUsuario = sequelize.define('TipoUsuario', {
     primaryKey: true,
     autoIncrement: true,
   },
-  tipo_usuario: {
+  nombre: {
     type: DataTypes.STRING(100),
     allowNull: false,
     unique: true,
@@ -21,11 +21,14 @@ const TipoUsuario = sequelize.define('TipoUsuario', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
+  estado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
 }, {
   tableName: 'tipo_usuario',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  timestamps: false,
 });
 
 module.exports = TipoUsuario;

@@ -17,6 +17,10 @@ const Rol = sequelize.define('Rol', {
     allowNull: false,
     unique: true,
   },
+  descripcion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
   estado: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
@@ -25,8 +29,8 @@ const Rol = sequelize.define('Rol', {
 }, {
   tableName: 'rol',
   timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  createdAt: 'fecha_creacion',
+  updatedAt: false,
 });
 
 module.exports = Rol;

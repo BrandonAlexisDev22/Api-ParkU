@@ -1,294 +1,5512 @@
-CREATE SCHEMA "public";
-CREATE SCHEMA "neon_auth";
-CREATE TYPE "celda_tipo_enum" AS ENUM('CARRO', 'MOTO', 'MOVILIDAD_REDUCIDA', 'BICICLETA');
-CREATE TYPE "celda_usabilidad_enum" AS ENUM('GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA');
-CREATE TYPE "celda_estado_enum" AS ENUM('DISPONIBLE', 'OCUPADO', 'MANTENIMIENTO', 'INACTIVA');
-CREATE TYPE "reserva_estado_enum" AS ENUM('ACEPTADA', 'TERMINADA', 'PENDIENTE', 'CANCELADA');
-CREATE TYPE "ingreso_salida_tipo_enum" AS ENUM('INGRESO', 'SALIDA');
-CREATE TYPE "novedad_tipo_enum" AS ENUM('DAÑO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO');
-CREATE TYPE "novedad_prioridad_enum" AS ENUM('BAJA', 'MEDIA', 'ALTA', 'CRITICA');
-CREATE TYPE "novedad_estado_enum" AS ENUM('RESUELTA', 'PENDIENTE', 'CANCELADA');
-CREATE TABLE "celda" (
-	"id" serial PRIMARY KEY,
-	"parqueadero_id" integer NOT NULL,
-	"tipo" celda_tipo_enum NOT NULL,
-	"usabilidad" celda_usabilidad_enum DEFAULT 'GENERAL' NOT NULL,
-	"estado_celda" celda_estado_enum DEFAULT 'DISPONIBLE' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+-- =====================================================================
+--  ParkU — Sistema de gestión de parqueaderos
+--  SENA Regional Antioquia · Centro de Servicios y Gestión Empresarial
+--  Ficha 3147910 · Tecnología en Análisis y Desarrollo de Software
+-- ---------------------------------------------------------------------
+--  BASE DE DATOS COMPLETA Y CONSOLIDADA — PostgreSQL 13+
+--
+--  Este archivo reemplaza a los tres anteriores. Equivale a:
+--      parku_postgresql_100_mhu_ficha.sql   (esquema base)
+--    + parku_parche_backend.sql             (parche 1)
+--    + parku_parche2_coherencia.sql         (parche 2)
+--  ya aplicados y consolidados. NO ejecute los parches sobre este
+--  archivo: ya vienen incorporados.
+--
+--  CONTENIDO
+--    34 tablas · 19 tipos enumerados · 28 vistas
+--    21 funciones · 21 triggers · 89 índices · 18 restricciones CHECK
+--    Catálogos precargados: 3 roles, 14 permisos, 8 módulos,
+--    5 tipos de usuario, 5 parqueaderos y el usuario administrador.
+--
+--  CÓMO EJECUTARLO
+--    Los datos van como INSERT (no como COPY), asi que este archivo
+--    funciona igual en pgAdmin, DBeaver, DataGrip o psql.
+--
+--    pgAdmin:
+--        1. Crear la base "parku" con encoding UTF8
+--        2. Seleccionarla y abrir Tools > Query Tool
+--        3. Abrir este archivo y ejecutar con F5
+--    Terminal:
+--        createdb -U postgres -E UTF8 parku
+--        psql -U postgres -d parku -f parku_completa.sql
+--
+--  ANTES DE USARLA EN PRODUCCIÓN
+--    1. Reemplazar el hash de la contraseña del usuario administrador
+--       (admin@parku.sena.edu.co) por uno real de bcrypt o argon2.
+--    2. Cargar el inventario real de celdas de cada parqueadero: los
+--       cinco parqueaderos vienen con capacidad_maxima = 0 y sin celdas.
+--
+--  CONTEXTO DE SESIÓN OBLIGATORIO PARA EL BACKEND
+--    Los triggers de auditoría e historial exigen saber quién escribe.
+--    TODA operación de escritura debe ir dentro de una transacción que
+--    declare al menos app.usuario_id:
+--
+--        BEGIN;
+--        SET LOCAL app.usuario_id = '<id del usuario autenticado>';
+--        SET LOCAL app.motivo = '<motivo>';                 -- solo al cambiar
+--                                                           -- el estado de un parqueadero
+--        SET LOCAL app.motivo_disponibilidad = '<enum>';    -- solo al escribir en
+--        SET LOCAL app.observacion = '<texto>';             -- disponibilidad_celda
+--        ... INSERT / UPDATE ...
+--        COMMIT;
+--
+--    Esto NO puede quedar a criterio de cada desarrollador: va en un
+--    middleware o interceptor que corra en cada request autenticado.
+--    Si falta app.usuario_id, la operación lanza excepción.
+--      Spring : listener @Transactional que ejecute el SET LOCAL
+--      Laravel: DB::statement("SET LOCAL app.usuario_id = ?") en middleware
+--      Node   : envolver cada query en un client dedicado del pool
+--
+--  REGLA DE INTEGRIDAD DEL ESTADO DE UNA CELDA
+--    celda.estado          es la ÚNICA fuente de verdad.
+--    ocupacion_celda       quién la ocupa ahora (estado=ACTIVA) e histórico.
+--    disponibilidad_celda  bitácora de cambios manuales (mantenimiento).
+--    No consulte las dos últimas para saber si una celda está libre.
+--
+--  REGLAS GARANTIZADAS POR LA BASE (probadas)
+--    · No se puede ingresar a una celda en MANTENIMIENTO o INACTIVA
+--    · Aceptar una reserva deja la celda en RESERVADA
+--    · Solo el vehículo de la reserva puede ocupar una celda reservada
+--    · Al salir, la celda vuelve a RESERVADA si la reserva sigue vigente
+--    · Una celda no admite dos ocupaciones activas
+--    · Un vehículo no admite dos ingresos abiertos
+--    · No se aceptan reservas solapadas sobre la misma celda
+--    · El tipo de vehículo debe corresponder al tipo de la celda
+--    · Las bicicletas pueden no tener placa; los demás tipos la exigen
+--
+--  DECISIONES PENDIENTES CON EL INSTRUCTOR
+--    · licencia_conduccion no tiene ninguna HU que la respalde
+--    · autorizacion_acceso y parqueadero_ip_autorizada no salen de la
+--      ficha ni de la MHU
+--    · encuesta y valoracion existen por un objetivo específico de la
+--      ficha que no aparece en el alcance ni en la matriz
+-- =====================================================================
+
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 16.2
+-- Dumped by pg_dump version 16.2
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SET search_path = public;
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: acceso_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.acceso_enum AS ENUM (
+    'REGIONAL',
+    'AVENIDA_BOYACA'
 );
-CREATE TABLE "centro_formacion" (
-	"id" serial PRIMARY KEY,
-	"regional_formacion_id" integer NOT NULL,
-	"nombre" varchar(255) NOT NULL,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "centro_formacion_regional_formacion_id_nombre_key" UNIQUE("regional_formacion_id","nombre")
+
+
+--
+-- Name: accion_auditoria_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.accion_auditoria_enum AS ENUM (
+    'CREAR',
+    'EDITAR',
+    'CAMBIAR_ESTADO',
+    'ELIMINAR',
+    'CONSULTAR'
 );
-CREATE TABLE "conductor" (
-	"id" serial PRIMARY KEY,
-	"usuario_id" integer,
-	"tipo_documento" varchar(20) DEFAULT 'CC' NOT NULL,
-	"numero_documento" varchar(20) NOT NULL,
-	"nombre_apellidos" varchar(200) NOT NULL,
-	"correo" citext CONSTRAINT "conductor_correo_key" UNIQUE,
-	"direccion" varchar(255) NOT NULL,
-	"numero_telefonico" varchar(20),
-	"tipo_usuario_id" integer NOT NULL,
-	"regional_formacion_id" integer NOT NULL,
-	"centro_formacion_id" integer NOT NULL,
-	"programa_formacion_id" integer NOT NULL,
-	"vigencia" timestamp with time zone NOT NULL,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "conductor_tipo_documento_numero_documento_key" UNIQUE("tipo_documento","numero_documento")
+
+
+--
+-- Name: estado_acceso_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_acceso_enum AS ENUM (
+    'DENTRO',
+    'FINALIZADO',
+    'BLOQUEADO'
 );
-CREATE TABLE "marca_vehiculo" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(100) NOT NULL CONSTRAINT "marca_vehiculo_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: estado_celda_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_celda_enum AS ENUM (
+    'DISPONIBLE',
+    'OCUPADA',
+    'RESERVADA',
+    'MANTENIMIENTO',
+    'INACTIVA'
 );
-CREATE TABLE "parqueadero" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(100) NOT NULL,
-	"ubicacion" varchar(255),
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: estado_novedad_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_novedad_enum AS ENUM (
+    'PENDIENTE',
+    'EN_PROCESO',
+    'RESUELTA',
+    'CERRADA',
+    'CANCELADA'
 );
-CREATE TABLE "permiso" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(100) NOT NULL CONSTRAINT "permiso_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: estado_ocupacion_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_ocupacion_enum AS ENUM (
+    'ACTIVA',
+    'FINALIZADA',
+    'CANCELADA'
 );
-CREATE TABLE "playing_with_neon" (
-	"id" serial PRIMARY KEY,
-	"name" text NOT NULL,
-	"value" real
+
+
+--
+-- Name: estado_reserva_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_reserva_enum AS ENUM (
+    'PENDIENTE',
+    'ACEPTADA',
+    'RECHAZADA',
+    'TERMINADA',
+    'CANCELADA'
 );
-CREATE TABLE "programa_formacion" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(255) NOT NULL CONSTRAINT "programa_formacion_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: estado_usuario_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.estado_usuario_enum AS ENUM (
+    'ACTIVO',
+    'INACTIVO',
+    'BLOQUEADO'
 );
-CREATE TABLE "regional_formacion" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(255) NOT NULL CONSTRAINT "regional_formacion_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: motivo_disponibilidad_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.motivo_disponibilidad_enum AS ENUM (
+    'INGRESO_VEHICULO',
+    'SALIDA_VEHICULO',
+    'RESERVA',
+    'LIBERACION_RESERVA',
+    'MANTENIMIENTO',
+    'DANIO',
+    'ERROR_ASIGNACION',
+    'AJUSTE_OPERATIVO',
+    'OTRO'
 );
-CREATE TABLE "rol" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(50) NOT NULL CONSTRAINT "rol_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: prioridad_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.prioridad_enum AS ENUM (
+    'BAJA',
+    'MEDIA',
+    'ALTA',
+    'CRITICA'
 );
-CREATE TABLE "rol_permiso" (
-	"id" serial PRIMARY KEY,
-	"rol_id" integer NOT NULL,
-	"permiso_id" integer NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "rol_permiso_rol_id_permiso_id_key" UNIQUE("rol_id","permiso_id")
+
+
+--
+-- Name: tipo_documento_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_documento_enum AS ENUM (
+    'CC',
+    'CE',
+    'TI',
+    'PASAPORTE',
+    'PEP',
+    'NIT'
 );
-CREATE TABLE "servicio_vehiculo" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(100) NOT NULL CONSTRAINT "servicio_vehiculo_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: tipo_equipamiento_parqueadero_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_equipamiento_parqueadero_enum AS ENUM (
+    'SENSOR',
+    'CAMARA',
+    'CARGADOR_ELECTRICO',
+    'BARRERA',
+    'OTRO'
 );
-CREATE TABLE "tipo_usuario" (
-	"id" serial PRIMARY KEY,
-	"tipo_usuario" varchar(100) NOT NULL CONSTRAINT "tipo_usuario_tipo_usuario_key" UNIQUE,
-	"descripcion" varchar(255),
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: tipo_evidencia_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_evidencia_enum AS ENUM (
+    'FOTO',
+    'VIDEO',
+    'DOCUMENTO',
+    'NOTA'
 );
-CREATE TABLE "tipo_vehiculo" (
-	"id" serial PRIMARY KEY,
-	"nombre" varchar(100) NOT NULL CONSTRAINT "tipo_vehiculo_nombre_key" UNIQUE,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+
+
+--
+-- Name: tipo_notificacion_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_notificacion_enum AS ENUM (
+    'NOVEDAD',
+    'RESERVA',
+    'CAMBIO_ESTADO',
+    'ALERTA',
+    'ACCESO'
 );
-CREATE TABLE "usuario" (
-	"id" serial PRIMARY KEY,
-	"correo" citext NOT NULL CONSTRAINT "usuario_correo_key" UNIQUE,
-	"contrasena" varchar(255) NOT NULL,
-	"rol_id" integer,
-	"estado" boolean DEFAULT true NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"nombre" varchar(20),
-	"refresh_token" text
+
+
+--
+-- Name: tipo_novedad_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_novedad_enum AS ENUM (
+    'DANIO',
+    'ACCIDENTE',
+    'MAL_ESTACIONAMIENTO',
+    'QUEJA',
+    'OTRO'
 );
-CREATE TABLE "neon_auth"."account" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"accountId" text NOT NULL,
-	"providerId" text NOT NULL,
-	"userId" uuid NOT NULL,
-	"accessToken" text,
-	"refreshToken" text,
-	"idToken" text,
-	"accessTokenExpiresAt" timestamp with time zone,
-	"refreshTokenExpiresAt" timestamp with time zone,
-	"scope" text,
-	"password" text,
-	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updatedAt" timestamp with time zone NOT NULL
+
+
+--
+-- Name: tipo_reserva_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_reserva_enum AS ENUM (
+    'VEHICULO_SENA',
+    'MOVILIDAD_REDUCIDA',
+    'VISITANTE'
 );
-CREATE TABLE "neon_auth"."invitation" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"organizationId" uuid NOT NULL,
-	"email" text NOT NULL,
-	"role" text,
-	"status" text NOT NULL,
-	"expiresAt" timestamp with time zone NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"inviterId" uuid NOT NULL
+
+
+--
+-- Name: tipo_vehiculo_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_vehiculo_enum AS ENUM (
+    'CARRO',
+    'MOTO',
+    'BICICLETA',
+    'CAMION',
+    'BUS'
 );
-CREATE TABLE "neon_auth"."jwks" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"publicKey" text NOT NULL,
-	"privateKey" text NOT NULL,
-	"createdAt" timestamp with time zone NOT NULL,
-	"expiresAt" timestamp with time zone
+
+
+--
+-- Name: turno_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.turno_enum AS ENUM (
+    'MANANA',
+    'TARDE',
+    'NOCHE'
 );
-CREATE TABLE "neon_auth"."member" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"organizationId" uuid NOT NULL,
-	"userId" uuid NOT NULL,
-	"role" text NOT NULL,
-	"createdAt" timestamp with time zone NOT NULL
+
+
+--
+-- Name: usabilidad_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.usabilidad_enum AS ENUM (
+    'GENERAL',
+    'EJECUTIVO',
+    'MOVILIDAD_REDUCIDA',
+    'VEHICULO_SENA'
 );
-CREATE TABLE "neon_auth"."organization" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"name" text NOT NULL,
-	"slug" text NOT NULL CONSTRAINT "organization_slug_key" UNIQUE,
-	"logo" text,
-	"createdAt" timestamp with time zone NOT NULL,
-	"metadata" text
+
+
+--
+-- Name: fn_auditar_vehiculo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_auditar_vehiculo() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO "auditoria"
+        (
+            tabla_afectada,
+            registro_id,
+            accion,
+            fecha_hora,
+            valor_nuevo
+        )
+        VALUES
+        (
+            'vehiculo',
+            NEW.id,
+            'CREAR'::accion_auditoria_enum,
+            CURRENT_TIMESTAMP,
+            to_jsonb(NEW)
+        );
+        RETURN NEW;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        INSERT INTO "auditoria"
+        (
+            tabla_afectada,
+            registro_id,
+            accion,
+            fecha_hora,
+            valor_anterior,
+            valor_nuevo
+        )
+        VALUES
+        (
+            'vehiculo',
+            NEW.id,
+            CASE
+                WHEN OLD.estado IS DISTINCT FROM NEW.estado
+                    THEN 'CAMBIAR_ESTADO'::accion_auditoria_enum
+                ELSE 'EDITAR'::accion_auditoria_enum
+            END,
+            CURRENT_TIMESTAMP,
+            to_jsonb(OLD),
+            to_jsonb(NEW)
+        );
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        INSERT INTO "auditoria"
+        (
+            tabla_afectada,
+            registro_id,
+            accion,
+            fecha_hora,
+            valor_anterior
+        )
+        VALUES
+        (
+            'vehiculo',
+            OLD.id,
+            'ELIMINAR'::accion_auditoria_enum,
+            CURRENT_TIMESTAMP,
+            to_jsonb(OLD)
+        );
+        RETURN OLD;
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: fn_auditoria_generica(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_auditoria_generica() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id INT;
+    v_motivo     VARCHAR(255);
+    v_accion     accion_auditoria_enum;
+    v_registro   INT;
+BEGIN
+    v_usuario_id := NULLIF(current_setting('app.usuario_id', true), '')::INT;
+    v_motivo     := NULLIF(current_setting('app.motivo', true), '');
+
+    IF v_usuario_id IS NULL THEN
+        RAISE EXCEPTION
+          'La operacion requiere contexto de usuario. Use SET LOCAL app.usuario_id = ''<id>''.';
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        v_accion := 'CREAR';    v_registro := NEW.id;
+    ELSIF TG_OP = 'DELETE' THEN
+        v_accion := 'ELIMINAR'; v_registro := OLD.id;
+    ELSE
+        v_registro := NEW.id;
+        IF to_jsonb(NEW) ->> 'estado' IS DISTINCT FROM to_jsonb(OLD) ->> 'estado' THEN
+            v_accion := 'CAMBIAR_ESTADO';
+            -- Motivo obligatorio SOLO en parqueadero (HU 03.1.6.2).
+            IF TG_TABLE_NAME = 'parqueadero' AND v_motivo IS NULL THEN
+                RAISE EXCEPTION
+                  'El motivo es obligatorio para cambiar el estado de un parqueadero.';
+            END IF;
+        ELSE
+            v_accion := 'EDITAR';
+        END IF;
+    END IF;
+
+    INSERT INTO auditoria (tabla_afectada, registro_id, accion, usuario_id, motivo,
+                           valor_anterior, valor_nuevo)
+    VALUES (TG_TABLE_NAME, v_registro, v_accion, v_usuario_id, v_motivo,
+            CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END,
+            CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END);
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+
+--
+-- Name: fn_contexto_motivo(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_contexto_motivo() RETURNS character varying
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RETURN NULLIF(current_setting('app.motivo', true), '');
+END;
+$$;
+
+
+--
+-- Name: fn_contexto_usuario_id(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_contexto_usuario_id() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_id INT;
+BEGIN
+    BEGIN
+        v_id := NULLIF(current_setting('app.usuario_id', true), '')::INT;
+    EXCEPTION WHEN OTHERS THEN
+        v_id := NULL;
+    END;
+    RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: fn_historial_celda(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_historial_celda() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id INT := "fn_contexto_usuario_id"();
+BEGIN
+    IF v_usuario_id IS NULL THEN
+        RAISE EXCEPTION 'La operación requiere usuario autenticado.';
+    END IF;
+
+    INSERT INTO "historial_celda" (
+        "celda_id", "usuario_id", "accion",
+        "estado_anterior", "estado_nuevo", "motivo"
+    ) VALUES (
+        NEW.id, v_usuario_id,
+        CASE WHEN TG_OP = 'INSERT' THEN 'CREAR' WHEN OLD.estado IS DISTINCT FROM NEW.estado THEN 'CAMBIO_ESTADO' ELSE 'EDICION' END,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.estado END,
+        NEW.estado,
+        "fn_contexto_motivo"()
+    );
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_historial_novedad(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_historial_novedad() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id int;
+    v_accion varchar(50);
+BEGIN
+    -- El backend debe establecer:
+    -- SET LOCAL app.usuario_id = '123';
+    -- Si no existe un usuario de sesión válido, no se crea
+    -- automáticamente el historial para evitar romper el CRUD.
+    BEGIN
+        v_usuario_id := NULLIF(current_setting('app.usuario_id', true), '')::int;
+    EXCEPTION WHEN OTHERS THEN
+        v_usuario_id := NULL;
+    END;
+
+    IF v_usuario_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        v_accion := 'CREAR';
+
+        INSERT INTO "historial_novedad" (
+            "novedad_id",
+            "usuario_id",
+            "accion",
+            "estado_nuevo",
+            "prioridad_nueva"
+        )
+        VALUES (
+            NEW.id,
+            v_usuario_id,
+            v_accion,
+            NEW.estado,
+            NEW.prioridad
+        );
+
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+
+        IF OLD.estado IS DISTINCT FROM NEW.estado THEN
+            v_accion := 'CAMBIO_ESTADO';
+        ELSIF OLD.prioridad IS DISTINCT FROM NEW.prioridad THEN
+            v_accion := 'CAMBIO_PRIORIDAD';
+        ELSE
+            v_accion := 'EDICION';
+        END IF;
+
+        INSERT INTO "historial_novedad" (
+            "novedad_id",
+            "usuario_id",
+            "accion",
+            "estado_anterior",
+            "estado_nuevo",
+            "prioridad_anterior",
+            "prioridad_nueva"
+        )
+        VALUES (
+            NEW.id,
+            v_usuario_id,
+            v_accion,
+            OLD.estado,
+            NEW.estado,
+            OLD.prioridad,
+            NEW.prioridad
+        );
+
+        RETURN NEW;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_historial_parqueadero(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_historial_parqueadero() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id INT := "fn_contexto_usuario_id"();
+BEGIN
+    IF v_usuario_id IS NULL THEN
+        RAISE EXCEPTION 'La operación requiere usuario autenticado.';
+    END IF;
+
+    INSERT INTO "historial_parqueadero" (
+        "parqueadero_id", "usuario_id", "accion",
+        "estado_anterior", "estado_nuevo", "motivo"
+    ) VALUES (
+        NEW.id, v_usuario_id,
+        CASE WHEN TG_OP = 'INSERT' THEN 'CREAR' WHEN OLD.estado IS DISTINCT FROM NEW.estado THEN 'CAMBIO_ESTADO' ELSE 'EDICION' END,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.estado END,
+        NEW.estado,
+        "fn_contexto_motivo"()
+    );
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_historial_reserva(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_historial_reserva() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id INT := "fn_contexto_usuario_id"();
+BEGIN
+    IF v_usuario_id IS NULL THEN
+        RAISE EXCEPTION 'La modificación de una reserva requiere usuario autenticado.';
+    END IF;
+
+    INSERT INTO "historial_reserva" (
+        "reserva_id", "usuario_id", "accion",
+        "estado_anterior", "estado_nuevo",
+        "fecha_inicio_anterior", "fecha_inicio_nueva",
+        "fecha_fin_anterior", "fecha_fin_nueva",
+        "celda_anterior_id", "celda_nueva_id",
+        "motivo"
+    ) VALUES (
+        NEW.id,
+        v_usuario_id,
+        CASE WHEN TG_OP = 'INSERT' THEN 'CREAR' ELSE 'EDICION' END,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.estado END,
+        NEW.estado,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.fecha_hora_inicio END,
+        NEW.fecha_hora_inicio,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.fecha_hora_fin END,
+        NEW.fecha_hora_fin,
+        CASE WHEN TG_OP = 'UPDATE' THEN OLD.celda_id END,
+        NEW.celda_id,
+        "fn_contexto_motivo"()
+    );
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_normalizar_placa(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_normalizar_placa() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.placa_detectada IS NOT NULL THEN
+        NEW.placa_normalizada :=
+            UPPER(
+                REGEXP_REPLACE(
+                    TRIM(NEW.placa_detectada),
+                    '[^A-Za-z0-9]',
+                    '',
+                    'g'
+                )
+            );
+    END IF;
+
+    IF NEW.placa_normalizada IS NULL
+       AND NEW.placa_detectada IS NOT NULL THEN
+        NEW.placa_normalizada :=
+            UPPER(
+                REGEXP_REPLACE(
+                    TRIM(NEW.placa_detectada),
+                    '[^A-Za-z0-9]',
+                    '',
+                    'g'
+                )
+            );
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_notificar_administradores(character varying, character varying, public.tipo_notificacion_enum, character varying, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_notificar_administradores(p_titulo character varying, p_mensaje character varying, p_tipo public.tipo_notificacion_enum, p_tabla character varying, p_id integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    INSERT INTO "notificacion" (
+        "usuario_id", "titulo", "mensaje", "tipo",
+        "referencia_tabla", "referencia_id", "leida", "fecha_hora"
+    )
+    SELECT
+        u.id,
+        p_titulo,
+        p_mensaje,
+        p_tipo,
+        p_tabla,
+        p_id,
+        false,
+        CURRENT_TIMESTAMP
+    FROM "usuario" u
+    INNER JOIN "rol" r ON r.id = u.rol_id
+    WHERE LOWER(r.nombre) = 'administrador'
+      AND u.estado = 'ACTIVO'::estado_usuario_enum;
+END;
+$$;
+
+
+--
+-- Name: fn_notificar_cambio_novedad(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_notificar_cambio_novedad() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        PERFORM "fn_notificar_administradores"(
+            'Nueva novedad',
+            'Se registró la novedad #' || NEW.id || '.',
+            'NOVEDAD'::tipo_notificacion_enum,
+            'novedad',
+            NEW.id
+        );
+    ELSIF TG_OP = 'UPDATE' THEN
+        PERFORM "fn_notificar_administradores"(
+            'Novedad actualizada',
+            'La novedad #' || NEW.id || ' fue actualizada.',
+            'NOVEDAD'::tipo_notificacion_enum,
+            'novedad',
+            NEW.id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_notificar_cambio_reserva(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_notificar_cambio_reserva() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        PERFORM "fn_notificar_administradores"(
+            'Reserva actualizada',
+            'La reserva #' || NEW.id || ' fue modificada.',
+            'RESERVA'::tipo_notificacion_enum,
+            'reserva',
+            NEW.id
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_registro_ingreso_celda(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_registro_ingreso_celda() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.celda_id IS NOT NULL THEN
+
+        -- Primero la ocupacion: dispara fn_validar_ocupacion_celda
+        INSERT INTO ocupacion_celda
+            (celda_id, vehiculo_id, registro_acceso_id, reserva_id,
+             usuario_asigna_id, fecha_hora_inicio, estado)
+        VALUES
+            (NEW.celda_id, NEW.vehiculo_id, NEW.id, NEW.reserva_id,
+             NEW.usuario_ingreso_id,
+             COALESCE(NEW.fecha_hora_ingreso, CURRENT_TIMESTAMP), 'ACTIVA');
+
+        -- Solo si la validacion paso, se marca la celda
+        UPDATE celda SET estado = 'OCUPADA' WHERE id = NEW.celda_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_registro_salida_celda(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_registro_salida_celda() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_tiene_reserva BOOLEAN;
+BEGIN
+    IF NEW.fecha_hora_salida IS NOT NULL AND OLD.fecha_hora_salida IS NULL THEN
+
+        UPDATE ocupacion_celda
+           SET fecha_hora_fin = NEW.fecha_hora_salida,
+               estado         = 'FINALIZADA'
+         WHERE registro_acceso_id = NEW.id
+           AND estado = 'ACTIVA';
+
+        IF NEW.celda_id IS NOT NULL THEN
+            SELECT EXISTS (
+                SELECT 1 FROM reserva r
+                 WHERE r.celda_id = NEW.celda_id
+                   AND r.estado = 'ACEPTADA'
+                   AND NEW.fecha_hora_salida BETWEEN r.fecha_hora_inicio
+                                                 AND r.fecha_hora_fin
+            ) INTO v_tiene_reserva;
+
+            UPDATE celda
+               SET estado = CASE WHEN v_tiene_reserva THEN 'RESERVADA'::estado_celda_enum
+                                 ELSE 'DISPONIBLE'::estado_celda_enum END
+             WHERE id = NEW.celda_id;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_reserva_bloquea_celda(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_reserva_bloquea_celda() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Al aceptar: la celda pasa a RESERVADA (solo si estaba libre)
+    IF NEW.estado = 'ACEPTADA'
+       AND (TG_OP = 'INSERT' OR OLD.estado IS DISTINCT FROM 'ACEPTADA') THEN
+        UPDATE celda SET estado = 'RESERVADA'
+         WHERE id = NEW.celda_id AND estado = 'DISPONIBLE';
+    END IF;
+
+    -- Al cancelar, rechazar o terminar: se libera, salvo que este ocupada
+    IF TG_OP = 'UPDATE'
+       AND OLD.estado = 'ACEPTADA'
+       AND NEW.estado IN ('CANCELADA','RECHAZADA','TERMINADA') THEN
+        UPDATE celda SET estado = 'DISPONIBLE'
+         WHERE id = NEW.celda_id AND estado = 'RESERVADA';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_sincronizar_disponibilidad(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_sincronizar_disponibilidad() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usuario_id INT;
+    v_motivo motivo_disponibilidad_enum;
+    v_observacion varchar(500);
+    v_anterior estado_celda_enum;
+BEGIN
+    v_usuario_id := "fn_contexto_usuario_id"();
+
+    IF v_usuario_id IS NULL THEN
+        RAISE EXCEPTION 'La modificación de disponibilidad requiere usuario autenticado.';
+    END IF;
+
+    BEGIN
+        v_motivo := NULLIF(current_setting('app.motivo_disponibilidad', true), '')::motivo_disponibilidad_enum;
+    EXCEPTION WHEN OTHERS THEN
+        v_motivo := NULL;
+    END;
+
+    v_observacion := NULLIF(current_setting('app.observacion', true), '');
+
+    IF v_motivo IS NULL THEN
+        RAISE EXCEPTION 'El motivo es obligatorio al modificar disponibilidad.';
+    END IF;
+
+    SELECT estado INTO v_anterior FROM "celda" WHERE id = NEW.celda_id;
+
+    INSERT INTO "historial_disponibilidad_celda" (
+        "celda_id", "estado_anterior", "estado_nuevo", "motivo", "observacion", "usuario_id"
+    ) VALUES (
+        NEW.celda_id, v_anterior, NEW.estado, v_motivo, v_observacion, v_usuario_id
+    );
+
+    UPDATE "celda"
+       SET "estado" = NEW.estado
+     WHERE "id" = NEW.celda_id;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_usuario_autorizado_acceso(integer, integer, integer, timestamp without time zone); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_usuario_autorizado_acceso(p_usuario_id integer, p_conductor_id integer, p_parqueadero_id integer, p_momento timestamp without time zone DEFAULT CURRENT_TIMESTAMP) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_dia smallint := EXTRACT(ISODOW FROM p_momento)::smallint;
+    v_hora time := p_momento::time;
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM "autorizacion_acceso" a
+        WHERE a.estado = true
+          AND (a.usuario_id = p_usuario_id OR a.conductor_id = p_conductor_id)
+          AND (a.parqueadero_id IS NULL OR a.parqueadero_id = p_parqueadero_id)
+          AND (a.dia_semana IS NULL OR a.dia_semana = v_dia)
+          AND (a.hora_inicio IS NULL OR a.hora_fin IS NULL OR v_hora BETWEEN a.hora_inicio AND a.hora_fin)
+          AND (a.fecha_inicio IS NULL OR p_momento::date >= a.fecha_inicio)
+          AND (a.fecha_fin IS NULL OR p_momento::date <= a.fecha_fin)
+    );
+END;
+$$;
+
+
+--
+-- Name: fn_usuario_fecha_modificacion(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_usuario_fecha_modificacion() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.fecha_modificacion = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_validar_conflicto_reserva(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_validar_conflicto_reserva() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.estado IN ('PENDIENTE'::estado_reserva_enum, 'ACEPTADA'::estado_reserva_enum) THEN
+        IF EXISTS (
+            SELECT 1
+            FROM "reserva" r
+            WHERE r.id <> COALESCE(NEW.id, -1)
+              AND r.celda_id = NEW.celda_id
+              AND r.estado IN ('PENDIENTE'::estado_reserva_enum, 'ACEPTADA'::estado_reserva_enum)
+              AND NEW.fecha_hora_inicio < r.fecha_hora_fin
+              AND NEW.fecha_hora_fin > r.fecha_hora_inicio
+        ) THEN
+            RAISE EXCEPTION 'La celda % ya tiene una reserva que se sobrepone al rango solicitado.', NEW.celda_id;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_validar_ocupacion_celda(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_validar_ocupacion_celda() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_estado_celda  estado_celda_enum;
+    v_tipo_celda    tipo_vehiculo_enum;
+    v_tipo_vehiculo tipo_vehiculo_enum;
+    v_numero        VARCHAR(10);
+    v_reservada_por INT;
+BEGIN
+    SELECT c.estado, c.tipo, c.numero
+      INTO v_estado_celda, v_tipo_celda, v_numero
+      FROM celda c WHERE c.id = NEW.celda_id;
+
+    IF v_estado_celda IS NULL THEN
+        RAISE EXCEPTION 'La celda % no existe.', NEW.celda_id;
+    END IF;
+
+    SELECT v.tipo INTO v_tipo_vehiculo FROM vehiculo v WHERE v.id = NEW.vehiculo_id;
+
+    IF v_tipo_vehiculo IS NULL THEN
+        RAISE EXCEPTION 'El vehiculo % no existe.', NEW.vehiculo_id;
+    END IF;
+
+    -- 1.1 Celda fuera de servicio
+    IF v_estado_celda IN ('MANTENIMIENTO','INACTIVA') THEN
+        RAISE EXCEPTION 'La celda % esta en % y no admite ocupacion.',
+                        v_numero, v_estado_celda;
+    END IF;
+
+    -- 1.2 Celda ya ocupada por otro vehiculo
+    IF EXISTS (SELECT 1 FROM ocupacion_celda oc
+               WHERE oc.celda_id = NEW.celda_id
+                 AND oc.estado = 'ACTIVA'
+                 AND oc.id IS DISTINCT FROM NEW.id) THEN
+        RAISE EXCEPTION 'La celda % ya tiene una ocupacion activa.', v_numero;
+    END IF;
+
+    -- 1.3 Celda reservada: solo el vehiculo de la reserva puede entrar
+    IF v_estado_celda = 'RESERVADA' THEN
+        SELECT r.vehiculo_id INTO v_reservada_por
+          FROM reserva r
+         WHERE r.celda_id = NEW.celda_id
+           AND r.estado = 'ACEPTADA'
+           AND COALESCE(NEW.fecha_hora_inicio, CURRENT_TIMESTAMP)
+               BETWEEN r.fecha_hora_inicio AND r.fecha_hora_fin
+         ORDER BY r.fecha_hora_inicio
+         LIMIT 1;
+
+        IF v_reservada_por IS NOT NULL
+           AND v_reservada_por IS DISTINCT FROM NEW.vehiculo_id THEN
+            RAISE EXCEPTION
+              'La celda % esta reservada para otro vehiculo.', v_numero;
+        END IF;
+    END IF;
+
+    -- 1.4 El tipo de celda debe corresponder al tipo de vehiculo
+    IF v_tipo_celda <> v_tipo_vehiculo THEN
+        RAISE EXCEPTION
+          'El tipo de vehiculo (%) no corresponde con el tipo de la celda % (%).',
+          v_tipo_vehiculo, v_numero, v_tipo_celda;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: asignacion_vigilante; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.asignacion_vigilante (
+    id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    parqueadero_id integer NOT NULL,
+    turno public.turno_enum NOT NULL,
+    fecha_inicio date NOT NULL,
+    fecha_fin date,
+    estado boolean DEFAULT true NOT NULL,
+    hora_inicio time without time zone,
+    hora_fin time without time zone,
+    CONSTRAINT ck_asignacion_vigilante_horas CHECK (((hora_inicio IS NULL) OR (hora_fin IS NULL) OR (hora_fin > hora_inicio)))
 );
-CREATE TABLE "neon_auth"."project_config" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"name" text NOT NULL,
-	"endpoint_id" text NOT NULL CONSTRAINT "project_config_endpoint_id_key" UNIQUE,
-	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"trusted_origins" jsonb NOT NULL,
-	"social_providers" jsonb NOT NULL,
-	"email_provider" jsonb,
-	"email_and_password" jsonb,
-	"allow_localhost" boolean NOT NULL,
-	"plugin_configs" jsonb,
-	"webhook_config" jsonb
+
+
+--
+-- Name: TABLE asignacion_vigilante; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.asignacion_vigilante IS 'E-19: tabla nueva. 6 HU hablan de "las zonas asignadas al vigilante" y del turno (03.1.8.2, 03.1.10.2, 05.1.6.3, 06.2.5.1, 06.2.6.1, 06.2.7.3). DECISIÓN PENDIENTE: si todos los vigilantes ven todo, se elimina esta tabla y se ajustan esas 6 HU.';
+
+
+--
+-- Name: asignacion_vigilante_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.asignacion_vigilante ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.asignacion_vigilante_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
-CREATE TABLE "neon_auth"."session" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"expiresAt" timestamp with time zone NOT NULL,
-	"token" text NOT NULL CONSTRAINT "session_token_key" UNIQUE,
-	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updatedAt" timestamp with time zone NOT NULL,
-	"ipAddress" text,
-	"userAgent" text,
-	"userId" uuid NOT NULL,
-	"impersonatedBy" text,
-	"activeOrganizationId" text
+
+
+--
+-- Name: auditoria; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auditoria (
+    id bigint NOT NULL,
+    tabla_afectada character varying(50) NOT NULL,
+    registro_id integer NOT NULL,
+    accion public.accion_auditoria_enum NOT NULL,
+    usuario_id integer NOT NULL,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    motivo character varying(255),
+    valor_anterior jsonb,
+    valor_nuevo jsonb
 );
-CREATE TABLE "neon_auth"."user" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"name" text NOT NULL,
-	"email" text NOT NULL CONSTRAINT "user_email_key" UNIQUE,
-	"emailVerified" boolean NOT NULL,
-	"image" text,
-	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"role" text,
-	"banned" boolean,
-	"banReason" text,
-	"banExpires" timestamp with time zone
+
+
+--
+-- Name: TABLE auditoria; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.auditoria IS 'E-18: tabla nueva. 23 criterios de aceptación exigen registrar "usuario y fecha" del cambio, y varias HU piden un "historial". Ninguna tabla del modelo anterior lo permitía.';
+
+
+--
+-- Name: COLUMN auditoria.motivo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.auditoria.motivo IS 'HU 03.1.6.2: motivo obligatorio en cada cambio de estado';
+
+
+--
+-- Name: auditoria_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.auditoria ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.auditoria_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
-CREATE TABLE "neon_auth"."verification" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-	"identifier" text NOT NULL,
-	"value" text NOT NULL,
-	"expiresAt" timestamp with time zone NOT NULL,
-	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+
+
+--
+-- Name: autorizacion_acceso; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.autorizacion_acceso (
+    id integer NOT NULL,
+    usuario_id integer,
+    conductor_id integer,
+    parqueadero_id integer,
+    dia_semana smallint,
+    hora_inicio time without time zone,
+    hora_fin time without time zone,
+    fecha_inicio date,
+    fecha_fin date,
+    motivo character varying(255),
+    estado boolean DEFAULT true NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_autorizacion_dia CHECK (((dia_semana IS NULL) OR ((dia_semana >= 1) AND (dia_semana <= 7)))),
+    CONSTRAINT ck_autorizacion_fechas CHECK (((fecha_inicio IS NULL) OR (fecha_fin IS NULL) OR (fecha_fin >= fecha_inicio))),
+    CONSTRAINT ck_autorizacion_horas CHECK (((hora_inicio IS NULL) OR (hora_fin IS NULL) OR (hora_fin > hora_inicio))),
+    CONSTRAINT ck_autorizacion_responsable CHECK (((usuario_id IS NOT NULL) OR (conductor_id IS NOT NULL)))
 );
-CREATE UNIQUE INDEX "celda_pkey" ON "celda" ("id");
-CREATE UNIQUE INDEX "centro_formacion_pkey" ON "centro_formacion" ("id");
-CREATE UNIQUE INDEX "centro_formacion_regional_formacion_id_nombre_key" ON "centro_formacion" ("regional_formacion_id","nombre");
-CREATE UNIQUE INDEX "conductor_correo_key" ON "conductor" ("correo");
-CREATE UNIQUE INDEX "conductor_pkey" ON "conductor" ("id");
-CREATE UNIQUE INDEX "conductor_tipo_documento_numero_documento_key" ON "conductor" ("tipo_documento","numero_documento");
-CREATE UNIQUE INDEX "marca_vehiculo_nombre_key" ON "marca_vehiculo" ("nombre");
-CREATE UNIQUE INDEX "marca_vehiculo_pkey" ON "marca_vehiculo" ("id");
-CREATE UNIQUE INDEX "parqueadero_pkey" ON "parqueadero" ("id");
-CREATE UNIQUE INDEX "permiso_nombre_key" ON "permiso" ("nombre");
-CREATE UNIQUE INDEX "permiso_pkey" ON "permiso" ("id");
-CREATE UNIQUE INDEX "playing_with_neon_pkey" ON "playing_with_neon" ("id");
-CREATE UNIQUE INDEX "programa_formacion_nombre_key" ON "programa_formacion" ("nombre");
-CREATE UNIQUE INDEX "programa_formacion_pkey" ON "programa_formacion" ("id");
-CREATE UNIQUE INDEX "regional_formacion_nombre_key" ON "regional_formacion" ("nombre");
-CREATE UNIQUE INDEX "regional_formacion_pkey" ON "regional_formacion" ("id");
-CREATE UNIQUE INDEX "rol_nombre_key" ON "rol" ("nombre");
-CREATE UNIQUE INDEX "rol_pkey" ON "rol" ("id");
-CREATE UNIQUE INDEX "rol_permiso_pkey" ON "rol_permiso" ("id");
-CREATE UNIQUE INDEX "rol_permiso_rol_id_permiso_id_key" ON "rol_permiso" ("rol_id","permiso_id");
-CREATE UNIQUE INDEX "servicio_vehiculo_nombre_key" ON "servicio_vehiculo" ("nombre");
-CREATE UNIQUE INDEX "servicio_vehiculo_pkey" ON "servicio_vehiculo" ("id");
-CREATE UNIQUE INDEX "tipo_usuario_pkey" ON "tipo_usuario" ("id");
-CREATE UNIQUE INDEX "tipo_usuario_tipo_usuario_key" ON "tipo_usuario" ("tipo_usuario");
-CREATE UNIQUE INDEX "tipo_vehiculo_nombre_key" ON "tipo_vehiculo" ("nombre");
-CREATE UNIQUE INDEX "tipo_vehiculo_pkey" ON "tipo_vehiculo" ("id");
-CREATE UNIQUE INDEX "usuario_correo_key" ON "usuario" ("correo");
-CREATE UNIQUE INDEX "usuario_pkey" ON "usuario" ("id");
-CREATE UNIQUE INDEX "account_pkey" ON "neon_auth"."account" ("id");
-CREATE INDEX "account_userId_idx" ON "neon_auth"."account" ("userId");
-CREATE INDEX "invitation_email_idx" ON "neon_auth"."invitation" ("email");
-CREATE INDEX "invitation_organizationId_idx" ON "neon_auth"."invitation" ("organizationId");
-CREATE UNIQUE INDEX "invitation_pkey" ON "neon_auth"."invitation" ("id");
-CREATE UNIQUE INDEX "jwks_pkey" ON "neon_auth"."jwks" ("id");
-CREATE INDEX "member_organizationId_idx" ON "neon_auth"."member" ("organizationId");
-CREATE UNIQUE INDEX "member_pkey" ON "neon_auth"."member" ("id");
-CREATE INDEX "member_userId_idx" ON "neon_auth"."member" ("userId");
-CREATE UNIQUE INDEX "organization_pkey" ON "neon_auth"."organization" ("id");
-CREATE UNIQUE INDEX "organization_slug_key" ON "neon_auth"."organization" ("slug");
-CREATE UNIQUE INDEX "organization_slug_uidx" ON "neon_auth"."organization" ("slug");
-CREATE UNIQUE INDEX "project_config_endpoint_id_key" ON "neon_auth"."project_config" ("endpoint_id");
-CREATE UNIQUE INDEX "project_config_pkey" ON "neon_auth"."project_config" ("id");
-CREATE UNIQUE INDEX "session_pkey" ON "neon_auth"."session" ("id");
-CREATE UNIQUE INDEX "session_token_key" ON "neon_auth"."session" ("token");
-CREATE INDEX "session_userId_idx" ON "neon_auth"."session" ("userId");
-CREATE UNIQUE INDEX "user_email_key" ON "neon_auth"."user" ("email");
-CREATE UNIQUE INDEX "user_pkey" ON "neon_auth"."user" ("id");
-CREATE INDEX "verification_identifier_idx" ON "neon_auth"."verification" ("identifier");
-CREATE UNIQUE INDEX "verification_pkey" ON "neon_auth"."verification" ("id");
-ALTER TABLE "celda" ADD CONSTRAINT "celda_parqueadero_id_fkey" FOREIGN KEY ("parqueadero_id") REFERENCES "parqueadero"("id") ON DELETE RESTRICT;
-ALTER TABLE "centro_formacion" ADD CONSTRAINT "centro_formacion_regional_formacion_id_fkey" FOREIGN KEY ("regional_formacion_id") REFERENCES "regional_formacion"("id") ON DELETE RESTRICT;
-ALTER TABLE "conductor" ADD CONSTRAINT "conductor_centro_formacion_id_fkey" FOREIGN KEY ("centro_formacion_id") REFERENCES "centro_formacion"("id") ON DELETE RESTRICT;
-ALTER TABLE "conductor" ADD CONSTRAINT "conductor_programa_formacion_id_fkey" FOREIGN KEY ("programa_formacion_id") REFERENCES "programa_formacion"("id") ON DELETE RESTRICT;
-ALTER TABLE "conductor" ADD CONSTRAINT "conductor_regional_formacion_id_fkey" FOREIGN KEY ("regional_formacion_id") REFERENCES "regional_formacion"("id") ON DELETE RESTRICT;
-ALTER TABLE "conductor" ADD CONSTRAINT "conductor_tipo_usuario_id_fkey" FOREIGN KEY ("tipo_usuario_id") REFERENCES "tipo_usuario"("id") ON DELETE RESTRICT;
-ALTER TABLE "conductor" ADD CONSTRAINT "conductor_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuario"("id") ON DELETE SET NULL;
-ALTER TABLE "rol_permiso" ADD CONSTRAINT "rol_permiso_permiso_id_fkey" FOREIGN KEY ("permiso_id") REFERENCES "permiso"("id") ON DELETE CASCADE;
-ALTER TABLE "rol_permiso" ADD CONSTRAINT "rol_permiso_rol_id_fkey" FOREIGN KEY ("rol_id") REFERENCES "rol"("id") ON DELETE CASCADE;
-ALTER TABLE "usuario" ADD CONSTRAINT "usuario_rol_id_fkey" FOREIGN KEY ("rol_id") REFERENCES "rol"("id") ON DELETE SET NULL;
-ALTER TABLE "neon_auth"."account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
-ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_inviterId_fkey" FOREIGN KEY ("inviterId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
-ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;
-ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;
-ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
-ALTER TABLE "neon_auth"."session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
+
+
+--
+-- Name: autorizacion_acceso_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.autorizacion_acceso ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.autorizacion_acceso_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: captura_placa; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.captura_placa (
+    id integer NOT NULL,
+    placa_detectada character varying(10) NOT NULL,
+    imagen_url character varying(500),
+    confianza numeric(5,2),
+    parqueadero_id integer NOT NULL,
+    vehiculo_id integer,
+    registro_acceso_id integer,
+    verificada boolean DEFAULT false NOT NULL,
+    usuario_verifica_id integer,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    placa_normalizada character varying(10),
+    motor_ocr character varying(50),
+    procesada boolean DEFAULT false NOT NULL,
+    fecha_procesamiento timestamp without time zone,
+    error_ocr character varying(500),
+    direccion_captura character varying(10),
+    CONSTRAINT ck_captura_placa_confianza CHECK (((confianza IS NULL) OR ((confianza >= (0)::numeric) AND (confianza <= (100)::numeric)))),
+    CONSTRAINT ck_captura_placa_direccion CHECK (((direccion_captura IS NULL) OR ((direccion_captura)::text = ANY ((ARRAY['ENTRADA'::character varying, 'SALIDA'::character varying])::text[]))))
+);
+
+
+--
+-- Name: TABLE captura_placa; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.captura_placa IS 'Proceso 07.2 — Reconocimiento de placa. DECISIÓN PENDIENTE: si el alcance real es sólo digitación manual, se elimina esta tabla y se ajusta la redacción de la ficha.';
+
+
+--
+-- Name: COLUMN captura_placa.confianza; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.captura_placa.confianza IS '% de certeza del reconocimiento';
+
+
+--
+-- Name: COLUMN captura_placa.vehiculo_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.captura_placa.vehiculo_id IS 'NULL si la placa no está registrada';
+
+
+--
+-- Name: captura_placa_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.captura_placa ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.captura_placa_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: celda; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.celda (
+    id integer NOT NULL,
+    parqueadero_id integer NOT NULL,
+    numero character varying(10) NOT NULL,
+    tipo public.tipo_vehiculo_enum NOT NULL,
+    usabilidad public.usabilidad_enum DEFAULT 'GENERAL'::public.usabilidad_enum NOT NULL,
+    estado public.estado_celda_enum DEFAULT 'DISPONIBLE'::public.estado_celda_enum NOT NULL,
+    observaciones character varying(255),
+    posicion_x numeric(10,2),
+    posicion_y numeric(10,2),
+    ancho numeric(10,2),
+    alto numeric(10,2),
+    CONSTRAINT ck_celda_posiciones CHECK ((((posicion_x IS NULL) OR (posicion_x >= (0)::numeric)) AND ((posicion_y IS NULL) OR (posicion_y >= (0)::numeric)) AND ((ancho IS NULL) OR (ancho > (0)::numeric)) AND ((alto IS NULL) OR (alto > (0)::numeric))))
+);
+
+
+--
+-- Name: TABLE celda; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.celda IS 'Proceso 03.2 — Gestión de celdas';
+
+
+--
+-- Name: COLUMN celda.numero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.celda.numero IS 'E-04: faltaba. Las HU la llaman "nombre (numeración de la celda)"';
+
+
+--
+-- Name: COLUMN celda.tipo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.celda.tipo IS 'E-17: ahora incluye CAMION y BUS. MOVILIDAD_REDUCIDA se movió a usabilidad para no duplicar el concepto';
+
+
+--
+-- Name: COLUMN celda.estado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.celda.estado IS 'UNICA fuente de verdad del estado de la celda. La mueven: el ingreso/salida de vehiculos, la aceptacion de reservas y los cambios manuales via disponibilidad_celda. No consultar ocupacion_celda ni disponibilidad_celda para saber si esta libre.';
+
+
+--
+-- Name: celda_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.celda ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.celda_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: conductor; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.conductor (
+    id integer NOT NULL,
+    usuario_id integer,
+    tipo_documento public.tipo_documento_enum NOT NULL,
+    numero_documento character varying(20) NOT NULL,
+    nombre_apellidos character varying(200) NOT NULL,
+    correo character varying(255),
+    direccion character varying(255),
+    numero_telefonico character varying(20),
+    tipo_usuario_id integer NOT NULL,
+    regional_formacion character varying(255),
+    centro_formacion character varying(255),
+    programa_formacion character varying(255),
+    vigencia date,
+    movilidad_reducida boolean DEFAULT false NOT NULL,
+    estado boolean DEFAULT true NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE conductor; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.conductor IS 'Proceso 04.1 — Gestión de conductores';
+
+
+--
+-- Name: COLUMN conductor.usuario_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.usuario_id IS 'E-01 — EL ERROR MÁS GRAVE. Sin esta FK no funciona ninguna HU del rol conductor. NULL = registrado por vigilancia, sin cuenta';
+
+
+--
+-- Name: COLUMN conductor.numero_documento; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.numero_documento IS 'E-32: antes era INTEGER; perdía ceros y no admitía CE ni pasaporte';
+
+
+--
+-- Name: COLUMN conductor.regional_formacion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.regional_formacion IS 'Dato proveniente de SOFIA Plus';
+
+
+--
+-- Name: COLUMN conductor.movilidad_reducida; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.movilidad_reducida IS 'Habilita reservas tipo MOVILIDAD_REDUCIDA';
+
+
+--
+-- Name: conductor_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.conductor ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.conductor_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: detalle_propiedad; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.detalle_propiedad (
+    id integer NOT NULL,
+    conductor_id integer NOT NULL,
+    vehiculo_id integer NOT NULL,
+    es_principal boolean DEFAULT false NOT NULL,
+    estado boolean DEFAULT true NOT NULL,
+    fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE detalle_propiedad; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.detalle_propiedad IS 'Relacion M:N conductor-vehiculo. es_principal marca al responsable que se muestra en los listados (HU 04.2.7, 07.2.4).';
+
+
+--
+-- Name: detalle_propiedad_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.detalle_propiedad ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.detalle_propiedad_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: disponibilidad_celda; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.disponibilidad_celda (
+    id integer NOT NULL,
+    celda_id integer NOT NULL,
+    estado public.estado_celda_enum NOT NULL,
+    motivo public.motivo_disponibilidad_enum NOT NULL,
+    observacion character varying(500),
+    usuario_id integer NOT NULL,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE disponibilidad_celda; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.disponibilidad_celda IS 'Bitacora de cambios MANUALES de disponibilidad (mantenimiento, inactivacion). Requiere SET LOCAL app.motivo_disponibilidad. No refleja la ocupacion por vehiculos.';
+
+
+--
+-- Name: disponibilidad_celda_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.disponibilidad_celda ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.disponibilidad_celda_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: encuesta; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.encuesta (
+    id integer NOT NULL,
+    titulo character varying(150) NOT NULL,
+    descripcion character varying(500),
+    fecha_inicio date NOT NULL,
+    fecha_fin date,
+    estado boolean DEFAULT true NOT NULL,
+    CONSTRAINT ck_encuesta_fechas CHECK (((fecha_fin IS NULL) OR (fecha_fin >= fecha_inicio)))
+);
+
+
+--
+-- Name: TABLE encuesta; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.encuesta IS 'OPCIONAL — ver E-24';
+
+
+--
+-- Name: encuesta_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.encuesta ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.encuesta_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: equipamiento_parqueadero; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.equipamiento_parqueadero (
+    id integer NOT NULL,
+    parqueadero_id integer NOT NULL,
+    tipo public.tipo_equipamiento_parqueadero_enum NOT NULL,
+    nombre character varying(150) NOT NULL,
+    codigo character varying(100),
+    ubicacion character varying(255),
+    estado boolean DEFAULT true NOT NULL,
+    observaciones character varying(500),
+    fecha_instalacion timestamp without time zone,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: equipamiento_parqueadero_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.equipamiento_parqueadero ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.equipamiento_parqueadero_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: evidencia_novedad; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.evidencia_novedad (
+    id integer NOT NULL,
+    novedad_id integer NOT NULL,
+    url character varying(500) NOT NULL,
+    tipo public.tipo_evidencia_enum DEFAULT 'FOTO'::public.tipo_evidencia_enum NOT NULL,
+    descripcion character varying(255),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE evidencia_novedad; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.evidencia_novedad IS 'E-12: antes era un solo campo evidencia VARCHAR(500). Las HU 07.1.5.2 y 07.1.7.2 hablan de "archivos adjuntos" en plural.';
+
+
+--
+-- Name: evidencia_novedad_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.evidencia_novedad ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.evidencia_novedad_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: historial_celda; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.historial_celda (
+    id bigint NOT NULL,
+    celda_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    accion character varying(50) NOT NULL,
+    estado_anterior public.estado_celda_enum,
+    estado_nuevo public.estado_celda_enum,
+    motivo character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: historial_celda_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.historial_celda ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.historial_celda_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: historial_disponibilidad_celda; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.historial_disponibilidad_celda (
+    id bigint NOT NULL,
+    celda_id integer NOT NULL,
+    estado_anterior public.estado_celda_enum,
+    estado_nuevo public.estado_celda_enum NOT NULL,
+    motivo public.motivo_disponibilidad_enum NOT NULL,
+    observacion character varying(500),
+    usuario_id integer NOT NULL,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: historial_disponibilidad_celda_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.historial_disponibilidad_celda ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.historial_disponibilidad_celda_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: historial_novedad; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.historial_novedad (
+    id bigint NOT NULL,
+    novedad_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    accion character varying(50) NOT NULL,
+    estado_anterior public.estado_novedad_enum,
+    estado_nuevo public.estado_novedad_enum,
+    prioridad_anterior public.prioridad_enum,
+    prioridad_nueva public.prioridad_enum,
+    comentario character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: historial_novedad_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.historial_novedad ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.historial_novedad_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: historial_parqueadero; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.historial_parqueadero (
+    id bigint NOT NULL,
+    parqueadero_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    accion character varying(50) NOT NULL,
+    estado_anterior boolean,
+    estado_nuevo boolean,
+    motivo character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: historial_parqueadero_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.historial_parqueadero ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.historial_parqueadero_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: historial_reserva; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.historial_reserva (
+    id bigint NOT NULL,
+    reserva_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    accion character varying(50) NOT NULL,
+    estado_anterior public.estado_reserva_enum,
+    estado_nuevo public.estado_reserva_enum,
+    fecha_inicio_anterior timestamp without time zone,
+    fecha_inicio_nueva timestamp without time zone,
+    fecha_fin_anterior timestamp without time zone,
+    fecha_fin_nueva timestamp without time zone,
+    celda_anterior_id integer,
+    celda_nueva_id integer,
+    motivo character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: historial_reserva_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.historial_reserva ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.historial_reserva_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: intento_ocr; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.intento_ocr (
+    id integer NOT NULL,
+    captura_placa_id integer NOT NULL,
+    motor character varying(50) NOT NULL,
+    placa_detectada character varying(10),
+    placa_normalizada character varying(10),
+    confianza numeric(5,2),
+    tiempo_procesamiento_ms integer,
+    exitoso boolean DEFAULT false NOT NULL,
+    error character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_intento_ocr_confianza CHECK (((confianza IS NULL) OR ((confianza >= (0)::numeric) AND (confianza <= (100)::numeric)))),
+    CONSTRAINT ck_intento_ocr_tiempo CHECK (((tiempo_procesamiento_ms IS NULL) OR (tiempo_procesamiento_ms >= 0)))
+);
+
+
+--
+-- Name: intento_ocr_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.intento_ocr ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.intento_ocr_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: licencia_conduccion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.licencia_conduccion (
+    id integer NOT NULL,
+    conductor_id integer NOT NULL,
+    numero_licencia character varying(20) NOT NULL,
+    categoria character varying(10) NOT NULL,
+    fecha_expedicion date,
+    fecha_vencimiento date,
+    estado boolean DEFAULT true NOT NULL
+);
+
+
+--
+-- Name: TABLE licencia_conduccion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.licencia_conduccion IS 'E-22: antes era detalle_licencia, ligada por error al vehículo y sin categoría ni vencimiento. No tiene HU: hay que agregar el subproceso a la ficha o eliminar la tabla.';
+
+
+--
+-- Name: COLUMN licencia_conduccion.numero_licencia; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.licencia_conduccion.numero_licencia IS 'E-33: antes era INTEGER';
+
+
+--
+-- Name: COLUMN licencia_conduccion.categoria; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.licencia_conduccion.categoria IS 'A1, A2, B1, C1...';
+
+
+--
+-- Name: licencia_conduccion_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.licencia_conduccion ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.licencia_conduccion_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: modulo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.modulo (
+    id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    descripcion character varying(255),
+    estado boolean DEFAULT true NOT NULL
+);
+
+
+--
+-- Name: TABLE modulo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.modulo IS 'Tabla nueva. Las HU 01.1.6 y 01.1.8 hablan de "módulos asociados al rol" y no existían en el modelo.';
+
+
+--
+-- Name: modulo_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.modulo ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.modulo_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: notificacion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notificacion (
+    id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    titulo character varying(150) NOT NULL,
+    mensaje character varying(500) NOT NULL,
+    tipo public.tipo_notificacion_enum NOT NULL,
+    referencia_tabla character varying(50),
+    referencia_id integer,
+    leida boolean DEFAULT false NOT NULL,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE notificacion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.notificacion IS 'E-21: tabla nueva. 7 criterios exigen "notificar automáticamente al administrador" (HU 03.1.10.1, 05.1.7.3, 06.2.5.3, 07.1.7.3, 07.1.9.3, 07.1.11.3, 07.1.13.3).';
+
+
+--
+-- Name: COLUMN notificacion.usuario_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.notificacion.usuario_id IS 'Destinatario';
+
+
+--
+-- Name: notificacion_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notificacion ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.notificacion_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: novedad; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.novedad (
+    id integer NOT NULL,
+    tipo_novedad public.tipo_novedad_enum NOT NULL,
+    prioridad public.prioridad_enum DEFAULT 'MEDIA'::public.prioridad_enum NOT NULL,
+    estado public.estado_novedad_enum DEFAULT 'PENDIENTE'::public.estado_novedad_enum NOT NULL,
+    descripcion character varying(500) NOT NULL,
+    usuario_reporta_id integer NOT NULL,
+    usuario_asignado_id integer,
+    vehiculo_id integer,
+    celda_id integer,
+    parqueadero_id integer,
+    registro_acceso_id integer,
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    fecha_hora_cierre timestamp without time zone,
+    justificacion_cierre character varying(255)
+);
+
+
+--
+-- Name: TABLE novedad; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.novedad IS 'Proceso 07.1. E-28: la tabla se llamaba "novedades", la única en plural del modelo.';
+
+
+--
+-- Name: COLUMN novedad.estado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.novedad.estado IS 'E-26: antes se llamaba estado_celda';
+
+
+--
+-- Name: COLUMN novedad.usuario_reporta_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.novedad.usuario_reporta_id IS 'E-38: antes era "encargado VARCHAR(255)", texto libre. Las HU 07.1.8.3 y 07.1.9.1 exigen filtrar "sólo los míos"';
+
+
+--
+-- Name: COLUMN novedad.vehiculo_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.novedad.vehiculo_id IS 'E-11: ahora nullable, hay novedades sin vehículo';
+
+
+--
+-- Name: COLUMN novedad.celda_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.novedad.celda_id IS 'E-11: la "ubicación" que pide la HU 07.1.1.1';
+
+
+--
+-- Name: COLUMN novedad.justificacion_cierre; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.novedad.justificacion_cierre IS 'HU 07.1.10.2 y 07.1.14.2';
+
+
+--
+-- Name: novedad_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.novedad ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.novedad_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: ocupacion_celda; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ocupacion_celda (
+    id integer NOT NULL,
+    celda_id integer NOT NULL,
+    vehiculo_id integer NOT NULL,
+    registro_acceso_id integer,
+    reserva_id integer,
+    usuario_asigna_id integer NOT NULL,
+    fecha_hora_inicio timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    fecha_hora_fin timestamp without time zone,
+    estado public.estado_ocupacion_enum DEFAULT 'ACTIVA'::public.estado_ocupacion_enum NOT NULL,
+    CONSTRAINT ck_ocupacion_fechas CHECK (((fecha_hora_fin IS NULL) OR (fecha_hora_fin >= fecha_hora_inicio)))
+);
+
+
+--
+-- Name: TABLE ocupacion_celda; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.ocupacion_celda IS 'Quien ocupa cada celda ahora (estado=ACTIVA) y el historico. Se alimenta sola desde registro_acceso.';
+
+
+--
+-- Name: ocupacion_celda_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.ocupacion_celda ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.ocupacion_celda_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: parqueadero; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.parqueadero (
+    id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    ubicacion character varying(255) NOT NULL,
+    acceso public.acceso_enum NOT NULL,
+    capacidad_maxima integer DEFAULT 0 NOT NULL,
+    hora_apertura time without time zone,
+    hora_cierre time without time zone,
+    estado boolean DEFAULT true NOT NULL,
+    zona character varying(100),
+    piso character varying(50),
+    plano_url character varying(500),
+    observaciones character varying(500),
+    CONSTRAINT ck_parqueadero_capacidad CHECK ((capacidad_maxima >= 0))
+);
+
+
+--
+-- Name: TABLE parqueadero; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.parqueadero IS 'Proceso 03.1. E-39: se eliminaron los 7 contadores de celdas (celdas_totales, celdas_motos, celdas_camion...). Ahora se calculan en la vista v_capacidad_parqueadero para que nunca queden desincronizados.';
+
+
+--
+-- Name: COLUMN parqueadero.hora_apertura; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.parqueadero.hora_apertura IS 'E-10: exigido por HU 03.1.1.1';
+
+
+--
+-- Name: COLUMN parqueadero.hora_cierre; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.parqueadero.hora_cierre IS 'E-10: exigido por HU 03.1.1.1';
+
+
+--
+-- Name: parqueadero_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.parqueadero ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.parqueadero_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: parqueadero_ip_autorizada; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.parqueadero_ip_autorizada (
+    id integer NOT NULL,
+    parqueadero_id integer NOT NULL,
+    direccion_ip inet NOT NULL,
+    descripcion character varying(255),
+    estado boolean DEFAULT true NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: parqueadero_ip_autorizada_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.parqueadero_ip_autorizada ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.parqueadero_ip_autorizada_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: permiso; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.permiso (
+    id integer NOT NULL,
+    modulo_id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    descripcion character varying(255),
+    estado boolean DEFAULT true NOT NULL
+);
+
+
+--
+-- Name: TABLE permiso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.permiso IS 'Proceso 01.2 — Gestión de permisos';
+
+
+--
+-- Name: permiso_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.permiso ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.permiso_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: recuperacion_password; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.recuperacion_password (
+    id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    token character varying(255) NOT NULL,
+    fecha_solicitud timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    fecha_expiracion timestamp without time zone NOT NULL,
+    usado boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: TABLE recuperacion_password; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.recuperacion_password IS 'E-20: tabla nueva. No había dónde guardar el código de recuperación de la HU 02.2.3.2';
+
+
+--
+-- Name: recuperacion_password_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.recuperacion_password ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.recuperacion_password_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: registro_acceso; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.registro_acceso (
+    id integer NOT NULL,
+    vehiculo_id integer NOT NULL,
+    conductor_id integer,
+    parqueadero_id integer NOT NULL,
+    celda_id integer,
+    reserva_id integer,
+    usuario_ingreso_id integer NOT NULL,
+    usuario_salida_id integer,
+    fecha_hora_ingreso timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    fecha_hora_salida timestamp without time zone,
+    descripcion_ingreso character varying(255),
+    descripcion_salida character varying(255),
+    estado public.estado_acceso_enum DEFAULT 'DENTRO'::public.estado_acceso_enum NOT NULL,
+    CONSTRAINT ck_registro_acceso_fechas CHECK (((fecha_hora_salida IS NULL) OR (fecha_hora_salida >= fecha_hora_ingreso)))
+);
+
+
+--
+-- Name: TABLE registro_acceso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.registro_acceso IS 'E-02: REEMPLAZA a ingreso_salida. Antes eran eventos sueltos (tipo INGRESO/SALIDA) y no se podía calcular la duración de la estadía que exigen las HU 05.1.3.1 y 08.1.3.';
+
+
+--
+-- Name: COLUMN registro_acceso.usuario_ingreso_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.registro_acceso.usuario_ingreso_id IS 'E-03: vigilante que registró la entrada (HU 05.1.6.2)';
+
+
+--
+-- Name: COLUMN registro_acceso.usuario_salida_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.registro_acceso.usuario_salida_id IS 'E-03: vigilante que registró la salida';
+
+
+--
+-- Name: COLUMN registro_acceso.fecha_hora_salida; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.registro_acceso.fecha_hora_salida IS 'NULL = el vehículo sigue adentro';
+
+
+--
+-- Name: COLUMN registro_acceso.descripcion_ingreso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.registro_acceso.descripcion_ingreso IS 'Baúl, bolsos, observaciones (minuta actual)';
+
+
+--
+-- Name: registro_acceso_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.registro_acceso ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.registro_acceso_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: reserva; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.reserva (
+    id integer NOT NULL,
+    tipo_reserva public.tipo_reserva_enum NOT NULL,
+    celda_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    conductor_id integer,
+    vehiculo_id integer,
+    motivo character varying(255),
+    fecha_hora_inicio timestamp without time zone NOT NULL,
+    fecha_hora_fin timestamp without time zone NOT NULL,
+    estado public.estado_reserva_enum DEFAULT 'PENDIENTE'::public.estado_reserva_enum NOT NULL,
+    usuario_gestiona_id integer,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_reserva_fechas CHECK ((fecha_hora_fin > fecha_hora_inicio))
+);
+
+
+--
+-- Name: TABLE reserva; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.reserva IS 'Proceso 06.1 — Reservas';
+
+
+--
+-- Name: COLUMN reserva.tipo_reserva; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.tipo_reserva IS 'E-37: unifica los 3 subprocesos que la ficha define por separado';
+
+
+--
+-- Name: COLUMN reserva.estado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.estado IS 'E-25: antes se llamaba estado_celda, nombre incorrecto';
+
+
+--
+-- Name: COLUMN reserva.usuario_gestiona_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.usuario_gestiona_id IS 'Quién aprueba o rechaza';
+
+
+--
+-- Name: reserva_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.reserva ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.reserva_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: rol; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rol (
+    id integer NOT NULL,
+    nombre character varying(50) NOT NULL,
+    descripcion character varying(255),
+    estado boolean DEFAULT true NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: TABLE rol; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.rol IS 'Proceso 01.1 — Gestión de roles';
+
+
+--
+-- Name: COLUMN rol.nombre; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rol.nombre IS 'E-35: UNIQUE exigido por HU 01.1.1.2';
+
+
+--
+-- Name: COLUMN rol.descripcion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rol.descripcion IS 'E-08: exigido por HU 01.1.5.3';
+
+
+--
+-- Name: COLUMN rol.fecha_creacion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rol.fecha_creacion IS 'E-08: exigido por HU 01.1.5.3';
+
+
+--
+-- Name: rol_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.rol ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.rol_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: rol_permiso; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rol_permiso (
+    id integer NOT NULL,
+    rol_id integer NOT NULL,
+    permiso_id integer NOT NULL,
+    estado boolean DEFAULT true NOT NULL,
+    fecha_asignacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: COLUMN rol_permiso.estado; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.rol_permiso.estado IS 'E-09: exigido por HU 01.1.6.2';
+
+
+--
+-- Name: rol_permiso_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.rol_permiso ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.rol_permiso_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: tipo_usuario; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tipo_usuario (
+    id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    descripcion character varying(255),
+    estado boolean DEFAULT true NOT NULL
+);
+
+
+--
+-- Name: TABLE tipo_usuario; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.tipo_usuario IS 'E-23: catálogo (aprendiz, instructor, administrativo, contratista, visitante). Requiere subproceso propio en la ficha.';
+
+
+--
+-- Name: tipo_usuario_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.tipo_usuario ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.tipo_usuario_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: usuario; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.usuario (
+    id integer NOT NULL,
+    nombre character varying(150) NOT NULL,
+    correo character varying(255) NOT NULL,
+    contrasena character varying(255) NOT NULL,
+    rol_id integer NOT NULL,
+    estado public.estado_usuario_enum DEFAULT 'ACTIVO'::public.estado_usuario_enum NOT NULL,
+    intentos_fallidos smallint DEFAULT 0 NOT NULL,
+    ultimo_acceso timestamp without time zone,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    fecha_modificacion timestamp without time zone
+);
+
+
+--
+-- Name: TABLE usuario; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.usuario IS 'Proceso 02.1 — Gestión de usuarios';
+
+
+--
+-- Name: COLUMN usuario.nombre; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.usuario.nombre IS 'E-06: faltaba. HU 02.1.1.2 y 02.1.2.2';
+
+
+--
+-- Name: COLUMN usuario.correo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.usuario.correo IS 'E-35: UNIQUE';
+
+
+--
+-- Name: COLUMN usuario.contrasena; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.usuario.contrasena IS 'E-31: antes se llamaba "contraseña" con ñ. Guardar con hash';
+
+
+--
+-- Name: COLUMN usuario.fecha_creacion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.usuario.fecha_creacion IS 'E-07: exigido por HU 02.1.2.2';
+
+
+--
+-- Name: usuario_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.usuario ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.usuario_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: v_autorizaciones_activas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_autorizaciones_activas AS
+ SELECT a.id AS autorizacion_id,
+    a.usuario_id,
+    u.nombre AS usuario,
+    a.conductor_id,
+    c.nombre_apellidos AS conductor,
+    a.parqueadero_id,
+    p.nombre AS parqueadero,
+    a.dia_semana,
+    a.hora_inicio,
+    a.hora_fin,
+    a.fecha_inicio,
+    a.fecha_fin,
+    a.motivo,
+    a.estado
+   FROM (((public.autorizacion_acceso a
+     LEFT JOIN public.usuario u ON ((u.id = a.usuario_id)))
+     LEFT JOIN public.conductor c ON ((c.id = a.conductor_id)))
+     LEFT JOIN public.parqueadero p ON ((p.id = a.parqueadero_id)))
+  WHERE ((a.estado = true) AND ((a.fecha_inicio IS NULL) OR (a.fecha_inicio <= CURRENT_DATE)) AND ((a.fecha_fin IS NULL) OR (a.fecha_fin >= CURRENT_DATE)));
+
+
+--
+-- Name: v_celdas_disponibles; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_celdas_disponibles AS
+ SELECT c.id AS celda_id,
+    c.numero AS numero_celda,
+    c.tipo AS tipo_celda,
+    c.usabilidad,
+    c.estado AS estado_celda,
+    p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.ubicacion
+   FROM (public.celda c
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
+  WHERE ((c.estado = 'DISPONIBLE'::public.estado_celda_enum) AND (p.estado = true));
+
+
+--
+-- Name: vehiculo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.vehiculo (
+    id integer NOT NULL,
+    placa character varying(10),
+    tipo public.tipo_vehiculo_enum NOT NULL,
+    tarjeta_propiedad character varying(20),
+    marca character varying(100),
+    linea character varying(100),
+    modelo integer,
+    cilindraje integer,
+    color character varying(50),
+    servicio character varying(50),
+    carroceria character varying(100),
+    combustible character varying(50),
+    capacidad integer,
+    numero_motor character varying(100),
+    numero_chasis character varying(100),
+    observaciones character varying(255),
+    vehiculo_sena boolean DEFAULT false NOT NULL,
+    estado boolean DEFAULT true NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_vehiculo_placa_formato CHECK (((placa IS NULL) OR ((placa)::text = upper(regexp_replace(TRIM(BOTH FROM placa), '[^A-Za-z0-9]'::text, ''::text, 'g'::text))))),
+    CONSTRAINT ck_vehiculo_placa_por_tipo CHECK (((tipo = 'BICICLETA'::public.tipo_vehiculo_enum) OR (placa IS NOT NULL)))
+);
+
+
+--
+-- Name: TABLE vehiculo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.vehiculo IS 'Proceso 04.2 — Gestión de vehículos';
+
+
+--
+-- Name: COLUMN vehiculo.placa; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.vehiculo.placa IS 'E-34 UNIQUE (HU 07.2.1.1) · E-36 nullable: las bicicletas no tienen placa';
+
+
+--
+-- Name: COLUMN vehiculo.tarjeta_propiedad; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.vehiculo.tarjeta_propiedad IS 'E-29 ortografía (era tarjeta_porpiedad) · E-33 tipo';
+
+
+--
+-- Name: COLUMN vehiculo.modelo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.vehiculo.modelo IS 'E-13: año del vehículo. Antes era VARCHAR y se confundía con la línea';
+
+
+--
+-- Name: COLUMN vehiculo.carroceria; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.vehiculo.carroceria IS 'E-30: antes decía "carroseria"';
+
+
+--
+-- Name: v_celdas_estado_actual; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_celdas_estado_actual AS
+ SELECT c.id AS celda_id,
+    c.numero,
+    c.estado,
+    c.tipo,
+    c.usabilidad,
+    c.parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    oc.vehiculo_id,
+    v.placa,
+    v.marca,
+    v.modelo,
+    v.color,
+    co.id AS conductor_id,
+    co.nombre_apellidos AS conductor,
+    r.id AS reserva_id,
+    r.fecha_hora_inicio AS reserva_inicio,
+    r.fecha_hora_fin AS reserva_fin
+   FROM ((((((public.celda c
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
+     LEFT JOIN public.ocupacion_celda oc ON (((oc.celda_id = c.id) AND (oc.estado = 'ACTIVA'::public.estado_ocupacion_enum))))
+     LEFT JOIN public.vehiculo v ON ((v.id = oc.vehiculo_id)))
+     LEFT JOIN public.registro_acceso ra ON ((ra.id = oc.registro_acceso_id)))
+     LEFT JOIN public.conductor co ON ((co.id = COALESCE(ra.conductor_id, ( SELECT dp.conductor_id
+           FROM public.detalle_propiedad dp
+          WHERE ((dp.vehiculo_id = oc.vehiculo_id) AND (dp.es_principal = true) AND (dp.estado = true))
+         LIMIT 1)))))
+     LEFT JOIN public.reserva r ON (((r.celda_id = c.id) AND (r.estado = ANY (ARRAY['PENDIENTE'::public.estado_reserva_enum, 'ACEPTADA'::public.estado_reserva_enum])) AND ((CURRENT_TIMESTAMP >= r.fecha_hora_inicio) AND (CURRENT_TIMESTAMP <= r.fecha_hora_fin)))));
+
+
+--
+-- Name: v_comparativo_ocupacion_parqueaderos; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_comparativo_ocupacion_parqueaderos AS
+ SELECT p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    count(c.id) AS total_celdas,
+    count(c.id) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS celdas_disponibles,
+    count(c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS celdas_ocupadas,
+    count(c.id) FILTER (WHERE (c.estado = 'RESERVADA'::public.estado_celda_enum)) AS celdas_reservadas,
+    round(
+        CASE
+            WHEN (count(c.id) = 0) THEN (0)::numeric
+            ELSE (((count(c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)))::numeric / (count(c.id))::numeric) * (100)::numeric)
+        END, 2) AS porcentaje_ocupacion
+   FROM (public.parqueadero p
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+  GROUP BY p.id, p.nombre, p.zona, p.piso;
+
+
+--
+-- Name: v_conflictos_reservas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_conflictos_reservas AS
+ SELECT r1.id AS reserva_id,
+    r2.id AS reserva_conflicto_id,
+    r1.celda_id,
+    c.numero AS numero_celda,
+    p.nombre AS parqueadero,
+    r1.fecha_hora_inicio AS inicio_1,
+    r1.fecha_hora_fin AS fin_1,
+    r2.fecha_hora_inicio AS inicio_2,
+    r2.fecha_hora_fin AS fin_2
+   FROM (((public.reserva r1
+     JOIN public.reserva r2 ON (((r1.id < r2.id) AND (r1.celda_id = r2.celda_id) AND (r1.estado = ANY (ARRAY['PENDIENTE'::public.estado_reserva_enum, 'ACEPTADA'::public.estado_reserva_enum])) AND (r2.estado = ANY (ARRAY['PENDIENTE'::public.estado_reserva_enum, 'ACEPTADA'::public.estado_reserva_enum])) AND (r1.fecha_hora_inicio < r2.fecha_hora_fin) AND (r1.fecha_hora_fin > r2.fecha_hora_inicio))))
+     JOIN public.celda c ON ((c.id = r1.celda_id)))
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)));
+
+
+--
+-- Name: v_control_placas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_control_placas AS
+ SELECT v.id AS vehiculo_id,
+    v.placa,
+    v.marca,
+    v.modelo,
+    v.color,
+    v.tipo,
+    v.estado AS vehiculo_activo,
+        CASE
+            WHEN ((ra.id IS NOT NULL) AND (ra.fecha_hora_salida IS NULL)) THEN 'DENTRO'::text
+            ELSE 'FUERA'::text
+        END AS estado_ingreso_salida,
+    ra.id AS registro_acceso_id,
+    ra.fecha_hora_ingreso,
+    ra.fecha_hora_salida,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    c.numero AS celda,
+    co.nombre_apellidos AS propietario_conductor
+   FROM ((((public.vehiculo v
+     LEFT JOIN LATERAL ( SELECT ra2.id,
+            ra2.vehiculo_id,
+            ra2.conductor_id,
+            ra2.parqueadero_id,
+            ra2.celda_id,
+            ra2.reserva_id,
+            ra2.usuario_ingreso_id,
+            ra2.usuario_salida_id,
+            ra2.fecha_hora_ingreso,
+            ra2.fecha_hora_salida,
+            ra2.descripcion_ingreso,
+            ra2.descripcion_salida,
+            ra2.estado
+           FROM public.registro_acceso ra2
+          WHERE (ra2.vehiculo_id = v.id)
+          ORDER BY ra2.fecha_hora_ingreso DESC
+         LIMIT 1) ra ON (true))
+     LEFT JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.celda c ON ((c.id = ra.celda_id)))
+     LEFT JOIN LATERAL ( SELECT co2.id,
+            co2.usuario_id,
+            co2.tipo_documento,
+            co2.numero_documento,
+            co2.nombre_apellidos,
+            co2.correo,
+            co2.direccion,
+            co2.numero_telefonico,
+            co2.tipo_usuario_id,
+            co2.regional_formacion,
+            co2.centro_formacion,
+            co2.programa_formacion,
+            co2.vigencia,
+            co2.movilidad_reducida,
+            co2.estado,
+            co2.fecha_creacion
+           FROM (public.detalle_propiedad dp
+             JOIN public.conductor co2 ON ((co2.id = dp.conductor_id)))
+          WHERE ((dp.vehiculo_id = v.id) AND (dp.estado = true))
+          ORDER BY dp.es_principal DESC, dp.id
+         LIMIT 1) co ON (true));
+
+
+--
+-- Name: v_dashboard_desempeno; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_dashboard_desempeno AS
+ SELECT p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    count(DISTINCT c.id) AS total_celdas,
+    count(DISTINCT c.id) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS disponibles,
+    count(DISTINCT c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS ocupadas,
+    count(DISTINCT c.id) FILTER (WHERE (c.estado = 'RESERVADA'::public.estado_celda_enum)) AS reservadas,
+    count(DISTINCT ra.id) FILTER (WHERE (date(ra.fecha_hora_ingreso) = CURRENT_DATE)) AS ingresos_hoy,
+    count(DISTINCT ra.id) FILTER (WHERE (date(ra.fecha_hora_salida) = CURRENT_DATE)) AS salidas_hoy,
+    count(DISTINCT ra.vehiculo_id) FILTER (WHERE (ra.fecha_hora_salida IS NULL)) AS vehiculos_dentro,
+    round(
+        CASE
+            WHEN (count(DISTINCT c.id) = 0) THEN (0)::numeric
+            ELSE (((count(DISTINCT c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)))::numeric / (count(DISTINCT c.id))::numeric) * (100)::numeric)
+        END, 2) AS porcentaje_ocupacion
+   FROM ((public.parqueadero p
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+     LEFT JOIN public.registro_acceso ra ON ((ra.parqueadero_id = p.id)))
+  GROUP BY p.id, p.nombre, p.zona, p.piso;
+
+
+--
+-- Name: v_dashboard_parqueadero; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_dashboard_parqueadero AS
+ SELECT count(id) AS total_celdas,
+    count(id) FILTER (WHERE (estado = 'DISPONIBLE'::public.estado_celda_enum)) AS celdas_disponibles,
+    count(id) FILTER (WHERE (estado = 'OCUPADA'::public.estado_celda_enum)) AS celdas_ocupadas,
+    ( SELECT count(*) AS count
+           FROM public.registro_acceso ra
+          WHERE ((ra.fecha_hora_salida IS NULL) AND (ra.estado = 'DENTRO'::public.estado_acceso_enum))) AS vehiculos_estacionados,
+    ( SELECT count(*) AS count
+           FROM public.reserva r
+          WHERE ((r.estado = 'ACEPTADA'::public.estado_reserva_enum) AND (r.fecha_hora_fin >= CURRENT_TIMESTAMP))) AS reservas_activas,
+    ( SELECT count(*) AS count
+           FROM public.novedad n
+          WHERE (n.estado = ANY (ARRAY['PENDIENTE'::public.estado_novedad_enum, 'EN_PROCESO'::public.estado_novedad_enum]))) AS novedades_pendientes
+   FROM public.celda c;
+
+
+--
+-- Name: valoracion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.valoracion (
+    id integer NOT NULL,
+    encuesta_id integer NOT NULL,
+    usuario_id integer NOT NULL,
+    registro_acceso_id integer,
+    calificacion smallint NOT NULL,
+    comentario character varying(500),
+    fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_valoracion_calificacion CHECK (((calificacion >= 1) AND (calificacion <= 5)))
+);
+
+
+--
+-- Name: TABLE valoracion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.valoracion IS 'OPCIONAL — ver E-24';
+
+
+--
+-- Name: COLUMN valoracion.calificacion; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.valoracion.calificacion IS '1 a 5';
+
+
+--
+-- Name: v_desempeno_satisfaccion; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_desempeno_satisfaccion AS
+ SELECT e.id AS encuesta_id,
+    e.titulo,
+    count(v.id) AS total_valoraciones,
+    round(avg(v.calificacion), 2) AS promedio_calificacion,
+    count(v.id) FILTER (WHERE (v.calificacion >= 4)) AS valoraciones_positivas,
+    count(v.id) FILTER (WHERE (v.calificacion <= 2)) AS valoraciones_negativas
+   FROM (public.encuesta e
+     LEFT JOIN public.valoracion v ON ((v.encuesta_id = e.id)))
+  GROUP BY e.id, e.titulo;
+
+
+--
+-- Name: v_disponibilidad_por_vigilante; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_disponibilidad_por_vigilante AS
+ SELECT av.usuario_id AS vigilante_id,
+    u.nombre AS vigilante,
+    av.parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    av.turno,
+    av.fecha_inicio,
+    av.fecha_fin,
+    count(c.id) AS total_celdas,
+    count(c.id) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS libres,
+    count(c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS ocupadas,
+    count(c.id) FILTER (WHERE (c.estado = 'MANTENIMIENTO'::public.estado_celda_enum)) AS mantenimiento,
+    count(c.id) FILTER (WHERE (c.estado = 'RESERVADA'::public.estado_celda_enum)) AS reservadas
+   FROM (((public.asignacion_vigilante av
+     JOIN public.usuario u ON ((u.id = av.usuario_id)))
+     JOIN public.parqueadero p ON ((p.id = av.parqueadero_id)))
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+  GROUP BY av.usuario_id, u.nombre, av.parqueadero_id, p.nombre, p.zona, p.piso, av.turno, av.fecha_inicio, av.fecha_fin;
+
+
+--
+-- Name: v_historial_accesos; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_historial_accesos AS
+ SELECT ra.id AS registro_acceso_id,
+    v.placa,
+    v.tipo AS tipo_vehiculo,
+    co.nombre_apellidos AS conductor,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    c.numero AS celda,
+    ra.fecha_hora_ingreso,
+    ra.fecha_hora_salida,
+    round(
+        CASE
+            WHEN (ra.fecha_hora_salida IS NULL) THEN NULL::numeric
+            ELSE (EXTRACT(epoch FROM (ra.fecha_hora_salida - ra.fecha_hora_ingreso)) / 60.0)
+        END, 2) AS permanencia_minutos,
+    ra.estado,
+    ui.nombre AS vigilante_ingreso,
+    us.nombre AS vigilante_salida
+   FROM ((((((public.registro_acceso ra
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+     LEFT JOIN public.conductor co ON ((co.id = ra.conductor_id)))
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.celda c ON ((c.id = ra.celda_id)))
+     JOIN public.usuario ui ON ((ui.id = ra.usuario_ingreso_id)))
+     LEFT JOIN public.usuario us ON ((us.id = ra.usuario_salida_id)));
+
+
+--
+-- Name: v_historial_novedades; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_historial_novedades AS
+ SELECT h.id AS historial_id,
+    h.novedad_id,
+    n.tipo_novedad,
+    n.descripcion,
+    h.usuario_id,
+    u.nombre AS usuario,
+    h.accion,
+    h.estado_anterior,
+    h.estado_nuevo,
+    h.prioridad_anterior,
+    h.prioridad_nueva,
+    h.comentario,
+    h.fecha_hora
+   FROM ((public.historial_novedad h
+     JOIN public.novedad n ON ((n.id = h.novedad_id)))
+     JOIN public.usuario u ON ((u.id = h.usuario_id)))
+  ORDER BY h.fecha_hora DESC;
+
+
+--
+-- Name: v_incumplimientos_reservas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_incumplimientos_reservas AS
+ SELECT ra.id AS registro_acceso_id,
+    date(ra.fecha_hora_ingreso) AS fecha,
+    ra.fecha_hora_ingreso,
+    v.id AS vehiculo_id,
+    v.placa,
+    v.tipo AS tipo_vehiculo,
+    c.id AS celda_id,
+    c.numero AS numero_celda,
+    c.usabilidad AS tipo_espacio,
+    p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    co.id AS conductor_id,
+    co.nombre_apellidos AS conductor,
+    r.id AS reserva_id,
+    r.usuario_id AS usuario_reserva_id,
+    r.fecha_hora_inicio AS reserva_inicio,
+    r.fecha_hora_fin AS reserva_fin,
+        CASE
+            WHEN (r.id IS NULL) THEN 'SIN_RESERVA'::text
+            ELSE 'RESERVA_DE_OTRO_VEHICULO'::text
+        END AS tipo_incumplimiento
+   FROM (((((public.registro_acceso ra
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+     JOIN public.celda c ON ((c.id = ra.celda_id)))
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.conductor co ON ((co.id = ra.conductor_id)))
+     LEFT JOIN LATERAL ( SELECT r2.id,
+            r2.tipo_reserva,
+            r2.celda_id,
+            r2.usuario_id,
+            r2.conductor_id,
+            r2.vehiculo_id,
+            r2.motivo,
+            r2.fecha_hora_inicio,
+            r2.fecha_hora_fin,
+            r2.estado,
+            r2.usuario_gestiona_id,
+            r2.fecha_creacion
+           FROM public.reserva r2
+          WHERE ((r2.celda_id = ra.celda_id) AND (r2.estado = ANY (ARRAY['PENDIENTE'::public.estado_reserva_enum, 'ACEPTADA'::public.estado_reserva_enum])) AND (ra.fecha_hora_ingreso >= r2.fecha_hora_inicio) AND (ra.fecha_hora_ingreso < r2.fecha_hora_fin))
+          ORDER BY r2.fecha_hora_inicio
+         LIMIT 1) r ON (true))
+  WHERE ((c.usabilidad = ANY (ARRAY['MOVILIDAD_REDUCIDA'::public.usabilidad_enum, 'EJECUTIVO'::public.usabilidad_enum, 'VEHICULO_SENA'::public.usabilidad_enum])) AND ((r.id IS NULL) OR (r.vehiculo_id IS DISTINCT FROM ra.vehiculo_id)));
+
+
+--
+-- Name: v_novedades_pendientes; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_novedades_pendientes AS
+ SELECT id AS novedad_id,
+    tipo_novedad,
+    prioridad,
+    descripcion,
+    estado,
+    usuario_reporta_id,
+    usuario_asignado_id,
+    vehiculo_id,
+    celda_id,
+    parqueadero_id,
+    registro_acceso_id,
+    fecha_hora
+   FROM public.novedad n
+  WHERE (estado = ANY (ARRAY['PENDIENTE'::public.estado_novedad_enum, 'EN_PROCESO'::public.estado_novedad_enum]))
+  ORDER BY fecha_hora DESC;
+
+
+--
+-- Name: v_ocupacion_historica_parqueadero; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_ocupacion_historica_parqueadero AS
+ SELECT date(oc.fecha_hora_inicio) AS fecha,
+    oc.celda_id,
+    c.numero AS numero_celda,
+    p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso,
+    v.tipo AS tipo_vehiculo,
+    oc.fecha_hora_inicio,
+    oc.fecha_hora_fin,
+    (EXTRACT(hour FROM oc.fecha_hora_inicio))::integer AS hora_inicio,
+    round(
+        CASE
+            WHEN (oc.fecha_hora_fin IS NULL) THEN (EXTRACT(epoch FROM (CURRENT_TIMESTAMP - (oc.fecha_hora_inicio)::timestamp with time zone)) / 60.0)
+            ELSE (EXTRACT(epoch FROM (oc.fecha_hora_fin - oc.fecha_hora_inicio)) / 60.0)
+        END, 2) AS minutos_ocupacion
+   FROM (((public.ocupacion_celda oc
+     JOIN public.celda c ON ((c.id = oc.celda_id)))
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
+     JOIN public.vehiculo v ON ((v.id = oc.vehiculo_id)));
+
+
+--
+-- Name: v_ocupacion_hora_pico_valle; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_ocupacion_hora_pico_valle AS
+ WITH horas AS (
+         SELECT p.id AS parqueadero_id,
+            p.nombre AS parqueadero,
+            gs.hora,
+            count(c.id) AS total_celdas
+           FROM ((public.parqueadero p
+             LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+             CROSS JOIN LATERAL generate_series(0, 23) gs(hora))
+          GROUP BY p.id, p.nombre, gs.hora
+        ), ocupadas AS (
+         SELECT p.id AS parqueadero_id,
+            (EXTRACT(hour FROM gs.hora))::integer AS hora,
+            count(DISTINCT oc.celda_id) AS celdas_ocupadas
+           FROM (((public.ocupacion_celda oc
+             JOIN public.celda c ON ((c.id = oc.celda_id)))
+             JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
+             CROSS JOIN LATERAL generate_series((date_trunc('hour'::text, oc.fecha_hora_inicio))::timestamp with time zone, date_trunc('hour'::text, COALESCE((oc.fecha_hora_fin)::timestamp with time zone, CURRENT_TIMESTAMP)), '01:00:00'::interval) gs(hora))
+          GROUP BY p.id, (EXTRACT(hour FROM gs.hora))
+        )
+ SELECT h.parqueadero_id,
+    h.parqueadero,
+    h.hora,
+    h.total_celdas,
+    COALESCE(o.celdas_ocupadas, (0)::bigint) AS celdas_ocupadas,
+    round(
+        CASE
+            WHEN (h.total_celdas = 0) THEN (0)::numeric
+            ELSE (((COALESCE(o.celdas_ocupadas, (0)::bigint))::numeric / (h.total_celdas)::numeric) * (100)::numeric)
+        END, 2) AS porcentaje_ocupacion,
+        CASE
+            WHEN (round(
+            CASE
+                WHEN (h.total_celdas = 0) THEN (0)::numeric
+                ELSE (((COALESCE(o.celdas_ocupadas, (0)::bigint))::numeric / (h.total_celdas)::numeric) * (100)::numeric)
+            END, 2) >= (70)::numeric) THEN 'PICO'::text
+            ELSE 'VALLE'::text
+        END AS franja
+   FROM (horas h
+     LEFT JOIN ocupadas o ON (((o.parqueadero_id = h.parqueadero_id) AND (o.hora = h.hora))));
+
+
+--
+-- Name: v_ocupacion_por_franja; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_ocupacion_por_franja AS
+ SELECT ra.parqueadero_id,
+    p.nombre AS parqueadero,
+    (EXTRACT(hour FROM ra.fecha_hora_ingreso))::integer AS hora,
+    v.tipo AS tipo_vehiculo,
+    count(*) AS ingresos,
+    count(*) FILTER (WHERE (ra.fecha_hora_salida IS NULL)) AS activos
+   FROM ((public.registro_acceso ra
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+  GROUP BY ra.parqueadero_id, p.nombre, (EXTRACT(hour FROM ra.fecha_hora_ingreso)), v.tipo;
+
+
+--
+-- Name: v_ocupacion_por_hora; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_ocupacion_por_hora AS
+ SELECT date_trunc('hour'::text, fecha_hora_ingreso) AS hora,
+    count(*) AS ingresos,
+    count(*) FILTER (WHERE (fecha_hora_salida IS NULL)) AS actualmente_estacionados,
+    count(*) FILTER (WHERE (fecha_hora_salida IS NOT NULL)) AS salidas
+   FROM public.registro_acceso ra
+  GROUP BY (date_trunc('hour'::text, fecha_hora_ingreso))
+  ORDER BY (date_trunc('hour'::text, fecha_hora_ingreso)) DESC;
+
+
+--
+-- Name: v_parqueaderos_con_capacidad; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_parqueaderos_con_capacidad AS
+ SELECT p.id AS parqueadero_id,
+    p.nombre,
+    p.ubicacion,
+    p.zona,
+    p.piso,
+    p.acceso,
+    p.capacidad_maxima,
+    count(c.id) AS celdas_registradas,
+    count(c.id) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS disponibles,
+    count(c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS ocupadas,
+    count(c.id) FILTER (WHERE (c.estado = 'RESERVADA'::public.estado_celda_enum)) AS reservadas,
+    count(c.id) FILTER (WHERE (c.estado = 'MANTENIMIENTO'::public.estado_celda_enum)) AS mantenimiento,
+    count(c.id) FILTER (WHERE (c.estado = 'INACTIVA'::public.estado_celda_enum)) AS inactivas,
+    p.estado
+   FROM (public.parqueadero p
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+  GROUP BY p.id, p.nombre, p.ubicacion, p.zona, p.piso, p.acceso, p.capacidad_maxima, p.estado;
+
+
+--
+-- Name: v_reconocimiento_placas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_reconocimiento_placas AS
+ SELECT cp.id AS captura_id,
+    cp.placa_detectada,
+    cp.placa_normalizada,
+    cp.confianza,
+    cp.motor_ocr,
+    cp.procesada,
+    cp.verificada,
+    cp.direccion_captura,
+    cp.fecha_hora,
+    cp.fecha_procesamiento,
+    cp.error_ocr,
+    cp.vehiculo_id,
+    v.placa AS placa_registrada,
+    v.tipo AS tipo_vehiculo,
+    cp.parqueadero_id,
+    p.nombre AS parqueadero,
+    cp.registro_acceso_id
+   FROM ((public.captura_placa cp
+     LEFT JOIN public.vehiculo v ON ((v.id = cp.vehiculo_id)))
+     JOIN public.parqueadero p ON ((p.id = cp.parqueadero_id)));
+
+
+--
+-- Name: v_reservas_activas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_reservas_activas AS
+ SELECT r.id AS reserva_id,
+    r.tipo_reserva,
+    r.usuario_id,
+    r.conductor_id,
+    r.vehiculo_id,
+    v.placa,
+    r.celda_id,
+    c.numero AS numero_celda,
+    r.fecha_hora_inicio,
+    r.fecha_hora_fin,
+    r.estado,
+    r.motivo
+   FROM ((public.reserva r
+     JOIN public.vehiculo v ON ((v.id = r.vehiculo_id)))
+     LEFT JOIN public.celda c ON ((c.id = r.celda_id)))
+  WHERE ((r.estado = ANY (ARRAY['PENDIENTE'::public.estado_reserva_enum, 'ACEPTADA'::public.estado_reserva_enum])) AND (r.fecha_hora_fin >= CURRENT_TIMESTAMP));
+
+
+--
+-- Name: v_reservas_celdas_exclusivas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_reservas_celdas_exclusivas AS
+ SELECT r.id AS reserva_id,
+    r.tipo_reserva,
+    r.estado,
+    r.fecha_hora_inicio,
+    r.fecha_hora_fin,
+    v.placa,
+    v.tipo AS tipo_vehiculo,
+    u.nombre AS usuario,
+    c.numero AS numero_celda,
+    c.tipo AS tipo_celda,
+    c.usabilidad AS tipo_espacio,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso
+   FROM ((((public.reserva r
+     JOIN public.celda c ON ((c.id = r.celda_id)))
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
+     LEFT JOIN public.vehiculo v ON ((v.id = r.vehiculo_id)))
+     JOIN public.usuario u ON ((u.id = r.usuario_id)))
+  WHERE (c.usabilidad = ANY (ARRAY['MOVILIDAD_REDUCIDA'::public.usabilidad_enum, 'EJECUTIVO'::public.usabilidad_enum, 'VEHICULO_SENA'::public.usabilidad_enum]));
+
+
+--
+-- Name: v_reservas_con_detalle; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_reservas_con_detalle AS
+ SELECT r.id AS reserva_id,
+    r.tipo_reserva,
+    r.estado,
+    r.fecha_hora_inicio,
+    r.fecha_hora_fin,
+    r.motivo,
+    r.usuario_id,
+    u.nombre AS usuario,
+    r.conductor_id,
+    co.nombre_apellidos AS conductor,
+    r.vehiculo_id,
+    v.placa,
+    v.tipo AS tipo_vehiculo,
+    r.celda_id,
+    c.numero AS numero_celda,
+    c.tipo AS tipo_celda,
+    c.usabilidad AS tipo_espacio,
+    p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    p.zona,
+    p.piso
+   FROM (((((public.reserva r
+     JOIN public.usuario u ON ((u.id = r.usuario_id)))
+     LEFT JOIN public.conductor co ON ((co.id = r.conductor_id)))
+     LEFT JOIN public.vehiculo v ON ((v.id = r.vehiculo_id)))
+     JOIN public.celda c ON ((c.id = r.celda_id)))
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)));
+
+
+--
+-- Name: v_resumen_celdas; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_resumen_celdas AS
+ SELECT p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    count(c.id) AS total_celdas,
+    count(c.id) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS celdas_disponibles,
+    count(c.id) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS celdas_ocupadas,
+    count(c.id) FILTER (WHERE (c.estado = ANY (ARRAY['RESERVADA'::public.estado_celda_enum, 'MANTENIMIENTO'::public.estado_celda_enum, 'INACTIVA'::public.estado_celda_enum]))) AS celdas_no_disponibles
+   FROM (public.parqueadero p
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+  GROUP BY p.id, p.nombre;
+
+
+--
+-- Name: v_rotacion_diaria; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_rotacion_diaria AS
+ SELECT date(ra.fecha_hora_ingreso) AS fecha,
+    ra.parqueadero_id,
+    p.nombre AS parqueadero,
+    ra.celda_id,
+    c.numero AS numero_celda,
+    count(DISTINCT ra.vehiculo_id) AS vehiculos_diferentes,
+    count(*) AS ingresos,
+    count(*) FILTER (WHERE (ra.fecha_hora_salida IS NOT NULL)) AS salidas,
+    round(avg((EXTRACT(epoch FROM (ra.fecha_hora_salida - ra.fecha_hora_ingreso)) / 60.0)), 2) AS permanencia_promedio_minutos
+   FROM ((public.registro_acceso ra
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.celda c ON ((c.id = ra.celda_id)))
+  GROUP BY (date(ra.fecha_hora_ingreso)), ra.parqueadero_id, p.nombre, ra.celda_id, c.numero;
+
+
+--
+-- Name: v_uso_por_tipo_usuario; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_uso_por_tipo_usuario AS
+ SELECT p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    tu.id AS tipo_usuario_id,
+    tu.nombre AS tipo_usuario,
+    count(ra.id) AS movimientos,
+    count(ra.id) FILTER (WHERE (ra.fecha_hora_salida IS NULL)) AS actualmente_dentro
+   FROM (((public.registro_acceso ra
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.conductor c ON ((c.id = ra.conductor_id)))
+     LEFT JOIN public.tipo_usuario tu ON ((tu.id = c.tipo_usuario_id)))
+  GROUP BY p.id, p.nombre, tu.id, tu.nombre;
+
+
+--
+-- Name: v_vehiculo_conductor; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_vehiculo_conductor AS
+ SELECT v.id AS vehiculo_id,
+    v.placa,
+    v.tipo,
+    v.marca,
+    v.linea,
+    v.color,
+    v.vehiculo_sena,
+    co.id AS conductor_id,
+    co.nombre_apellidos AS conductor,
+    co.numero_documento,
+    co.correo
+   FROM ((public.vehiculo v
+     LEFT JOIN public.detalle_propiedad dp ON (((dp.vehiculo_id = v.id) AND (dp.es_principal = true) AND (dp.estado = true))))
+     LEFT JOIN public.conductor co ON ((co.id = dp.conductor_id)));
+
+
+--
+-- Name: v_vehiculos_estacionados; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_vehiculos_estacionados AS
+ SELECT ra.id AS registro_acceso_id,
+    v.id AS vehiculo_id,
+    v.placa,
+    v.tipo,
+    v.marca,
+    v.linea,
+    c.id AS celda_id,
+    c.numero AS numero_celda,
+    p.id AS parqueadero_id,
+    p.nombre AS parqueadero,
+    ra.fecha_hora_ingreso,
+    ra.descripcion_ingreso
+   FROM (((public.registro_acceso ra
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+     LEFT JOIN public.celda c ON ((c.id = ra.celda_id)))
+     LEFT JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+  WHERE ((ra.fecha_hora_salida IS NULL) AND (ra.estado = 'DENTRO'::public.estado_acceso_enum));
+
+
+--
+-- Name: valoracion_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.valoracion ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.valoracion_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: vehiculo_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.vehiculo ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.vehiculo_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Data for Name: asignacion_vigilante; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: auditoria; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.auditoria (id, tabla_afectada, registro_id, accion, usuario_id, fecha_hora, motivo, valor_anterior, valor_nuevo) VALUES (1, 'parqueadero', 1, 'CREAR', 1, '2026-08-09 23:08:57.206903', 'Carga inicial del sistema', NULL, '{"id": 1, "piso": null, "zona": null, "acceso": "REGIONAL", "estado": true, "nombre": "Torre Sur", "plano_url": null, "ubicacion": "Acceso Regional - Torre Sur", "hora_cierre": "22:00:00", "hora_apertura": "05:00:00", "observaciones": null, "capacidad_maxima": 0}');
+INSERT INTO public.auditoria (id, tabla_afectada, registro_id, accion, usuario_id, fecha_hora, motivo, valor_anterior, valor_nuevo) VALUES (2, 'parqueadero', 2, 'CREAR', 1, '2026-08-09 23:08:57.206903', 'Carga inicial del sistema', NULL, '{"id": 2, "piso": null, "zona": null, "acceso": "REGIONAL", "estado": true, "nombre": "Portería Regional", "plano_url": null, "ubicacion": "Acceso Regional - aledaño a portería", "hora_cierre": "22:00:00", "hora_apertura": "05:00:00", "observaciones": null, "capacidad_maxima": 0}');
+INSERT INTO public.auditoria (id, tabla_afectada, registro_id, accion, usuario_id, fecha_hora, motivo, valor_anterior, valor_nuevo) VALUES (3, 'parqueadero', 3, 'CREAR', 1, '2026-08-09 23:08:57.206903', 'Carga inicial del sistema', NULL, '{"id": 3, "piso": null, "zona": null, "acceso": "REGIONAL", "estado": true, "nombre": "Sótano Torre Norte", "plano_url": null, "ubicacion": "Acceso Regional - sótano Torre Norte", "hora_cierre": "22:00:00", "hora_apertura": "05:00:00", "observaciones": null, "capacidad_maxima": 0}');
+INSERT INTO public.auditoria (id, tabla_afectada, registro_id, accion, usuario_id, fecha_hora, motivo, valor_anterior, valor_nuevo) VALUES (4, 'parqueadero', 4, 'CREAR', 1, '2026-08-09 23:08:57.206903', 'Carga inicial del sistema', NULL, '{"id": 4, "piso": null, "zona": null, "acceso": "REGIONAL", "estado": true, "nombre": "Motos Torre Norte", "plano_url": null, "ubicacion": "Acceso Regional - aledaño Torre Norte", "hora_cierre": "22:00:00", "hora_apertura": "05:00:00", "observaciones": null, "capacidad_maxima": 0}');
+INSERT INTO public.auditoria (id, tabla_afectada, registro_id, accion, usuario_id, fecha_hora, motivo, valor_anterior, valor_nuevo) VALUES (5, 'parqueadero', 5, 'CREAR', 1, '2026-08-09 23:08:57.206903', 'Carga inicial del sistema', NULL, '{"id": 5, "piso": null, "zona": null, "acceso": "AVENIDA_BOYACA", "estado": true, "nombre": "Avenida Boyacá", "plano_url": null, "ubicacion": "Acceso Avenida Boyacá", "hora_cierre": "22:00:00", "hora_apertura": "05:00:00", "observaciones": null, "capacidad_maxima": 0}');
+
+
+--
+-- Data for Name: autorizacion_acceso; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: captura_placa; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: celda; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: conductor; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: detalle_propiedad; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: disponibilidad_celda; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: encuesta; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: equipamiento_parqueadero; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: evidencia_novedad; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: historial_celda; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: historial_disponibilidad_celda; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: historial_novedad; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: historial_parqueadero; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.historial_parqueadero (id, parqueadero_id, usuario_id, accion, estado_anterior, estado_nuevo, motivo, fecha_hora) VALUES (1, 1, 1, 'CREAR', NULL, true, 'Carga inicial del sistema', '2026-08-09 23:08:57.206903');
+INSERT INTO public.historial_parqueadero (id, parqueadero_id, usuario_id, accion, estado_anterior, estado_nuevo, motivo, fecha_hora) VALUES (2, 2, 1, 'CREAR', NULL, true, 'Carga inicial del sistema', '2026-08-09 23:08:57.206903');
+INSERT INTO public.historial_parqueadero (id, parqueadero_id, usuario_id, accion, estado_anterior, estado_nuevo, motivo, fecha_hora) VALUES (3, 3, 1, 'CREAR', NULL, true, 'Carga inicial del sistema', '2026-08-09 23:08:57.206903');
+INSERT INTO public.historial_parqueadero (id, parqueadero_id, usuario_id, accion, estado_anterior, estado_nuevo, motivo, fecha_hora) VALUES (4, 4, 1, 'CREAR', NULL, true, 'Carga inicial del sistema', '2026-08-09 23:08:57.206903');
+INSERT INTO public.historial_parqueadero (id, parqueadero_id, usuario_id, accion, estado_anterior, estado_nuevo, motivo, fecha_hora) VALUES (5, 5, 1, 'CREAR', NULL, true, 'Carga inicial del sistema', '2026-08-09 23:08:57.206903');
+
+
+--
+-- Data for Name: historial_reserva; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: intento_ocr; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: licencia_conduccion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: modulo; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (1, 'Configuración', 'Roles y permisos', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (2, 'Usuarios', 'Gestión de usuarios y acceso', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (3, 'Parqueaderos', 'Parqueaderos y celdas', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (4, 'Control de Ingreso', 'Conductores, vehículos y asignación de celda', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (5, 'Control de Salida', 'Registro de salida de vehículos', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (6, 'Reservas', 'Reservas y disponibilidad de celdas', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (7, 'Novedades', 'Incidentes y reconocimiento de placa', true);
+INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (8, 'Medición y Desempeño', 'Reportes e indicadores', true);
+
+
+--
+-- Data for Name: notificacion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: novedad; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: ocupacion_celda; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: parqueadero; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (1, 'Torre Sur', 'Acceso Regional - Torre Sur', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (2, 'Portería Regional', 'Acceso Regional - aledaño a portería', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (3, 'Sótano Torre Norte', 'Acceso Regional - sótano Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (4, 'Motos Torre Norte', 'Acceso Regional - aledaño Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (5, 'Avenida Boyacá', 'Acceso Avenida Boyacá', 'AVENIDA_BOYACA', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+
+
+--
+-- Data for Name: parqueadero_ip_autorizada; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: permiso; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (1, 1, 'configuracion.gestionar', 'Gestionar roles y permisos', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (2, 2, 'usuarios.consultar', 'Consultar usuarios', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (3, 2, 'usuarios.gestionar', 'Gestionar usuarios', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (4, 3, 'parqueaderos.consultar', 'Consultar parqueaderos y celdas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (5, 3, 'parqueaderos.gestionar', 'Gestionar parqueaderos y celdas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (6, 4, 'ingreso.consultar', 'Consultar ingresos', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (7, 4, 'ingreso.gestionar', 'Registrar ingresos y asignar celdas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (8, 5, 'salida.consultar', 'Consultar salidas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (9, 5, 'salida.gestionar', 'Registrar salidas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (10, 6, 'reservas.consultar', 'Consultar reservas y disponibilidad', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (11, 6, 'reservas.gestionar', 'Crear y aprobar reservas', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (12, 7, 'novedades.consultar', 'Consultar novedades', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (13, 7, 'novedades.gestionar', 'Registrar y atender novedades', true);
+INSERT INTO public.permiso (id, modulo_id, nombre, descripcion, estado) VALUES (14, 8, 'reportes.consultar', 'Ver dashboard y generar reportes', true);
+
+
+--
+-- Data for Name: recuperacion_password; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: registro_acceso; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: reserva; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: rol; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.rol (id, nombre, descripcion, estado, fecha_creacion) VALUES (1, 'Administrador', 'Acceso total al aplicativo', true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol (id, nombre, descripcion, estado, fecha_creacion) VALUES (2, 'Vigilante', 'Personal de vigilancia del parqueadero', true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol (id, nombre, descripcion, estado, fecha_creacion) VALUES (3, 'Conductor', 'Usuario de la comunidad SENA que parquea', true, '2026-08-09 23:08:57.206903');
+
+
+--
+-- Data for Name: rol_permiso; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (1, 1, 1, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (2, 1, 2, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (3, 1, 3, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (4, 1, 4, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (5, 1, 5, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (6, 1, 6, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (7, 1, 7, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (8, 1, 8, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (9, 1, 9, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (10, 1, 10, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (11, 1, 11, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (12, 1, 12, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (13, 1, 13, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (14, 1, 14, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (15, 2, 4, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (16, 2, 6, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (17, 2, 7, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (18, 2, 8, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (19, 2, 9, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (20, 2, 10, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (21, 2, 11, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (22, 2, 12, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (23, 2, 13, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (24, 3, 4, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (25, 3, 6, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (26, 3, 10, true, '2026-08-09 23:08:57.206903');
+INSERT INTO public.rol_permiso (id, rol_id, permiso_id, estado, fecha_asignacion) VALUES (27, 3, 12, true, '2026-08-09 23:08:57.206903');
+
+
+--
+-- Data for Name: tipo_usuario; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (1, 'Aprendiz', 'Aprendiz activo en formación', true);
+INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (2, 'Instructor', 'Instructor de planta o contratista', true);
+INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (3, 'Administrativo', 'Funcionario administrativo del SENA', true);
+INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (4, 'Contratista', 'Personal contratista', true);
+INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (5, 'Visitante', 'Visitante ocasional', true);
+
+
+--
+-- Data for Name: usuario; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.usuario (id, nombre, correo, contrasena, rol_id, estado, intentos_fallidos, ultimo_acceso, fecha_creacion, fecha_modificacion) VALUES (1, 'Administrador ParkU', 'admin@parku.sena.edu.co', '$2y$10$CAMBIAR_ESTE_HASH_EN_PRODUCCION', 1, 'ACTIVO', 0, NULL, '2026-08-09 23:08:57.206903', NULL);
+
+
+--
+-- Data for Name: valoracion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: vehiculo; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Name: asignacion_vigilante_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.asignacion_vigilante_id_seq', 1, false);
+
+
+--
+-- Name: auditoria_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.auditoria_id_seq', 5, true);
+
+
+--
+-- Name: autorizacion_acceso_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.autorizacion_acceso_id_seq', 1, false);
+
+
+--
+-- Name: captura_placa_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.captura_placa_id_seq', 1, false);
+
+
+--
+-- Name: celda_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.celda_id_seq', 1, false);
+
+
+--
+-- Name: conductor_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.conductor_id_seq', 1, false);
+
+
+--
+-- Name: detalle_propiedad_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.detalle_propiedad_id_seq', 1, false);
+
+
+--
+-- Name: disponibilidad_celda_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.disponibilidad_celda_id_seq', 1, false);
+
+
+--
+-- Name: encuesta_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.encuesta_id_seq', 1, false);
+
+
+--
+-- Name: equipamiento_parqueadero_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.equipamiento_parqueadero_id_seq', 1, false);
+
+
+--
+-- Name: evidencia_novedad_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.evidencia_novedad_id_seq', 1, false);
+
+
+--
+-- Name: historial_celda_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.historial_celda_id_seq', 1, false);
+
+
+--
+-- Name: historial_disponibilidad_celda_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.historial_disponibilidad_celda_id_seq', 1, false);
+
+
+--
+-- Name: historial_novedad_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.historial_novedad_id_seq', 1, false);
+
+
+--
+-- Name: historial_parqueadero_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.historial_parqueadero_id_seq', 5, true);
+
+
+--
+-- Name: historial_reserva_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.historial_reserva_id_seq', 1, false);
+
+
+--
+-- Name: intento_ocr_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.intento_ocr_id_seq', 1, false);
+
+
+--
+-- Name: licencia_conduccion_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.licencia_conduccion_id_seq', 1, false);
+
+
+--
+-- Name: modulo_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.modulo_id_seq', 8, true);
+
+
+--
+-- Name: notificacion_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.notificacion_id_seq', 1, false);
+
+
+--
+-- Name: novedad_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.novedad_id_seq', 1, false);
+
+
+--
+-- Name: ocupacion_celda_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.ocupacion_celda_id_seq', 1, false);
+
+
+--
+-- Name: parqueadero_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.parqueadero_id_seq', 5, true);
+
+
+--
+-- Name: parqueadero_ip_autorizada_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.parqueadero_ip_autorizada_id_seq', 1, false);
+
+
+--
+-- Name: permiso_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.permiso_id_seq', 14, true);
+
+
+--
+-- Name: recuperacion_password_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.recuperacion_password_id_seq', 1, false);
+
+
+--
+-- Name: registro_acceso_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.registro_acceso_id_seq', 1, false);
+
+
+--
+-- Name: reserva_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.reserva_id_seq', 1, false);
+
+
+--
+-- Name: rol_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.rol_id_seq', 3, true);
+
+
+--
+-- Name: rol_permiso_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.rol_permiso_id_seq', 27, true);
+
+
+--
+-- Name: tipo_usuario_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.tipo_usuario_id_seq', 5, true);
+
+
+--
+-- Name: usuario_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.usuario_id_seq', 1, true);
+
+
+--
+-- Name: valoracion_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.valoracion_id_seq', 1, false);
+
+
+--
+-- Name: vehiculo_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.vehiculo_id_seq', 1, false);
+
+
+--
+-- Name: asignacion_vigilante asignacion_vigilante_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.asignacion_vigilante
+    ADD CONSTRAINT asignacion_vigilante_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auditoria auditoria_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auditoria
+    ADD CONSTRAINT auditoria_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: autorizacion_acceso autorizacion_acceso_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.autorizacion_acceso
+    ADD CONSTRAINT autorizacion_acceso_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: captura_placa captura_placa_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.captura_placa
+    ADD CONSTRAINT captura_placa_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: celda celda_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.celda
+    ADD CONSTRAINT celda_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: conductor conductor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.conductor
+    ADD CONSTRAINT conductor_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: conductor conductor_usuario_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.conductor
+    ADD CONSTRAINT conductor_usuario_id_key UNIQUE (usuario_id);
+
+
+--
+-- Name: detalle_propiedad detalle_propiedad_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.detalle_propiedad
+    ADD CONSTRAINT detalle_propiedad_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: disponibilidad_celda disponibilidad_celda_celda_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disponibilidad_celda
+    ADD CONSTRAINT disponibilidad_celda_celda_id_key UNIQUE (celda_id);
+
+
+--
+-- Name: disponibilidad_celda disponibilidad_celda_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disponibilidad_celda
+    ADD CONSTRAINT disponibilidad_celda_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: encuesta encuesta_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.encuesta
+    ADD CONSTRAINT encuesta_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: equipamiento_parqueadero equipamiento_parqueadero_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.equipamiento_parqueadero
+    ADD CONSTRAINT equipamiento_parqueadero_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: evidencia_novedad evidencia_novedad_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidencia_novedad
+    ADD CONSTRAINT evidencia_novedad_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: historial_celda historial_celda_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_celda
+    ADD CONSTRAINT historial_celda_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: historial_disponibilidad_celda historial_disponibilidad_celda_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_disponibilidad_celda
+    ADD CONSTRAINT historial_disponibilidad_celda_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: historial_novedad historial_novedad_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_novedad
+    ADD CONSTRAINT historial_novedad_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: historial_parqueadero historial_parqueadero_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_parqueadero
+    ADD CONSTRAINT historial_parqueadero_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: historial_reserva historial_reserva_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_reserva
+    ADD CONSTRAINT historial_reserva_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: intento_ocr intento_ocr_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.intento_ocr
+    ADD CONSTRAINT intento_ocr_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: licencia_conduccion licencia_conduccion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.licencia_conduccion
+    ADD CONSTRAINT licencia_conduccion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: modulo modulo_nombre_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.modulo
+    ADD CONSTRAINT modulo_nombre_key UNIQUE (nombre);
+
+
+--
+-- Name: modulo modulo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.modulo
+    ADD CONSTRAINT modulo_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notificacion notificacion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notificacion
+    ADD CONSTRAINT notificacion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: novedad novedad_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: parqueadero_ip_autorizada parqueadero_ip_autorizada_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parqueadero_ip_autorizada
+    ADD CONSTRAINT parqueadero_ip_autorizada_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: parqueadero parqueadero_nombre_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parqueadero
+    ADD CONSTRAINT parqueadero_nombre_key UNIQUE (nombre);
+
+
+--
+-- Name: parqueadero parqueadero_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parqueadero
+    ADD CONSTRAINT parqueadero_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: permiso permiso_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permiso
+    ADD CONSTRAINT permiso_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: recuperacion_password recuperacion_password_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recuperacion_password
+    ADD CONSTRAINT recuperacion_password_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: recuperacion_password recuperacion_password_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recuperacion_password
+    ADD CONSTRAINT recuperacion_password_token_key UNIQUE (token);
+
+
+--
+-- Name: registro_acceso registro_acceso_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: reserva reserva_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rol rol_nombre_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rol
+    ADD CONSTRAINT rol_nombre_key UNIQUE (nombre);
+
+
+--
+-- Name: rol_permiso rol_permiso_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rol_permiso
+    ADD CONSTRAINT rol_permiso_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rol rol_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rol
+    ADD CONSTRAINT rol_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tipo_usuario tipo_usuario_nombre_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tipo_usuario
+    ADD CONSTRAINT tipo_usuario_nombre_key UNIQUE (nombre);
+
+
+--
+-- Name: tipo_usuario tipo_usuario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tipo_usuario
+    ADD CONSTRAINT tipo_usuario_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: detalle_propiedad uq_detalle_propiedad; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.detalle_propiedad
+    ADD CONSTRAINT uq_detalle_propiedad UNIQUE (conductor_id, vehiculo_id);
+
+
+--
+-- Name: parqueadero_ip_autorizada uq_ip_parqueadero; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parqueadero_ip_autorizada
+    ADD CONSTRAINT uq_ip_parqueadero UNIQUE (parqueadero_id, direccion_ip);
+
+
+--
+-- Name: usuario usuario_correo_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.usuario
+    ADD CONSTRAINT usuario_correo_key UNIQUE (correo);
+
+
+--
+-- Name: usuario usuario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.usuario
+    ADD CONSTRAINT usuario_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: valoracion valoracion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.valoracion
+    ADD CONSTRAINT valoracion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vehiculo vehiculo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.vehiculo
+    ADD CONSTRAINT vehiculo_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vehiculo vehiculo_placa_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.vehiculo
+    ADD CONSTRAINT vehiculo_placa_key UNIQUE (placa);
+
+
+--
+-- Name: auditoria_tabla_afectada_registro_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auditoria_tabla_afectada_registro_id_idx ON public.auditoria USING btree (tabla_afectada, registro_id);
+
+
+--
+-- Name: celda_parqueadero_id_estado_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX celda_parqueadero_id_estado_idx ON public.celda USING btree (parqueadero_id, estado);
+
+
+--
+-- Name: celda_parqueadero_id_numero_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX celda_parqueadero_id_numero_idx ON public.celda USING btree (parqueadero_id, numero);
+
+
+--
+-- Name: conductor_tipo_documento_numero_documento_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX conductor_tipo_documento_numero_documento_idx ON public.conductor USING btree (tipo_documento, numero_documento);
+
+
+--
+-- Name: idx_asignacion_vigilante_actual; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_asignacion_vigilante_actual ON public.asignacion_vigilante USING btree (usuario_id, parqueadero_id, fecha_inicio, fecha_fin, estado);
+
+
+--
+-- Name: idx_auditoria_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auditoria_fecha ON public.auditoria USING btree (fecha_hora);
+
+
+--
+-- Name: idx_auditoria_tabla; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auditoria_tabla ON public.auditoria USING btree (tabla_afectada);
+
+
+--
+-- Name: idx_auditoria_usuario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auditoria_usuario ON public.auditoria USING btree (usuario_id);
+
+
+--
+-- Name: idx_auditoria_usuario_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auditoria_usuario_fecha ON public.auditoria USING btree (usuario_id, fecha_hora);
+
+
+--
+-- Name: idx_autorizacion_conductor_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_autorizacion_conductor_estado ON public.autorizacion_acceso USING btree (conductor_id, estado);
+
+
+--
+-- Name: idx_autorizacion_horario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_autorizacion_horario ON public.autorizacion_acceso USING btree (dia_semana, hora_inicio, hora_fin);
+
+
+--
+-- Name: idx_autorizacion_parqueadero; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_autorizacion_parqueadero ON public.autorizacion_acceso USING btree (parqueadero_id, estado);
+
+
+--
+-- Name: idx_autorizacion_usuario_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_autorizacion_usuario_estado ON public.autorizacion_acceso USING btree (usuario_id, estado);
+
+
+--
+-- Name: idx_captura_placa_detectada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_captura_placa_detectada ON public.captura_placa USING btree (placa_detectada);
+
+
+--
+-- Name: idx_captura_placa_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_captura_placa_fecha ON public.captura_placa USING btree (fecha_hora);
+
+
+--
+-- Name: idx_captura_placa_normalizada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_captura_placa_normalizada ON public.captura_placa USING btree (placa_normalizada);
+
+
+--
+-- Name: idx_captura_placa_procesada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_captura_placa_procesada ON public.captura_placa USING btree (procesada, fecha_hora);
+
+
+--
+-- Name: idx_captura_placa_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_captura_placa_vehiculo ON public.captura_placa USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_celda_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_celda_estado ON public.celda USING btree (estado);
+
+
+--
+-- Name: idx_celda_parqueadero_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_celda_parqueadero_id ON public.celda USING btree (parqueadero_id);
+
+
+--
+-- Name: idx_celda_tipo_usabilidad; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_celda_tipo_usabilidad ON public.celda USING btree (tipo, usabilidad, estado);
+
+
+--
+-- Name: idx_conductor_documento; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_conductor_documento ON public.conductor USING btree (numero_documento);
+
+
+--
+-- Name: idx_conductor_usuario_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_conductor_usuario_id ON public.conductor USING btree (usuario_id);
+
+
+--
+-- Name: idx_detalle_propiedad_conductor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_detalle_propiedad_conductor ON public.detalle_propiedad USING btree (conductor_id);
+
+
+--
+-- Name: idx_detalle_propiedad_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_detalle_propiedad_vehiculo ON public.detalle_propiedad USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_disponibilidad_celda_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_disponibilidad_celda_estado ON public.disponibilidad_celda USING btree (estado);
+
+
+--
+-- Name: idx_equipamiento_parqueadero; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_equipamiento_parqueadero ON public.equipamiento_parqueadero USING btree (parqueadero_id, tipo, estado);
+
+
+--
+-- Name: idx_hist_disponibilidad_celda_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_hist_disponibilidad_celda_fecha ON public.historial_disponibilidad_celda USING btree (celda_id, fecha_hora);
+
+
+--
+-- Name: idx_historial_novedad_novedad_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historial_novedad_novedad_fecha ON public.historial_novedad USING btree (novedad_id, fecha_hora);
+
+
+--
+-- Name: idx_historial_novedad_usuario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historial_novedad_usuario ON public.historial_novedad USING btree (usuario_id, fecha_hora);
+
+
+--
+-- Name: idx_historial_reserva_reserva_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_historial_reserva_reserva_fecha ON public.historial_reserva USING btree (reserva_id, fecha_hora);
+
+
+--
+-- Name: idx_intento_ocr_captura; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_intento_ocr_captura ON public.intento_ocr USING btree (captura_placa_id);
+
+
+--
+-- Name: idx_intento_ocr_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_intento_ocr_fecha ON public.intento_ocr USING btree (fecha_hora);
+
+
+--
+-- Name: idx_intento_ocr_placa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_intento_ocr_placa ON public.intento_ocr USING btree (placa_normalizada);
+
+
+--
+-- Name: idx_notificacion_leida; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notificacion_leida ON public.notificacion USING btree (leida);
+
+
+--
+-- Name: idx_notificacion_usuario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_notificacion_usuario ON public.notificacion USING btree (usuario_id);
+
+
+--
+-- Name: idx_novedad_celda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_celda ON public.novedad USING btree (celda_id);
+
+
+--
+-- Name: idx_novedad_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_estado ON public.novedad USING btree (estado);
+
+
+--
+-- Name: idx_novedad_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_fecha ON public.novedad USING btree (fecha_hora);
+
+
+--
+-- Name: idx_novedad_parqueadero_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_parqueadero_fecha ON public.novedad USING btree (parqueadero_id, fecha_hora);
+
+
+--
+-- Name: idx_novedad_tipo_estado_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_tipo_estado_fecha ON public.novedad USING btree (tipo_novedad, estado, fecha_hora);
+
+
+--
+-- Name: idx_novedad_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_novedad_vehiculo ON public.novedad USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_ocupacion_celda_celda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocupacion_celda_celda ON public.ocupacion_celda USING btree (celda_id);
+
+
+--
+-- Name: idx_ocupacion_celda_fin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocupacion_celda_fin ON public.ocupacion_celda USING btree (fecha_hora_fin);
+
+
+--
+-- Name: idx_ocupacion_celda_inicio; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocupacion_celda_inicio ON public.ocupacion_celda USING btree (fecha_hora_inicio);
+
+
+--
+-- Name: idx_ocupacion_celda_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ocupacion_celda_vehiculo ON public.ocupacion_celda USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_parqueadero_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_parqueadero_estado ON public.parqueadero USING btree (estado);
+
+
+--
+-- Name: idx_parqueadero_ubicacion; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_parqueadero_ubicacion ON public.parqueadero USING btree (ubicacion);
+
+
+--
+-- Name: idx_parqueadero_zona_piso; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_parqueadero_zona_piso ON public.parqueadero USING btree (zona, piso);
+
+
+--
+-- Name: idx_registro_acceso_celda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_celda ON public.registro_acceso USING btree (celda_id);
+
+
+--
+-- Name: idx_registro_acceso_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_estado ON public.registro_acceso USING btree (estado);
+
+
+--
+-- Name: idx_registro_acceso_fecha_parqueadero; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_fecha_parqueadero ON public.registro_acceso USING btree (parqueadero_id, fecha_hora_ingreso, fecha_hora_salida);
+
+
+--
+-- Name: idx_registro_acceso_ingreso; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_ingreso ON public.registro_acceso USING btree (fecha_hora_ingreso);
+
+
+--
+-- Name: idx_registro_acceso_parqueadero; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_parqueadero ON public.registro_acceso USING btree (parqueadero_id);
+
+
+--
+-- Name: idx_registro_acceso_parqueadero_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_parqueadero_fecha ON public.registro_acceso USING btree (parqueadero_id, fecha_hora_ingreso);
+
+
+--
+-- Name: idx_registro_acceso_salida; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_salida ON public.registro_acceso USING btree (fecha_hora_salida);
+
+
+--
+-- Name: idx_registro_acceso_tipo_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_tipo_vehiculo ON public.registro_acceso USING btree (vehiculo_id, fecha_hora_ingreso);
+
+
+--
+-- Name: idx_registro_acceso_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registro_acceso_vehiculo ON public.registro_acceso USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_reserva_celda_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_celda_id ON public.reserva USING btree (celda_id);
+
+
+--
+-- Name: idx_reserva_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_estado ON public.reserva USING btree (estado);
+
+
+--
+-- Name: idx_reserva_fecha_fin; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_fecha_fin ON public.reserva USING btree (fecha_hora_fin);
+
+
+--
+-- Name: idx_reserva_fecha_inicio; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_fecha_inicio ON public.reserva USING btree (fecha_hora_inicio);
+
+
+--
+-- Name: idx_reserva_parqueadero_fecha; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_parqueadero_fecha ON public.reserva USING btree (celda_id, fecha_hora_inicio, fecha_hora_fin, estado);
+
+
+--
+-- Name: idx_reserva_usuario_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_usuario_id ON public.reserva USING btree (usuario_id);
+
+
+--
+-- Name: idx_reserva_vehiculo_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_reserva_vehiculo_id ON public.reserva USING btree (vehiculo_id);
+
+
+--
+-- Name: idx_usuario_correo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_usuario_correo ON public.usuario USING btree (correo);
+
+
+--
+-- Name: idx_usuario_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_usuario_estado ON public.usuario USING btree (estado);
+
+
+--
+-- Name: idx_usuario_rol_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_usuario_rol_id ON public.usuario USING btree (rol_id);
+
+
+--
+-- Name: idx_valoracion_acceso; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_valoracion_acceso ON public.valoracion USING btree (registro_acceso_id);
+
+
+--
+-- Name: idx_valoracion_usuario; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_valoracion_usuario ON public.valoracion USING btree (usuario_id);
+
+
+--
+-- Name: idx_vehiculo_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vehiculo_estado ON public.vehiculo USING btree (estado);
+
+
+--
+-- Name: idx_vehiculo_placa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vehiculo_placa ON public.vehiculo USING btree (placa);
+
+
+--
+-- Name: idx_vehiculo_placa_busqueda; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vehiculo_placa_busqueda ON public.vehiculo USING btree (placa);
+
+
+--
+-- Name: idx_vehiculo_tipo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_vehiculo_tipo ON public.vehiculo USING btree (tipo);
+
+
+--
+-- Name: notificacion_usuario_id_leida_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notificacion_usuario_id_leida_idx ON public.notificacion USING btree (usuario_id, leida);
+
+
+--
+-- Name: novedad_estado_prioridad_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX novedad_estado_prioridad_idx ON public.novedad USING btree (estado, prioridad);
+
+
+--
+-- Name: novedad_usuario_reporta_id_fecha_hora_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX novedad_usuario_reporta_id_fecha_hora_idx ON public.novedad USING btree (usuario_reporta_id, fecha_hora);
+
+
+--
+-- Name: ocupacion_celda_celda_id_estado_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ocupacion_celda_celda_id_estado_idx ON public.ocupacion_celda USING btree (celda_id, estado);
+
+
+--
+-- Name: permiso_modulo_id_nombre_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX permiso_modulo_id_nombre_idx ON public.permiso USING btree (modulo_id, nombre);
+
+
+--
+-- Name: registro_acceso_estado_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX registro_acceso_estado_idx ON public.registro_acceso USING btree (estado);
+
+
+--
+-- Name: registro_acceso_fecha_hora_ingreso_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX registro_acceso_fecha_hora_ingreso_idx ON public.registro_acceso USING btree (fecha_hora_ingreso);
+
+
+--
+-- Name: registro_acceso_fecha_hora_salida_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX registro_acceso_fecha_hora_salida_idx ON public.registro_acceso USING btree (fecha_hora_salida);
+
+
+--
+-- Name: registro_acceso_vehiculo_id_fecha_hora_ingreso_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX registro_acceso_vehiculo_id_fecha_hora_ingreso_idx ON public.registro_acceso USING btree (vehiculo_id, fecha_hora_ingreso);
+
+
+--
+-- Name: reserva_celda_id_fecha_hora_inicio_fecha_hora_fin_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX reserva_celda_id_fecha_hora_inicio_fecha_hora_fin_idx ON public.reserva USING btree (celda_id, fecha_hora_inicio, fecha_hora_fin);
+
+
+--
+-- Name: reserva_estado_tipo_reserva_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX reserva_estado_tipo_reserva_idx ON public.reserva USING btree (estado, tipo_reserva);
+
+
+--
+-- Name: rol_permiso_rol_id_permiso_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX rol_permiso_rol_id_permiso_id_idx ON public.rol_permiso USING btree (rol_id, permiso_id);
+
+
+--
+-- Name: uq_detalle_propiedad_conductor_vehiculo; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_detalle_propiedad_conductor_vehiculo ON public.detalle_propiedad USING btree (conductor_id, vehiculo_id);
+
+
+--
+-- Name: uq_ocupacion_celda_activa; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_ocupacion_celda_activa ON public.ocupacion_celda USING btree (celda_id) WHERE (estado = 'ACTIVA'::public.estado_ocupacion_enum);
+
+
+--
+-- Name: uq_propietario_principal; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_propietario_principal ON public.detalle_propiedad USING btree (vehiculo_id) WHERE (es_principal = true);
+
+
+--
+-- Name: uq_vehiculo_acceso_dentro; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_vehiculo_acceso_dentro ON public.registro_acceso USING btree (vehiculo_id) WHERE ((estado = 'DENTRO'::public.estado_acceso_enum) AND (fecha_hora_salida IS NULL));
+
+
+--
+-- Name: captura_placa trg_captura_placa_normalizar; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_captura_placa_normalizar BEFORE INSERT OR UPDATE OF placa_detectada, placa_normalizada ON public.captura_placa FOR EACH ROW EXECUTE FUNCTION public.fn_normalizar_placa();
+
+
+--
+-- Name: celda trg_celda_auditoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_celda_auditoria AFTER INSERT OR DELETE OR UPDATE ON public.celda FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_generica();
+
+
+--
+-- Name: disponibilidad_celda trg_disponibilidad_historial; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_disponibilidad_historial AFTER INSERT OR UPDATE ON public.disponibilidad_celda FOR EACH ROW EXECUTE FUNCTION public.fn_sincronizar_disponibilidad();
+
+
+--
+-- Name: celda trg_historial_celda; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_historial_celda AFTER INSERT OR UPDATE ON public.celda FOR EACH ROW EXECUTE FUNCTION public.fn_historial_celda();
+
+
+--
+-- Name: parqueadero trg_historial_parqueadero; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_historial_parqueadero AFTER INSERT OR UPDATE ON public.parqueadero FOR EACH ROW EXECUTE FUNCTION public.fn_historial_parqueadero();
+
+
+--
+-- Name: reserva trg_historial_reserva; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_historial_reserva AFTER INSERT OR UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_historial_reserva();
+
+
+--
+-- Name: novedad trg_notificar_cambio_novedad; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_notificar_cambio_novedad AFTER INSERT OR UPDATE ON public.novedad FOR EACH ROW EXECUTE FUNCTION public.fn_notificar_cambio_novedad();
+
+
+--
+-- Name: reserva trg_notificar_cambio_reserva; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_notificar_cambio_reserva AFTER UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_notificar_cambio_reserva();
+
+
+--
+-- Name: novedad trg_novedad_historial; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_novedad_historial AFTER INSERT OR UPDATE ON public.novedad FOR EACH ROW EXECUTE FUNCTION public.fn_historial_novedad();
+
+
+--
+-- Name: parqueadero trg_parqueadero_auditoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_parqueadero_auditoria AFTER INSERT OR DELETE OR UPDATE ON public.parqueadero FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_generica();
+
+
+--
+-- Name: registro_acceso trg_registro_acceso_auditoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_registro_acceso_auditoria AFTER INSERT OR DELETE OR UPDATE ON public.registro_acceso FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_generica();
+
+
+--
+-- Name: registro_acceso trg_registro_ingreso_celda; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_registro_ingreso_celda AFTER INSERT ON public.registro_acceso FOR EACH ROW WHEN ((new.fecha_hora_salida IS NULL)) EXECUTE FUNCTION public.fn_registro_ingreso_celda();
+
+
+--
+-- Name: registro_acceso trg_registro_salida_celda; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_registro_salida_celda AFTER UPDATE OF fecha_hora_salida ON public.registro_acceso FOR EACH ROW WHEN ((new.fecha_hora_salida IS NOT NULL)) EXECUTE FUNCTION public.fn_registro_salida_celda();
+
+
+--
+-- Name: reserva trg_reserva_auditoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_reserva_auditoria AFTER INSERT OR DELETE OR UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_generica();
+
+
+--
+-- Name: reserva trg_reserva_bloquea_celda; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_reserva_bloquea_celda AFTER INSERT OR UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_reserva_bloquea_celda();
+
+
+--
+-- Name: usuario trg_usuario_fecha_modificacion; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_usuario_fecha_modificacion BEFORE UPDATE ON public.usuario FOR EACH ROW EXECUTE FUNCTION public.fn_usuario_fecha_modificacion();
+
+
+--
+-- Name: reserva trg_validar_conflicto_reserva; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_validar_conflicto_reserva BEFORE INSERT OR UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_validar_conflicto_reserva();
+
+
+--
+-- Name: ocupacion_celda trg_validar_ocupacion_celda; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_validar_ocupacion_celda BEFORE INSERT OR UPDATE ON public.ocupacion_celda FOR EACH ROW WHEN ((new.estado = 'ACTIVA'::public.estado_ocupacion_enum)) EXECUTE FUNCTION public.fn_validar_ocupacion_celda();
+
+
+--
+-- Name: vehiculo trg_vehiculo_auditoria; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_vehiculo_auditoria AFTER INSERT OR DELETE OR UPDATE ON public.vehiculo FOR EACH ROW EXECUTE FUNCTION public.fn_auditoria_generica();
+
+
+--
+-- Name: asignacion_vigilante asignacion_vigilante_parqueadero_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.asignacion_vigilante
+    ADD CONSTRAINT asignacion_vigilante_parqueadero_id_fkey FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) DEFERRABLE;
+
+
+--
+-- Name: asignacion_vigilante asignacion_vigilante_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.asignacion_vigilante
+    ADD CONSTRAINT asignacion_vigilante_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: auditoria auditoria_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auditoria
+    ADD CONSTRAINT auditoria_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: captura_placa captura_placa_parqueadero_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.captura_placa
+    ADD CONSTRAINT captura_placa_parqueadero_id_fkey FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) DEFERRABLE;
+
+
+--
+-- Name: captura_placa captura_placa_registro_acceso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.captura_placa
+    ADD CONSTRAINT captura_placa_registro_acceso_id_fkey FOREIGN KEY (registro_acceso_id) REFERENCES public.registro_acceso(id) DEFERRABLE;
+
+
+--
+-- Name: captura_placa captura_placa_usuario_verifica_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.captura_placa
+    ADD CONSTRAINT captura_placa_usuario_verifica_id_fkey FOREIGN KEY (usuario_verifica_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: captura_placa captura_placa_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.captura_placa
+    ADD CONSTRAINT captura_placa_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: celda celda_parqueadero_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.celda
+    ADD CONSTRAINT celda_parqueadero_id_fkey FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) DEFERRABLE;
+
+
+--
+-- Name: conductor conductor_tipo_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.conductor
+    ADD CONSTRAINT conductor_tipo_usuario_id_fkey FOREIGN KEY (tipo_usuario_id) REFERENCES public.tipo_usuario(id) DEFERRABLE;
+
+
+--
+-- Name: conductor conductor_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.conductor
+    ADD CONSTRAINT conductor_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: detalle_propiedad detalle_propiedad_conductor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.detalle_propiedad
+    ADD CONSTRAINT detalle_propiedad_conductor_id_fkey FOREIGN KEY (conductor_id) REFERENCES public.conductor(id) DEFERRABLE;
+
+
+--
+-- Name: detalle_propiedad detalle_propiedad_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.detalle_propiedad
+    ADD CONSTRAINT detalle_propiedad_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: evidencia_novedad evidencia_novedad_novedad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidencia_novedad
+    ADD CONSTRAINT evidencia_novedad_novedad_id_fkey FOREIGN KEY (novedad_id) REFERENCES public.novedad(id) DEFERRABLE;
+
+
+--
+-- Name: autorizacion_acceso fk_autorizacion_conductor; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.autorizacion_acceso
+    ADD CONSTRAINT fk_autorizacion_conductor FOREIGN KEY (conductor_id) REFERENCES public.conductor(id);
+
+
+--
+-- Name: autorizacion_acceso fk_autorizacion_parqueadero; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.autorizacion_acceso
+    ADD CONSTRAINT fk_autorizacion_parqueadero FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id);
+
+
+--
+-- Name: autorizacion_acceso fk_autorizacion_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.autorizacion_acceso
+    ADD CONSTRAINT fk_autorizacion_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: disponibilidad_celda fk_disponibilidad_celda; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disponibilidad_celda
+    ADD CONSTRAINT fk_disponibilidad_celda FOREIGN KEY (celda_id) REFERENCES public.celda(id) ON DELETE CASCADE;
+
+
+--
+-- Name: disponibilidad_celda fk_disponibilidad_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.disponibilidad_celda
+    ADD CONSTRAINT fk_disponibilidad_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: equipamiento_parqueadero fk_equipamiento_parqueadero; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.equipamiento_parqueadero
+    ADD CONSTRAINT fk_equipamiento_parqueadero FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_disponibilidad_celda fk_hist_disponibilidad_celda; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_disponibilidad_celda
+    ADD CONSTRAINT fk_hist_disponibilidad_celda FOREIGN KEY (celda_id) REFERENCES public.celda(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_disponibilidad_celda fk_hist_disponibilidad_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_disponibilidad_celda
+    ADD CONSTRAINT fk_hist_disponibilidad_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: historial_celda fk_historial_celda; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_celda
+    ADD CONSTRAINT fk_historial_celda FOREIGN KEY (celda_id) REFERENCES public.celda(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_celda fk_historial_celda_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_celda
+    ADD CONSTRAINT fk_historial_celda_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: historial_novedad fk_historial_novedad_novedad; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_novedad
+    ADD CONSTRAINT fk_historial_novedad_novedad FOREIGN KEY (novedad_id) REFERENCES public.novedad(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_novedad fk_historial_novedad_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_novedad
+    ADD CONSTRAINT fk_historial_novedad_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: historial_parqueadero fk_historial_parqueadero; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_parqueadero
+    ADD CONSTRAINT fk_historial_parqueadero FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_parqueadero fk_historial_parqueadero_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_parqueadero
+    ADD CONSTRAINT fk_historial_parqueadero_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: historial_reserva fk_historial_reserva; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_reserva
+    ADD CONSTRAINT fk_historial_reserva FOREIGN KEY (reserva_id) REFERENCES public.reserva(id) ON DELETE CASCADE;
+
+
+--
+-- Name: historial_reserva fk_historial_reserva_usuario; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.historial_reserva
+    ADD CONSTRAINT fk_historial_reserva_usuario FOREIGN KEY (usuario_id) REFERENCES public.usuario(id);
+
+
+--
+-- Name: intento_ocr fk_intento_ocr_captura; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.intento_ocr
+    ADD CONSTRAINT fk_intento_ocr_captura FOREIGN KEY (captura_placa_id) REFERENCES public.captura_placa(id) ON DELETE CASCADE;
+
+
+--
+-- Name: parqueadero_ip_autorizada fk_ip_parqueadero; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.parqueadero_ip_autorizada
+    ADD CONSTRAINT fk_ip_parqueadero FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) ON DELETE CASCADE;
+
+
+--
+-- Name: licencia_conduccion licencia_conduccion_conductor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.licencia_conduccion
+    ADD CONSTRAINT licencia_conduccion_conductor_id_fkey FOREIGN KEY (conductor_id) REFERENCES public.conductor(id) DEFERRABLE;
+
+
+--
+-- Name: notificacion notificacion_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notificacion
+    ADD CONSTRAINT notificacion_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_celda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_celda_id_fkey FOREIGN KEY (celda_id) REFERENCES public.celda(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_parqueadero_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_parqueadero_id_fkey FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_registro_acceso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_registro_acceso_id_fkey FOREIGN KEY (registro_acceso_id) REFERENCES public.registro_acceso(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_usuario_asignado_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_usuario_asignado_id_fkey FOREIGN KEY (usuario_asignado_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_usuario_reporta_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_usuario_reporta_id_fkey FOREIGN KEY (usuario_reporta_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: novedad novedad_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.novedad
+    ADD CONSTRAINT novedad_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_celda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_celda_id_fkey FOREIGN KEY (celda_id) REFERENCES public.celda(id) DEFERRABLE;
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_registro_acceso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_registro_acceso_id_fkey FOREIGN KEY (registro_acceso_id) REFERENCES public.registro_acceso(id) DEFERRABLE;
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_reserva_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_reserva_id_fkey FOREIGN KEY (reserva_id) REFERENCES public.reserva(id) DEFERRABLE;
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_usuario_asigna_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_usuario_asigna_id_fkey FOREIGN KEY (usuario_asigna_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: ocupacion_celda ocupacion_celda_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ocupacion_celda
+    ADD CONSTRAINT ocupacion_celda_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: permiso permiso_modulo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permiso
+    ADD CONSTRAINT permiso_modulo_id_fkey FOREIGN KEY (modulo_id) REFERENCES public.modulo(id) DEFERRABLE;
+
+
+--
+-- Name: recuperacion_password recuperacion_password_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recuperacion_password
+    ADD CONSTRAINT recuperacion_password_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_celda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_celda_id_fkey FOREIGN KEY (celda_id) REFERENCES public.celda(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_conductor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_conductor_id_fkey FOREIGN KEY (conductor_id) REFERENCES public.conductor(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_parqueadero_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_parqueadero_id_fkey FOREIGN KEY (parqueadero_id) REFERENCES public.parqueadero(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_reserva_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_reserva_id_fkey FOREIGN KEY (reserva_id) REFERENCES public.reserva(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_usuario_ingreso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_usuario_ingreso_id_fkey FOREIGN KEY (usuario_ingreso_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_usuario_salida_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_usuario_salida_id_fkey FOREIGN KEY (usuario_salida_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: registro_acceso registro_acceso_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registro_acceso
+    ADD CONSTRAINT registro_acceso_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: reserva reserva_celda_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_celda_id_fkey FOREIGN KEY (celda_id) REFERENCES public.celda(id) DEFERRABLE;
+
+
+--
+-- Name: reserva reserva_conductor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_conductor_id_fkey FOREIGN KEY (conductor_id) REFERENCES public.conductor(id) DEFERRABLE;
+
+
+--
+-- Name: reserva reserva_usuario_gestiona_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_usuario_gestiona_id_fkey FOREIGN KEY (usuario_gestiona_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: reserva reserva_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- Name: reserva reserva_vehiculo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.reserva
+    ADD CONSTRAINT reserva_vehiculo_id_fkey FOREIGN KEY (vehiculo_id) REFERENCES public.vehiculo(id) DEFERRABLE;
+
+
+--
+-- Name: rol_permiso rol_permiso_permiso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rol_permiso
+    ADD CONSTRAINT rol_permiso_permiso_id_fkey FOREIGN KEY (permiso_id) REFERENCES public.permiso(id) DEFERRABLE;
+
+
+--
+-- Name: rol_permiso rol_permiso_rol_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rol_permiso
+    ADD CONSTRAINT rol_permiso_rol_id_fkey FOREIGN KEY (rol_id) REFERENCES public.rol(id) DEFERRABLE;
+
+
+--
+-- Name: usuario usuario_rol_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.usuario
+    ADD CONSTRAINT usuario_rol_id_fkey FOREIGN KEY (rol_id) REFERENCES public.rol(id) DEFERRABLE;
+
+
+--
+-- Name: valoracion valoracion_encuesta_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.valoracion
+    ADD CONSTRAINT valoracion_encuesta_id_fkey FOREIGN KEY (encuesta_id) REFERENCES public.encuesta(id) DEFERRABLE;
+
+
+--
+-- Name: valoracion valoracion_registro_acceso_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.valoracion
+    ADD CONSTRAINT valoracion_registro_acceso_id_fkey FOREIGN KEY (registro_acceso_id) REFERENCES public.registro_acceso(id) DEFERRABLE;
+
+
+--
+-- Name: valoracion valoracion_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.valoracion
+    ADD CONSTRAINT valoracion_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+
+
+--
+-- PostgreSQL database dump complete
+--

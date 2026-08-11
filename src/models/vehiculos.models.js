@@ -1,77 +1,97 @@
 /**
  * @module VehiculoModel
- * @description
- * Clase que representa la entidad Vehículo dentro del sistema ParkU.
- * Sincronizada con la tabla 'vehiculo' de la base de datos.
+ * @description Modelo Sequelize para la tabla 'vehiculo' (Proceso 04.2).
+ * Ya no tiene FK directa a conductor: la propiedad se modela con la tabla
+ * 'detalle_propiedad' (relación M:N conductor-vehículo, ver detallePropiedad.models.js).
  */
 
-class Vehiculo {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-  /**
-   * @param {number} id - Identificador único del vehículo
-   * @param {number} conductor - ID del conductor asociado
-   * @param {string} placa - Placa única del vehículo
-   * @param {string} tipo - Tipo de vehículo
-   * @param {string|null} marca - Marca del vehículo
-   * @param {string|null} modelo - Modelo del vehículo
-   * @param {number|null} anio - Año de fabricación
-   * @param {string|null} color - Color del vehículo
-   * @param {string|null} descripcion - Información adicional
-   * @param {boolean} estado - Estado del vehículo
-   */
-  constructor(
-    id,
-    conductor,
-    placa,
-    tipo,
-    marca,
-    modelo,
-    anio,
-    color,
-    descripcion,
-    estado = true
-  ) {
-
-    /** @type {number} */
-    this.id = id;
-
-    /**
-     * Referencia a conductor.id
-     * @type {number}
-     */
-    this.conductor = conductor;
-
-    /** @type {string} */
-    this.placa = placa;
-
-    /**
-     * CARRO | MOTO | BICICLETA
-     * @type {string}
-     */
-    this.tipo = tipo;
-
-    /** @type {string|null} */
-    this.marca = marca;
-
-    /** @type {string|null} */
-    this.modelo = modelo;
-
-    /** @type {number|null} */
-    this.anio = anio;
-
-    /** @type {string|null} */
-    this.color = color;
-
-    /** @type {string|null} */
-    this.descripcion = descripcion;
-
-    /**
-     * TRUE = Activo
-     * FALSE = Inactivo
-     * @type {boolean}
-     */
-    this.estado = estado;
-  }
-}
+const Vehiculo = sequelize.define('Vehiculo', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  placa: {
+    // Nullable: las bicicletas pueden no tener placa (ck_vehiculo_placa_por_tipo).
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    unique: true,
+  },
+  tipo: {
+    type: DataTypes.ENUM('CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'),
+    allowNull: false,
+  },
+  tarjeta_propiedad: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
+  marca: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  linea: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  modelo: {
+    // Año del vehículo.
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  cilindraje: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  color: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
+  servicio: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
+  carroceria: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  combustible: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
+  capacidad: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  numero_motor: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  numero_chasis: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  observaciones: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  vehiculo_sena: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  estado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+}, {
+  tableName: 'vehiculo',
+  timestamps: true,
+  createdAt: 'fecha_creacion',
+  updatedAt: false,
+});
 
 module.exports = Vehiculo;

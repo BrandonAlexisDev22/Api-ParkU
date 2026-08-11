@@ -21,11 +21,16 @@ const RolPermiso = sequelize.define('RolPermiso', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
+  estado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
 }, {
   tableName: 'rol_permiso',
   timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  createdAt: 'fecha_asignacion',
+  updatedAt: false,
   indexes: [
     { unique: true, fields: ['rol_id', 'permiso_id'] },
   ],

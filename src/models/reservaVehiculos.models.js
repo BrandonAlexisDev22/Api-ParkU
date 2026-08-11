@@ -1,39 +1,67 @@
 /**
  * @module ReservaModel
- * @description
- * Clase que representa la entidad Reserva dentro del sistema ParkU.
- * Sincronizada con la tabla 'reserva' de la base de datos en Railway.
+ * @description Modelo Sequelize para la tabla 'reserva' (Proceso 06.1).
+ * La BD valida solapamientos de horario y bloquea/libera la celda sola vía triggers;
+ * este modelo solo declara la forma de la fila.
  */
 
-class Reserva {
-  /**
-   * @param {number} id - Identificador único (id en SQL)
-   * @param {number} celda - ID de la celda asociada (FK)
-   * @param {number} vehiculo - ID del vehículo asociado (FK)
-   * @param {string} fechaHora_inicio - Fecha y hora de inicio de la reserva
-   * @param {string} fechaHora_fin - Fecha y hora de fin de la reserva
-   * @param {number} [estado=1] - Estado (1: Pendiente/Activa, 0: Finalizada/Cancelada)
-   */
-  constructor(id, celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado = 1) {
-    
-    /** @type {number} */
-    this.id = id; // En SQL es 'id'
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-    /** @type {number} */
-    this.celda = celda; // En SQL es 'celda'
-
-    /** @type {number} */
-    this.vehiculo = vehiculo; // En SQL es 'vehiculo'
-
-    /** @type {string} */
-    this.fechaHora_inicio = fechaHora_inicio; // DATETIME en SQL
-
-    /** @type {string} */
-    this.fechaHora_fin = fechaHora_fin; // DATETIME en SQL
-
-    /** @type {number} */
-    this.estado = estado; // TINYINT en SQL
-  }
-}
+const Reserva = sequelize.define('Reserva', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  tipo_reserva: {
+    type: DataTypes.ENUM('VEHICULO_SENA', 'MOVILIDAD_REDUCIDA', 'VISITANTE'),
+    allowNull: false,
+  },
+  celda_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  usuario_id: {
+    // Quién crea la reserva.
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  conductor_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  vehiculo_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  motivo: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  fecha_hora_inicio: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  fecha_hora_fin: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  estado: {
+    type: DataTypes.ENUM('PENDIENTE', 'ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'),
+    allowNull: false,
+    defaultValue: 'PENDIENTE',
+  },
+  usuario_gestiona_id: {
+    // Quién aprueba o rechaza.
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+}, {
+  tableName: 'reserva',
+  timestamps: true,
+  createdAt: 'fecha_creacion',
+  updatedAt: false,
+});
 
 module.exports = Reserva;

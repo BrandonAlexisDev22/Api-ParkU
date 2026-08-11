@@ -1,80 +1,77 @@
 /**
  * @module NovedadModel
- * @description
- * Clase que representa una novedad dentro del sistema ParkU.
- * Sincronizada con la tabla 'novedades' de la base de datos.
+ * @description Modelo Sequelize para la tabla 'novedad' (Proceso 07.1, singular en la BD).
+ * usuario_reporta_id reemplaza al viejo campo de texto libre 'encargado'.
  */
 
-class Novedad {
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-  /**
-   * @param {number} id - Identificador único de la novedad
-   * @param {number|null} vehiculo - ID del vehículo relacionado
-   * @param {string|null} encargado - Persona encargada que reporta la novedad
-   * @param {string} descripcion - Descripción de la novedad
-   * @param {string|null} evidencia - Ruta o URL de evidencia
-   * @param {number|null} ingreso_salida - ID del movimiento relacionado
-   * @param {Date|string} fecha_hora - Fecha y hora de registro
-   * @param {string} tipo_novedad - Tipo de novedad
-   * @param {string} prioridad - Prioridad de la novedad
-   * @param {boolean} estado - Estado de la novedad
-   */
-  constructor(
-    id,
-    vehiculo,
-    encargado,
-    descripcion,
-    evidencia,
-    ingreso_salida,
-    fecha_hora,
-    tipo_novedad = "OTRO",
-    prioridad = "MEDIA",
-    estado = true
-  ) {
-
-    /** @type {number} */
-    this.id = id;
-
-    /** @type {number|null} */
-    this.vehiculo = vehiculo;
-
-    /** @type {string|null} */
-    this.encargado = encargado;
-
-    /** @type {string} */
-    this.descripcion = descripcion;
-
-    /** @type {string|null} */
-    this.evidencia = evidencia;
-
-    /**
-     * Referencia a ingreso_salida.id
-     * @type {number|null}
-     */
-    this.ingreso_salida = ingreso_salida;
-
-    /** @type {Date|string} */
-    this.fecha_hora = fecha_hora;
-
-    /**
-     * DAÑO | ACCIDENTE | MAL_ESTACIONAMIENTO | QUEJA | OTRO
-     * @type {string}
-     */
-    this.tipo_novedad = tipo_novedad;
-
-    /**
-     * BAJA | MEDIA | ALTA | CRITICA
-     * @type {string}
-     */
-    this.prioridad = prioridad;
-
-    /**
-     * TRUE = Pendiente
-     * FALSE = Resuelta
-     * @type {boolean}
-     */
-    this.estado = estado;
-  }
-}
+const Novedad = sequelize.define('Novedad', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  tipo_novedad: {
+    type: DataTypes.ENUM('DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'),
+    allowNull: false,
+  },
+  prioridad: {
+    type: DataTypes.ENUM('BAJA', 'MEDIA', 'ALTA', 'CRITICA'),
+    allowNull: false,
+    defaultValue: 'MEDIA',
+  },
+  estado: {
+    type: DataTypes.ENUM('PENDIENTE', 'EN_PROCESO', 'RESUELTA', 'CERRADA', 'CANCELADA'),
+    allowNull: false,
+    defaultValue: 'PENDIENTE',
+  },
+  descripcion: {
+    type: DataTypes.STRING(500),
+    allowNull: false,
+  },
+  usuario_reporta_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  usuario_asignado_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  vehiculo_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  celda_id: {
+    // La "ubicación" de la novedad.
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  parqueadero_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  registro_acceso_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  fecha_hora: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+  },
+  fecha_hora_cierre: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  justificacion_cierre: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+}, {
+  tableName: 'novedad',
+  timestamps: false,
+});
 
 module.exports = Novedad;

@@ -1,36 +1,30 @@
 /**
  * @module ConductorRepository
  * @description Operaciones de base de datos para la tabla 'conductor' usando Sequelize.
- * Incluye los nombres de las tablas de catálogo relacionadas (tipo de usuario,
- * regional/centro/programa de formación) mediante JOIN.
+ * regional_formacion/centro_formacion/programa_formacion son texto libre (dato de SOFIA
+ * Plus), ya no catálogos con FK propia.
  */
 
-const { Conductor, TipoUsuario, RegionalFormacion, CentroFormacion, ProgramaFormacion, Usuario } = require('../models');
+const { Conductor, TipoUsuario, Usuario } = require('../models');
 
 const includeCatalogos = [
-  { model: TipoUsuario, as: 'tipoUsuario', attributes: ['tipo_usuario'] },
-  { model: RegionalFormacion, as: 'regionalFormacion', attributes: ['nombre'] },
-  { model: CentroFormacion, as: 'centroFormacion', attributes: ['nombre'] },
-  { model: ProgramaFormacion, as: 'programaFormacion', attributes: ['nombre'] },
+  { model: TipoUsuario, as: 'tipoUsuario', attributes: ['nombre'] },
   { model: Usuario, as: 'usuario', attributes: ['id', 'correo', 'nombre'] },
 ];
 
 /**
- * Aplana el resultado de Sequelize para exponer los nombres de catálogo
- * como campos planos de solo lectura (tipo_usuario_nombre, etc.).
+ * Aplana el resultado de Sequelize para exponer el nombre del tipo de usuario
+ * como campo plano de solo lectura (tipo_usuario_nombre).
  * @param {import('sequelize').Model} instancia
  * @returns {Object|null}
  */
 const mapConductor = (instancia) => {
   if (!instancia) return null;
   const plano = instancia.toJSON();
-  const { tipoUsuario, regionalFormacion, centroFormacion, programaFormacion, usuario, ...resto } = plano;
+  const { tipoUsuario, usuario, ...resto } = plano;
   return {
     ...resto,
-    tipo_usuario_nombre: tipoUsuario ? tipoUsuario.tipo_usuario : null,
-    regional_formacion_nombre: regionalFormacion ? regionalFormacion.nombre : null,
-    centro_formacion_nombre: centroFormacion ? centroFormacion.nombre : null,
-    programa_formacion_nombre: programaFormacion ? programaFormacion.nombre : null,
+    tipo_usuario_nombre: tipoUsuario ? tipoUsuario.nombre : null,
     usuario_correo: usuario ? usuario.correo : null,
   };
 };
@@ -95,8 +89,8 @@ const findActivos = async () => {
 const create = async (data) => {
   const {
     usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
-    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
-    centro_formacion_id, programa_formacion_id, vigencia, estado = true,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+    centro_formacion, programa_formacion, vigencia, movilidad_reducida = false, estado = true,
   } = data;
 
   const nuevo = await Conductor.create({
@@ -105,13 +99,14 @@ const create = async (data) => {
     numero_documento,
     nombre_apellidos,
     correo: correo || null,
-    direccion,
+    direccion: direccion || null,
     numero_telefonico: numero_telefonico || null,
     tipo_usuario_id,
-    regional_formacion_id,
-    centro_formacion_id,
-    programa_formacion_id,
-    vigencia,
+    regional_formacion: regional_formacion || null,
+    centro_formacion: centro_formacion || null,
+    programa_formacion: programa_formacion || null,
+    vigencia: vigencia || null,
+    movilidad_reducida,
     estado,
   });
   return findById(nuevo.id);
@@ -126,8 +121,8 @@ const create = async (data) => {
 const update = async (id, data) => {
   const allowedFields = [
     'usuario_id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo',
-    'direccion', 'numero_telefonico', 'tipo_usuario_id', 'regional_formacion_id',
-    'centro_formacion_id', 'programa_formacion_id', 'vigencia', 'estado',
+    'direccion', 'numero_telefonico', 'tipo_usuario_id', 'regional_formacion',
+    'centro_formacion', 'programa_formacion', 'vigencia', 'movilidad_reducida', 'estado',
   ];
   const cambios = {};
   for (const field of allowedFields) {

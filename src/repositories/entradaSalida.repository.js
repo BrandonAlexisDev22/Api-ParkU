@@ -1,105 +1,147 @@
 /**
- * @module IngresoSalidaRepository
- * @description Capa de persistencia para el registro de movimientos de vehículos.
- * Alineado con el modelo IngresoSalida (tipo, vehiculo, celda, descripcion, fecha_hora).
+ * @module RegistroAccesoRepository
+ * @description Capa de persistencia para 'registro_acceso' (reemplaza a ingreso_salida).
+ * Un solo registro cubre ingreso y salida. Toda escritura requiere contexto de usuario
+ * (auditoría vía trigger); además, insertar con celda_id dispara fn_registro_ingreso_celda
+ * y actualizar fecha_hora_salida dispara fn_registro_salida_celda -- ver
+ * entradaSalida.service.js y dbContext.util.js.
  */
 
-const db = require('../config/database');
+const { Op } = require('sequelize');
+const { RegistroAcceso, Vehiculo, Conductor, Parqueadero, Celda } = require('../models');
+
+const includeContexto = [
+  { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa', 'tipo'] },
+  { model: Conductor, as: 'conductor', attributes: ['id', 'nombre_apellidos'] },
+  { model: Parqueadero, as: 'parqueadero', attributes: ['id', 'nombre'] },
+  { model: Celda, as: 'celda', attributes: ['id', 'numero'] },
+];
 
 /**
- * Consulta base que obtiene todos los campos del modelo y datos relacionados
- * (parqueadero y placa del vehículo) mediante JOINs.
- * @constant {string}
- */
-const BASE_QUERY = `
-  SELECT es.*,
-         p.nombre AS parqueadero_nombre,
-         v.placa  AS vehiculo_placa
-  FROM ingreso_salida es
-  LEFT JOIN celda c       ON es.celda = c.id
-  LEFT JOIN parqueadero p ON c.parqueadero = p.id
-  LEFT JOIN vehiculo v    ON es.vehiculo = v.id
-`;
-
-/**
- * Recupera todo el historial de movimientos, ordenado del más reciente al más antiguo.
- * @returns {Promise<Array>} Lista de objetos con todos los campos del modelo + extras.
+ * Recupera todo el historial de movimientos, más reciente primero.
+ * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY es.fecha_hora DESC`);
-  return rows;
+  const rows = await RegistroAcceso.findAll({ include: includeContexto, order: [['fecha_hora_ingreso', 'DESC']] });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Obtiene un registro de movimiento específico.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE es.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await RegistroAcceso.findByPk(id, { include: includeContexto });
+  return row ? row.toJSON() : null;
 };
 
 /**
  * Obtiene el historial de movimientos de un vehículo en particular.
- * @param {number} vehiculoId 
+ * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
 const findByVehiculo = async (vehiculoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE es.vehiculo = ? ORDER BY es.fecha_hora DESC`,
-    [vehiculoId]
-  );
-  return rows;
+  const rows = await RegistroAcceso.findAll({
+    where: { vehiculo_id: vehiculoId },
+    include: includeContexto,
+    order: [['fecha_hora_ingreso', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
+ * Busca el ingreso abierto (sin salida) de un vehículo, si existe.
+ * @param {number} vehiculoId
+ * @returns {Promise<Object|null>}
+ */
+const findIngresoAbierto = async (vehiculoId) => {
+  const row = await RegistroAcceso.findOne({
+    where: { vehiculo_id: vehiculoId, fecha_hora_salida: null },
+    include: includeContexto,
+  });
+  return row ? row.toJSON() : null;
 };
 
 /**
  * Busca registros dentro de un rango de tiempo específico.
- * @param {string} desde - Fecha inicial (YYYY-MM-DD o ISO)
- * @param {string} hasta - Fecha final (YYYY-MM-DD o ISO)
+ * @param {string|Date} desde
+ * @param {string|Date} hasta
  * @returns {Promise<Array>}
  */
 const findByFecha = async (desde, hasta) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE es.fecha_hora BETWEEN ? AND ? ORDER BY es.fecha_hora DESC`,
-    [desde, hasta]
-  );
-  return rows;
+  const rows = await RegistroAcceso.findAll({
+    where: { fecha_hora_ingreso: { [Op.between]: [desde, hasta] } },
+    include: includeContexto,
+    order: [['fecha_hora_ingreso', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
- * Registra una nueva acción de entrada o salida.
- * @param {Object} data - Datos del movimiento.
- * @param {string} data.tipo - 'INGRESO' o 'SALIDA'.
- * @param {number} data.vehiculo - ID del vehículo.
- * @param {number} data.celda - ID de la celda.
- * @param {string|null} [data.descripcion] - Observaciones opcionales.
- * @param {Date|string} [data.fecha_hora] - Fecha/hora personalizada (opcional, si no se envía se asigna automáticamente en la BD).
- * @returns {Promise<Object>} El registro creado con todos sus datos relacionados.
+ * Registra el ingreso de un vehículo. Si trae celda_id, el trigger de la BD ocupa
+ * la celda y valida tipo/estado/reserva.
+ * @param {Object} data
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object>}
  */
-const create = async ({ tipo, vehiculo, celda, descripcion, fecha_hora }) => {
-  let query = 'INSERT INTO ingreso_salida (tipo, vehiculo, celda, descripcion';
-  const values = [tipo, vehiculo, celda, descripcion || null];
-  
-  if (fecha_hora) {
-    query += ', fecha_hora) VALUES (?, ?, ?, ?, ?)';
-    values.push(fecha_hora);
-  } else {
-    query += ') VALUES (?, ?, ?, ?)';
-  }
+const registrarIngreso = async (data, { transaction } = {}) => {
+  const { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id, descripcion_ingreso, fecha_hora_ingreso } = data;
+  const nuevo = await RegistroAcceso.create(
+    {
+      vehiculo_id,
+      conductor_id: conductor_id || null,
+      parqueadero_id,
+      celda_id: celda_id || null,
+      reserva_id: reserva_id || null,
+      usuario_ingreso_id,
+      descripcion_ingreso: descripcion_ingreso || null,
+      fecha_hora_ingreso: fecha_hora_ingreso || undefined,
+      estado: 'DENTRO',
+    },
+    { transaction }
+  );
+  return findById(nuevo.id);
+};
 
-  const [result] = await db.query(query, values);
-  return findById(result.insertId);
+/**
+ * Registra la salida de un vehículo sobre un registro de ingreso ya existente.
+ * El trigger de la BD libera (o vuelve a reservar) la celda.
+ * @param {number} id - ID del registro de ingreso abierto.
+ * @param {Object} data - { usuario_salida_id, descripcion_salida?, fecha_hora_salida? }
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object>}
+ */
+const registrarSalida = async (id, { usuario_salida_id, descripcion_salida, fecha_hora_salida }, { transaction } = {}) => {
+  await RegistroAcceso.update(
+    {
+      usuario_salida_id,
+      descripcion_salida: descripcion_salida || null,
+      fecha_hora_salida: fecha_hora_salida || new Date(),
+      estado: 'FINALIZADO',
+    },
+    { where: { id }, transaction }
+  );
+  return findById(id);
 };
 
 /**
  * Elimina un registro del historial (uso administrativo/corrección).
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM ingreso_salida WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await RegistroAcceso.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, findByVehiculo, findByFecha, create, remove };
+module.exports = {
+  findAll,
+  findById,
+  findByVehiculo,
+  findIngresoAbierto,
+  findByFecha,
+  registrarIngreso,
+  registrarSalida,
+  remove,
+};

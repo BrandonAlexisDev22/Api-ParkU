@@ -1,179 +1,147 @@
 /**
  * @module NovedadesRepository
- * @description Capa de acceso a datos para la tabla 'novedades'.
- * Gestiona incidentes, novedades y evidencias asociadas a vehículos y movimientos.
+ * @description Capa de acceso a datos para la tabla 'novedad'.
+ * usuario_reporta_id reemplaza al viejo campo de texto libre 'encargado'.
  */
 
-const db = require('../config/database');
+const { Novedad, Vehiculo, Usuario, Celda, Parqueadero, RegistroAcceso } = require('../models');
 
-/**
- * Consulta base con JOIN para obtener contexto del vehículo y movimiento.
- * @constant {string}
- */
-const BASE_QUERY = `
-  SELECT n.*,
-         v.placa AS vehiculo_placa,
-         CONCAT(u.nombre, ' (', u.correo, ')') AS encargado_nombre,
-         CONCAT('Movimiento #', n.ingreso_salida) AS movimiento_info
-  FROM novedades n
-  LEFT JOIN vehiculo v        ON n.vehiculo = v.id
-  LEFT JOIN ingreso_salida is ON n.ingreso_salida = is.id
-  LEFT JOIN usuario u         ON n.encargado = u.id  -- asumiendo que encargado es ID de usuario
-`;
+const includeContexto = [
+  { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa'] },
+  { model: Usuario, as: 'reportadoPor', attributes: ['id', 'nombre'] },
+  { model: Usuario, as: 'asignadoA', attributes: ['id', 'nombre'] },
+  { model: Celda, as: 'celda', attributes: ['id', 'numero'] },
+  { model: Parqueadero, as: 'parqueadero', attributes: ['id', 'nombre'] },
+  { model: RegistroAcceso, as: 'registroAcceso', attributes: ['id'] },
+];
 
 /**
  * Obtiene todas las novedades, ordenadas por fecha descendente.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY n.fecha_hora DESC`);
-  return rows;
+  const rows = await Novedad.findAll({ include: includeContexto, order: [['fecha_hora', 'DESC']] });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Busca una novedad por su ID.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE n.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await Novedad.findByPk(id, { include: includeContexto });
+  return row ? row.toJSON() : null;
 };
 
 /**
  * Filtra novedades por vehículo.
- * @param {number} vehiculoId 
+ * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
 const findByVehiculo = async (vehiculoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE n.vehiculo = ? ORDER BY n.fecha_hora DESC`,
-    [vehiculoId]
-  );
-  return rows;
+  const rows = await Novedad.findAll({
+    where: { vehiculo_id: vehiculoId },
+    include: includeContexto,
+    order: [['fecha_hora', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
- * Filtra novedades por movimiento (ingreso_salida).
- * @param {number} movimientoId 
+ * Filtra novedades por registro de acceso (ingreso/salida) relacionado.
+ * @param {number} registroAccesoId
  * @returns {Promise<Array>}
  */
-const findByMovimiento = async (movimientoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE n.ingreso_salida = ? ORDER BY n.fecha_hora DESC`,
-    [movimientoId]
-  );
-  return rows;
+const findByRegistroAcceso = async (registroAccesoId) => {
+  const rows = await Novedad.findAll({
+    where: { registro_acceso_id: registroAccesoId },
+    include: includeContexto,
+    order: [['fecha_hora', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
- * Filtra novedades por tipo y/o prioridad.
- * @param {Object} filtros - { tipo, prioridad, estado }
+ * Filtra novedades por tipo, prioridad y/o estado.
+ * @param {Object} filtros - { tipo_novedad, prioridad, estado }
  * @returns {Promise<Array>}
  */
-const findByFiltros = async ({ tipo, prioridad, estado }) => {
-  let query = BASE_QUERY + ' WHERE 1=1';
-  const params = [];
-  if (tipo) {
-    query += ' AND n.tipo_novedad = ?';
-    params.push(tipo);
-  }
-  if (prioridad) {
-    query += ' AND n.prioridad = ?';
-    params.push(prioridad);
-  }
-  if (estado !== undefined) {
-    query += ' AND n.estado = ?';
-    params.push(estado ? 1 : 0);
-  }
-  query += ' ORDER BY n.fecha_hora DESC';
-  const [rows] = await db.query(query, params);
-  return rows;
+const findByFiltros = async ({ tipo_novedad, prioridad, estado }) => {
+  const where = {};
+  if (tipo_novedad) where.tipo_novedad = tipo_novedad;
+  if (prioridad) where.prioridad = prioridad;
+  if (estado) where.estado = estado;
+
+  const rows = await Novedad.findAll({ where, include: includeContexto, order: [['fecha_hora', 'DESC']] });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Crea una nueva novedad.
- * @param {Object} data - { vehiculo, encargado, descripcion, evidencia, ingreso_salida, tipo_novedad, prioridad, estado? }
- * @param {number|null} data.vehiculo
- * @param {number|null} data.encargado - ID del usuario encargado
- * @param {string} data.descripcion
- * @param {string|null} data.evidencia
- * @param {number|null} data.ingreso_salida
- * @param {string} data.tipo_novedad - DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO
- * @param {string} data.prioridad - BAJA, MEDIA, ALTA, CRITICA
- * @param {boolean} [data.estado=true] - true = pendiente, false = resuelta
+ * @param {Object} data
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>}
  */
-const create = async ({
-  vehiculo,
-  encargado,
-  descripcion,
-  evidencia,
-  ingreso_salida,
-  tipo_novedad = 'OTRO',
-  prioridad = 'MEDIA',
-  estado = true,
-  fecha_hora = new Date()
-}) => {
-  const [result] = await db.query(
-    `INSERT INTO novedades 
-     (vehiculo, encargado, descripcion, evidencia, ingreso_salida, tipo_novedad, prioridad, estado, fecha_hora)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      vehiculo || null,
-      encargado || null,
-      descripcion,
-      evidencia || null,
-      ingreso_salida || null,
-      tipo_novedad,
-      prioridad,
-      estado ? 1 : 0,
-      fecha_hora
-    ]
+const create = async (data, { transaction } = {}) => {
+  const {
+    tipo_novedad = 'OTRO', prioridad = 'MEDIA', estado = 'PENDIENTE', descripcion,
+    usuario_reporta_id, usuario_asignado_id, vehiculo_id, celda_id, parqueadero_id, registro_acceso_id,
+  } = data;
+
+  const nueva = await Novedad.create(
+    {
+      tipo_novedad, prioridad, estado, descripcion, usuario_reporta_id,
+      usuario_asignado_id: usuario_asignado_id || null,
+      vehiculo_id: vehiculo_id || null,
+      celda_id: celda_id || null,
+      parqueadero_id: parqueadero_id || null,
+      registro_acceso_id: registro_acceso_id || null,
+    },
+    { transaction }
   );
-  return findById(result.insertId);
+  return findById(nueva.id);
 };
 
 /**
  * Actualiza parcialmente una novedad.
- * @param {number} id 
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales)
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
-  const fields = [];
-  const values = [];
-  const allowedFields = ['vehiculo', 'encargado', 'descripcion', 'evidencia', 'ingreso_salida', 'tipo_novedad', 'prioridad', 'estado'];
+const update = async (id, data, { transaction } = {}) => {
+  const allowedFields = [
+    'tipo_novedad', 'prioridad', 'estado', 'descripcion', 'usuario_asignado_id',
+    'vehiculo_id', 'celda_id', 'parqueadero_id', 'registro_acceso_id',
+    'fecha_hora_cierre', 'justificacion_cierre',
+  ];
+  const cambios = {};
   for (const field of allowedFields) {
-    if (data[field] !== undefined) {
-      fields.push(`${field} = ?`);
-      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
-    }
+    if (data[field] !== undefined) cambios[field] = data[field];
   }
-  if (fields.length === 0) {
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  values.push(id);
-  const query = `UPDATE novedades SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+  await Novedad.update(cambios, { where: { id }, transaction });
   return findById(id);
 };
 
 /**
  * Elimina una novedad.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM novedades WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await Novedad.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
 module.exports = {
   findAll,
   findById,
   findByVehiculo,
-  findByMovimiento,
+  findByRegistroAcceso,
   findByFiltros,
   create,
   update,

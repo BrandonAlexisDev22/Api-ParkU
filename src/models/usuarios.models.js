@@ -1,10 +1,12 @@
 /**
  * @module UsuarioModel
- * @description Modelo Sequelize para la tabla 'usuario'.
+ * @description Modelo Sequelize para la tabla 'usuario' (Proceso 02.1 en database/parku.postgres).
+ * No tiene columna refresh_token: los refresh tokens son JWT sin estado (ver auth.controller.js).
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { ROLES } = require('../config/roles');
 
 const Usuario = sequelize.define('Usuario', {
   id: {
@@ -12,41 +14,44 @@ const Usuario = sequelize.define('Usuario', {
     primaryKey: true,
     autoIncrement: true,
   },
+  nombre: {
+    type: DataTypes.STRING(150),
+    allowNull: false,
+  },
   correo: {
-    type: DataTypes.CITEXT,
+    type: DataTypes.STRING(255),
     allowNull: false,
     unique: true,
     validate: { isEmail: true },
   },
-  nombre: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-    field: "nombre"
-  },
   contrasena: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(255),
     allowNull: false,
-    field: 'contrasena', // el nombre real de la columna en la BD
   },
   rol_id: {
     type: DataTypes.INTEGER,
-    allowNull: true,
-    defaultValue: 3, // 1=Vigilante, 2=Admin, 3=Conductor
+    allowNull: false,
+    defaultValue: ROLES.CONDUCTOR,
   },
   estado: {
-    type: DataTypes.BOOLEAN,
+    type: DataTypes.ENUM('ACTIVO', 'INACTIVO', 'BLOQUEADO'),
     allowNull: false,
-    defaultValue: true,
+    defaultValue: 'ACTIVO',
   },
-  refresh_token: {
-    type: DataTypes.TEXT,
+  intentos_fallidos: {
+    type: DataTypes.SMALLINT,
+    allowNull: false,
+    defaultValue: 0,
+  },
+  ultimo_acceso: {
+    type: DataTypes.DATE,
     allowNull: true,
   },
 }, {
   tableName: 'usuario',
   timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  createdAt: 'fecha_creacion',
+  updatedAt: 'fecha_modificacion',
 });
 
 module.exports = Usuario;

@@ -28,7 +28,7 @@ const mapUsuario = (instancia) => {
   };
 };
 
-const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'rol_id', 'estado'];
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'rol_id', 'estado', 'ultimo_acceso', 'fecha_creacion'];
 
 /**
  * Recupera todos los usuarios con el nombre de su rol.
@@ -58,7 +58,7 @@ const findById = async (id) => {
 };
 
 /**
- * Busca un usuario por correo (incluye contraseña para login).
+ * Busca un usuario por correo (incluye contraseña, para login).
  * @param {string} correo
  * @returns {Promise<Object|null>}
  */
@@ -68,23 +68,13 @@ const findByCorreo = async (correo) => {
 };
 
 /**
- * Busca un usuario por refresh_token.
- * @param {string} refreshToken
- * @returns {Promise<Object|null>}
- */
-const findByRefreshToken = async (refreshToken) => {
-  const row = await Usuario.findOne({ where: { refresh_token: refreshToken } });
-  return row ? row.toJSON() : null;
-};
-
-/**
  * Crea un nuevo usuario.
- * @param {Object} data - { correo, nombre, contrasena, rol_id, estado?, refresh_token? }
+ * @param {Object} data - { correo, nombre, contrasena, rol_id, estado? }
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { correo, nombre, contrasena, rol_id, estado = true, refresh_token = null } = data;
-  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, refresh_token });
+  const { correo, nombre, contrasena, rol_id, estado = 'ACTIVO' } = data;
+  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado });
   return findById(nuevo.id);
 };
 
@@ -95,7 +85,7 @@ const create = async (data) => {
  * @returns {Promise<Object>}
  */
 const update = async (id, data) => {
-  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'refresh_token'];
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];
@@ -120,13 +110,30 @@ const updateContrasena = async (id, contrasena) => {
 };
 
 /**
- * Actualiza el refresh_token de un usuario.
+ * Registra un intento de login fallido; bloquea la cuenta tras `maxIntentos`.
  * @param {number} id
- * @param {string|null} refreshToken - Nuevo refresh token o null para eliminarlo
+ * @param {number} maxIntentos
+ * @returns {Promise<{ intentos_fallidos: number, estado: string }>}
+ */
+const registrarLoginFallido = async (id, maxIntentos = 5) => {
+  const usuario = await Usuario.findByPk(id);
+  if (!usuario) return null;
+  const intentos = usuario.intentos_fallidos + 1;
+  const estado = intentos >= maxIntentos ? 'BLOQUEADO' : usuario.estado;
+  await usuario.update({ intentos_fallidos: intentos, estado });
+  return { intentos_fallidos: intentos, estado };
+};
+
+/**
+ * Registra un login exitoso: limpia intentos fallidos y marca último acceso.
+ * @param {number} id
  * @returns {Promise<void>}
  */
-const updateRefreshToken = async (id, refreshToken) => {
-  await Usuario.update({ refresh_token: refreshToken }, { where: { id } });
+const registrarLoginExitoso = async (id) => {
+  await Usuario.update(
+    { intentos_fallidos: 0, ultimo_acceso: new Date() },
+    { where: { id } }
+  );
 };
 
 /**
@@ -143,10 +150,10 @@ module.exports = {
   findAll,
   findById,
   findByCorreo,
-  findByRefreshToken,
   create,
   update,
   updateContrasena,
-  updateRefreshToken,
+  registrarLoginFallido,
+  registrarLoginExitoso,
   remove,
 };

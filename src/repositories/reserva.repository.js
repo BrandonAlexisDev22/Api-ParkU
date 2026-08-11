@@ -1,150 +1,153 @@
 /**
  * @module ReservaRepository
  * @description Capa de persistencia para la gestión de reservas de celdas.
- * Alineado con el modelo Reserva (celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado).
+ * Toda escritura requiere contexto de usuario (auditoría/historial vía triggers) --
+ * ver reserva.service.js y dbContext.util.js. La BD también valida solapamientos
+ * (fn_validar_conflicto_reserva); la comprobación aquí es una segunda barrera para
+ * devolver un 409 con buen mensaje antes de llegar a la excepción de Postgres.
  */
 
-const db = require('../config/database');
+const { Op } = require('sequelize');
+const { Reserva, Celda, Usuario, Conductor, Vehiculo } = require('../models');
 
-/**
- * Consulta base que reconstruye el contexto de la reserva (Vehículo, Celda y Sede).
- * @constant {string}
- */
-const BASE_QUERY = `
-  SELECT r.*, v.placa,
-         c.id  AS celda_id,  -- alias para evitar conflicto con r.celda
-         p.nombre AS parqueadero_nombre
-  FROM reserva r
-  LEFT JOIN vehiculo v     ON r.vehiculo = v.id
-  LEFT JOIN celda c        ON r.celda    = c.id
-  LEFT JOIN parqueadero p  ON c.parqueadero = p.id
-`;
+const includeContexto = [
+  { model: Celda, as: 'celda', attributes: ['id', 'numero', 'parqueadero'] },
+  { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] },
+  { model: Conductor, as: 'conductor', attributes: ['id', 'nombre_apellidos'] },
+  { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa'] },
+];
 
 /**
  * Recupera todas las reservas ordenadas cronológicamente por inicio.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY r.fechaHora_inicio DESC`);
-  return rows;
+  const rows = await Reserva.findAll({ include: includeContexto, order: [['fecha_hora_inicio', 'DESC']] });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Busca una reserva específica por su ID.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE r.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await Reserva.findByPk(id, { include: includeContexto });
+  return row ? row.toJSON() : null;
 };
 
 /**
  * Obtiene el historial de reservas de un vehículo.
- * @param {number} vehiculoId 
+ * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
 const findByVehiculo = async (vehiculoId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE r.vehiculo = ? ORDER BY r.fechaHora_inicio DESC`,
-    [vehiculoId]
-  );
-  return rows;
+  const rows = await Reserva.findAll({
+    where: { vehiculo_id: vehiculoId },
+    include: includeContexto,
+    order: [['fecha_hora_inicio', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Obtiene la agenda de reservas de una celda específica.
- * @param {number} celdaId 
+ * @param {number} celdaId
  * @returns {Promise<Array>}
  */
 const findByCelda = async (celdaId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE r.celda = ? ORDER BY r.fechaHora_inicio DESC`,
-    [celdaId]
-  );
-  return rows;
+  const rows = await Reserva.findAll({
+    where: { celda_id: celdaId },
+    include: includeContexto,
+    order: [['fecha_hora_inicio', 'DESC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
- * Detecta conflictos de horario para una celda.
- * @param {number} celdaId - ID de la celda a verificar.
- * @param {string} inicio - Fecha/Hora de inicio deseada.
- * @param {string} fin - Fecha/Hora de fin deseada.
+ * Detecta conflictos de horario para una celda (solo reservas PENDIENTE/ACEPTADA).
+ * @param {number} celdaId
+ * @param {string|Date} inicio
+ * @param {string|Date} fin
  * @param {number|null} [excludeId] - ID de reserva a ignorar (útil en actualizaciones).
- * @returns {Promise<Array>} Lista de reservas que colisionan con el rango dado.
+ * @returns {Promise<Array>}
  */
 const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
-  let query = `
-    SELECT * FROM reserva
-    WHERE celda = ?
-      AND NOT (fechaHora_fin <= ? OR fechaHora_inicio >= ?)
-  `;
-  const params = [celdaId, inicio, fin];
-  if (excludeId) {
-    query += ' AND id != ?';
-    params.push(excludeId);
-  }
-  const [rows] = await db.query(query, params);
-  return rows;
+  const where = {
+    celda_id: celdaId,
+    estado: { [Op.in]: ['PENDIENTE', 'ACEPTADA'] },
+    fecha_hora_inicio: { [Op.lt]: fin },
+    fecha_hora_fin: { [Op.gt]: inicio },
+  };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+
+  const rows = await Reserva.findAll({ where });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
  * Crea una nueva reserva en el sistema.
- * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado? }
- * @param {number} data.celda
- * @param {number} data.vehiculo
- * @param {string} data.fechaHora_inicio
- * @param {string} data.fechaHora_fin
- * @param {number} [data.estado=1] - Estado inicial (1 = activa)
- * @returns {Promise<Object>} La reserva creada con sus joins.
+ * @param {Object} data
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object>} La reserva creada con su contexto.
  */
-const create = async ({ celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado = 1 }) => {
-  const [result] = await db.query(
-    'INSERT INTO reserva (celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado) VALUES (?, ?, ?, ?, ?)',
-    [celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado]
+const create = async (data, { transaction } = {}) => {
+  const {
+    tipo_reserva, celda_id, usuario_id, conductor_id, vehiculo_id,
+    motivo, fecha_hora_inicio, fecha_hora_fin, estado = 'PENDIENTE',
+  } = data;
+
+  const nueva = await Reserva.create(
+    { tipo_reserva, celda_id, usuario_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin, estado },
+    { transaction }
   );
-  return findById(result.insertId);
+  return findById(nueva.id);
 };
 
 /**
- * Actualiza parcialmente una reserva existente.
- * @param {number} id 
+ * Actualiza parcialmente una reserva existente (no toca estado; usar cambiarEstado).
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
- * @param {number} [data.celda]
- * @param {number} [data.vehiculo]
- * @param {string} [data.fechaHora_inicio]
- * @param {string} [data.fechaHora_fin]
- * @param {number} [data.estado]
+ * @param {import('sequelize').Transaction} opciones.transaction
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
-  const fields = [];
-  const values = [];
-  const allowedFields = ['celda', 'vehiculo', 'fechaHora_inicio', 'fechaHora_fin', 'estado'];
+const update = async (id, data, { transaction } = {}) => {
+  const allowedFields = ['tipo_reserva', 'celda_id', 'conductor_id', 'vehiculo_id', 'motivo', 'fecha_hora_inicio', 'fecha_hora_fin'];
+  const cambios = {};
   for (const field of allowedFields) {
-    if (data[field] !== undefined) {
-      fields.push(`${field} = ?`);
-      values.push(data[field]);
-    }
+    if (data[field] !== undefined) cambios[field] = data[field];
   }
-  if (fields.length === 0) {
-    // Si no se envía ningún campo, devolver sin cambios
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  values.push(id);
-  const query = `UPDATE reserva SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+  await Reserva.update(cambios, { where: { id }, transaction });
+  return findById(id);
+};
+
+/**
+ * Cambia el estado de una reserva (aceptar/rechazar/cancelar/terminar). La BD
+ * bloquea o libera la celda sola vía fn_reserva_bloquea_celda.
+ * @param {number} id
+ * @param {string} estado
+ * @param {number|null} usuarioGestionaId
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object>}
+ */
+const cambiarEstado = async (id, estado, usuarioGestionaId, { transaction } = {}) => {
+  const cambios = { estado };
+  if (usuarioGestionaId) cambios.usuario_gestiona_id = usuarioGestionaId;
+  await Reserva.update(cambios, { where: { id }, transaction });
   return findById(id);
 };
 
 /**
  * Elimina una reserva del sistema.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM reserva WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await Reserva.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
 module.exports = {
@@ -155,5 +158,6 @@ module.exports = {
   findConflictos,
   create,
   update,
+  cambiarEstado,
   remove,
 };

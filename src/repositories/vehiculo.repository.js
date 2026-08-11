@@ -1,123 +1,131 @@
 /**
  * @module VehiculoRepository
  * @description Capa de acceso a datos para la tabla 'vehiculo'.
- * Alineado con el modelo Vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado).
+ * La propiedad ya no es una FK directa: vive en 'detalle_propiedad' (M:N con conductor).
+ * Toda escritura sobre vehiculo requiere contexto de usuario (auditoría vía trigger) --
+ * ver vehiculo.service.js y dbContext.util.js.
  */
 
-const db = require('../config/database');
+const { Vehiculo, Conductor, DetallePropiedad } = require('../models');
+
+const includeConductores = {
+  model: Conductor,
+  as: 'conductores',
+  attributes: ['id', 'nombre_apellidos'],
+  through: { attributes: ['es_principal'] },
+};
 
 /**
- * Consulta base que recupera los datos del vehículo y el nombre del propietario
- * navegando a través de la tabla de conductores hasta la de usuarios.
- * @constant {string}
+ * Aplana el resultado de Sequelize: agrega conductor_principal_id/nombre de solo lectura.
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
  */
-const BASE_QUERY = `
-  SELECT v.*, u.nombre AS conductor_nombre
-  FROM vehiculo v
-  JOIN conductor c ON v.conductor = c.id
-  JOIN usuario u   ON c.usuario   = u.id
-`;
+const mapVehiculo = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  const { conductores = [], ...resto } = plano;
+  const principal = conductores.find((c) => c.DetallePropiedad?.es_principal) || conductores[0];
+  return {
+    ...resto,
+    conductores,
+    conductor_principal_id: principal ? principal.id : null,
+    conductor_principal_nombre: principal ? principal.nombre_apellidos : null,
+  };
+};
 
 /**
- * Obtiene el listado completo de vehículos con su contexto de propietario.
+ * Obtiene el listado completo de vehículos con sus propietarios.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const [rows] = await db.query(`${BASE_QUERY} ORDER BY v.placa`);
-  return rows;
+  const rows = await Vehiculo.findAll({ include: [includeConductores], order: [['placa', 'ASC']] });
+  return rows.map(mapVehiculo);
 };
 
 /**
  * Busca un vehículo por su ID interno.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<Object|null>}
  */
 const findById = async (id) => {
-  const [rows] = await db.query(`${BASE_QUERY} WHERE v.id = ?`, [id]);
-  return rows[0] || null;
+  const row = await Vehiculo.findByPk(id, { include: [includeConductores] });
+  return mapVehiculo(row);
 };
 
 /**
  * Busca un vehículo por su placa (identificador único externo).
- * @param {string} placa 
+ * @param {string} placa
  * @returns {Promise<Object|null>}
  */
 const findByPlaca = async (placa) => {
-  const [rows] = await db.query('SELECT * FROM vehiculo WHERE placa = ?', [placa]);
-  return rows[0] || null;
+  const row = await Vehiculo.findOne({ where: { placa }, include: [includeConductores] });
+  return mapVehiculo(row);
 };
 
 /**
  * Recupera todos los vehículos registrados bajo un mismo conductor.
- * @param {number} conductorId 
+ * @param {number} conductorId
  * @returns {Promise<Array>}
  */
 const findByConductor = async (conductorId) => {
-  const [rows] = await db.query(
-    `${BASE_QUERY} WHERE v.conductor = ? ORDER BY v.placa`,
-    [conductorId]
-  );
-  return rows;
+  const conductor = await Conductor.findByPk(conductorId, {
+    include: [{ model: Vehiculo, as: 'vehiculos', through: { attributes: ['es_principal'] } }],
+  });
+  if (!conductor) return [];
+  return conductor.vehiculos.map((v) => v.toJSON());
 };
 
 /**
- * Registra un nuevo vehículo en la base de datos.
- * @param {Object} data - { conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado? }
- * @returns {Promise<Object>} El vehículo creado con los datos de su propietario.
+ * Registra un nuevo vehículo y, si se indica un conductor, su propiedad principal.
+ * @param {Object} data - { conductor_id?, placa, tipo, marca, ... }
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object>} El vehículo creado con sus propietarios.
  */
-const create = async ({ conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado = true }) => {
-  const [result] = await db.query(
-    `INSERT INTO vehiculo (conductor, placa, tipo, marca, modelo, anio, color, descripcion, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      conductor,
-      placa,
-      tipo || null,
-      marca || null,
-      modelo || null,
-      anio || null,
-      color || null,
-      descripcion || null,
-      estado ? 1 : 0
-    ]
-  );
-  return findById(result.insertId);
+const create = async ({ conductor_id, ...data }, { transaction } = {}) => {
+  const nuevo = await Vehiculo.create(data, { transaction });
+
+  if (conductor_id) {
+    await DetallePropiedad.create(
+      { conductor_id, vehiculo_id: nuevo.id, es_principal: true },
+      { transaction }
+    );
+  }
+
+  return findById(nuevo.id);
 };
 
 /**
  * Actualiza parcialmente un vehículo existente.
- * @param {number} id 
+ * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
+ * @param {import('sequelize').Transaction} opciones.transaction
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
-  const fields = [];
-  const values = [];
-  const allowedFields = ['conductor', 'placa', 'tipo', 'marca', 'modelo', 'anio', 'color', 'descripcion', 'estado'];
+const update = async (id, data, { transaction } = {}) => {
+  const allowedFields = [
+    'placa', 'tipo', 'tarjeta_propiedad', 'marca', 'linea', 'modelo', 'cilindraje',
+    'color', 'servicio', 'carroceria', 'combustible', 'capacidad', 'numero_motor',
+    'numero_chasis', 'observaciones', 'vehiculo_sena', 'estado',
+  ];
+  const cambios = {};
   for (const field of allowedFields) {
-    if (data[field] !== undefined) {
-      fields.push(`${field} = ?`);
-      // Convertir estado booleano a 0/1
-      values.push(field === 'estado' ? (data[field] ? 1 : 0) : data[field]);
-    }
+    if (data[field] !== undefined) cambios[field] = data[field];
   }
-  if (fields.length === 0) {
+  if (Object.keys(cambios).length === 0) {
     return findById(id);
   }
-  values.push(id);
-  const query = `UPDATE vehiculo SET ${fields.join(', ')} WHERE id = ?`;
-  await db.query(query, values);
+  await Vehiculo.update(cambios, { where: { id }, transaction });
   return findById(id);
 };
 
 /**
  * Elimina un vehículo del sistema.
- * @param {number} id 
+ * @param {number} id
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  const [result] = await db.query('DELETE FROM vehiculo WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  const filasEliminadas = await Vehiculo.destroy({ where: { id } });
+  return filasEliminadas > 0;
 };
 
 module.exports = { findAll, findById, findByPlaca, findByConductor, create, update, remove };

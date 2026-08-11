@@ -6,7 +6,7 @@
 const { TipoUsuario } = require('../models');
 
 const findAll = async () => {
-  const rows = await TipoUsuario.findAll({ order: [['tipo_usuario', 'ASC']] });
+  const rows = await TipoUsuario.findAll({ order: [['nombre', 'ASC']] });
   return rows.map((r) => r.toJSON());
 };
 
