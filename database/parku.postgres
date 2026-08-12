@@ -3,24 +3,24 @@
 --  SENA Regional Antioquia · Centro de Servicios y Gestión Empresarial
 --  Ficha 3147910 · Tecnología en Análisis y Desarrollo de Software
 -- ---------------------------------------------------------------------
---  BASE DE DATOS COMPLETA Y CONSOLIDADA — PostgreSQL 13+
+--  BASE DE DATOS FINAL — PostgreSQL 13+
 --
---  Este archivo reemplaza a los tres anteriores. Equivale a:
---      parku_postgresql_100_mhu_ficha.sql   (esquema base)
---    + parku_parche_backend.sql             (parche 1)
---    + parku_parche2_coherencia.sql         (parche 2)
---  ya aplicados y consolidados. NO ejecute los parches sobre este
---  archivo: ya vienen incorporados.
+--  Este archivo es la version definitiva. Reemplaza a TODOS los
+--  anteriores y ya incluye:
+--      parku_completa.sql               (esquema base + parches 1 y 2)
+--    + parku_parche3_preferenciales.sql (celdas preferenciales)
+--    + parku_parche4_frontend.sql       (alineacion con el frontend)
+--  NO ejecute ningun parche sobre este archivo.
 --
 --  CONTENIDO
---    34 tablas · 19 tipos enumerados · 28 vistas
---    21 funciones · 21 triggers · 89 índices · 18 restricciones CHECK
---    Catálogos precargados: 3 roles, 14 permisos, 8 módulos,
+--    34 tablas · 20 tipos enumerados · 35 vistas · 23 funciones
+--    20 triggers · restricciones CHECK, UNIQUE e indices parciales
+--    Catalogos precargados: 3 roles, 14 permisos, 8 modulos,
 --    5 tipos de usuario, 5 parqueaderos y el usuario administrador.
 --
 --  CÓMO EJECUTARLO
---    Los datos van como INSERT (no como COPY), asi que este archivo
---    funciona igual en pgAdmin, DBeaver, DataGrip o psql.
+--    Los datos van como INSERT (no como COPY), asi que funciona igual
+--    en pgAdmin, DBeaver, DataGrip o psql.
 --
 --    pgAdmin:
 --        1. Crear la base "parku" con encoding UTF8
@@ -28,18 +28,18 @@
 --        3. Abrir este archivo y ejecutar con F5
 --    Terminal:
 --        createdb -U postgres -E UTF8 parku
---        psql -U postgres -d parku -f parku_completa.sql
+--        psql -U postgres -d parku -f parku_final.sql
 --
---  ANTES DE USARLA EN PRODUCCIÓN
---    1. Reemplazar el hash de la contraseña del usuario administrador
+--  ANTES DE USARLA EN SERIO
+--    1. Reemplazar el hash de la contrasena del administrador
 --       (admin@parku.sena.edu.co) por uno real de bcrypt o argon2.
---    2. Cargar el inventario real de celdas de cada parqueadero: los
---       cinco parqueaderos vienen con capacidad_maxima = 0 y sin celdas.
+--    2. Cargar el inventario real de celdas: los cinco parqueaderos
+--       vienen con capacidad 0 y sin celdas.
 --
---  CONTEXTO DE SESIÓN OBLIGATORIO PARA EL BACKEND
---    Los triggers de auditoría e historial exigen saber quién escribe.
---    TODA operación de escritura debe ir dentro de una transacción que
---    declare al menos app.usuario_id:
+--  CONTEXTO DE SESIÓN
+--    Cinco tablas llevan trigger de auditoria y exigen saber quien
+--    escribe: celda, parqueadero, registro_acceso, reserva y vehiculo.
+--    Al escribir en ellas hay que abrir la transaccion asi:
 --
 --        BEGIN;
 --        SET LOCAL app.usuario_id = '<id del usuario autenticado>';
@@ -50,36 +50,47 @@
 --        ... INSERT / UPDATE ...
 --        COMMIT;
 --
---    Esto NO puede quedar a criterio de cada desarrollador: va en un
---    middleware o interceptor que corra en cada request autenticado.
---    Si falta app.usuario_id, la operación lanza excepción.
---      Spring : listener @Transactional que ejecute el SET LOCAL
---      Laravel: DB::statement("SET LOCAL app.usuario_id = ?") en middleware
---      Node   : envolver cada query en un client dedicado del pool
+--    Lo mas simple es ponerlo en un middleware que corra en cada
+--    request autenticado. Las lecturas no necesitan nada de esto.
+--
+--    usuario, conductor y recuperacion_password NO llevan ese trigger,
+--    precisamente para que el registro de cuentas y la recuperacion de
+--    contrasena funcionen sin sesion previa.
 --
 --  REGLA DE INTEGRIDAD DEL ESTADO DE UNA CELDA
---    celda.estado          es la ÚNICA fuente de verdad.
---    ocupacion_celda       quién la ocupa ahora (estado=ACTIVA) e histórico.
---    disponibilidad_celda  bitácora de cambios manuales (mantenimiento).
---    No consulte las dos últimas para saber si una celda está libre.
+--    celda.estado          es la UNICA fuente de verdad.
+--    ocupacion_celda       quien la ocupa ahora e historico.
+--    disponibilidad_celda  bitacora de cambios manuales.
+--    No consulte las dos ultimas para saber si una celda esta libre.
 --
---  REGLAS GARANTIZADAS POR LA BASE (probadas)
+--  REGLAS GARANTIZADAS POR LA BASE (todas probadas)
 --    · No se puede ingresar a una celda en MANTENIMIENTO o INACTIVA
 --    · Aceptar una reserva deja la celda en RESERVADA
---    · Solo el vehículo de la reserva puede ocupar una celda reservada
+--    · Solo el vehiculo de la reserva puede ocupar una celda reservada
 --    · Al salir, la celda vuelve a RESERVADA si la reserva sigue vigente
 --    · Una celda no admite dos ocupaciones activas
---    · Un vehículo no admite dos ingresos abiertos
+--    · Un vehiculo no admite dos ingresos abiertos
 --    · No se aceptan reservas solapadas sobre la misma celda
---    · El tipo de vehículo debe corresponder al tipo de la celda
---    · Las bicicletas pueden no tener placa; los demás tipos la exigen
+--    · El tipo de vehiculo debe corresponder al tipo de la celda
+--    · Las celdas preferenciales exigen conductor con movilidad reducida,
+--      tanto al reservar como al ingresar
+--    · Una reserva que salga de PENDIENTE debe decir quien la gestiono
+--    · Las bicicletas pueden no tener placa; los demas tipos la exigen
+--
+--  FUNCIONES DE APOYO PARA EL BACKEND
+--    fn_celdas_disponibles_para(conductor_id)  celdas que esa persona puede tomar
+--    fn_sugerir_celda(conductor_id, vehiculo_id)  asignacion inteligente
+--
+--  VISTAS CON LA FORMA QUE ESPERA EL FRONTEND
+--    v_parqueadero_front · v_celda_front · v_conductor_front
+--    v_vehiculo_front · v_movimientos_front · v_rol_permisos_front
 --
 --  DECISIONES PENDIENTES CON EL INSTRUCTOR
 --    · licencia_conduccion no tiene ninguna HU que la respalde
 --    · autorizacion_acceso y parqueadero_ip_autorizada no salen de la
 --      ficha ni de la MHU
---    · encuesta y valoracion existen por un objetivo específico de la
---      ficha que no aparece en el alcance ni en la matriz
+--    · encuesta y valoracion responden a un objetivo especifico de la
+--      ficha que no figura en el alcance ni en la matriz
 -- =====================================================================
 
 --
@@ -290,6 +301,21 @@ CREATE TYPE public.tipo_novedad_enum AS ENUM (
 
 
 --
+-- Name: tipo_parqueadero_enum; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.tipo_parqueadero_enum AS ENUM (
+    'GENERAL',
+    'DOCENTES',
+    'ADMINISTRATIVOS',
+    'APRENDICES',
+    'VISITANTES',
+    'MOTOS',
+    'VEHICULO_SENA'
+);
+
+
+--
 -- Name: tipo_reserva_enum; Type: TYPE; Schema: public; Owner: -
 --
 
@@ -460,6 +486,25 @@ BEGIN
 
     RETURN COALESCE(NEW, OLD);
 END;
+$$;
+
+
+--
+-- Name: fn_celdas_disponibles_para(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_celdas_disponibles_para(p_conductor_id integer) RETURNS TABLE(celda_id integer, numero character varying, parqueadero character varying, tipo public.tipo_vehiculo_enum, usabilidad public.usabilidad_enum)
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT c.id, c.numero, p.nombre, c.tipo, c.usabilidad
+      FROM celda c
+      JOIN parqueadero p ON p.id = c.parqueadero_id
+     WHERE c.estado = 'DISPONIBLE'
+       AND (c.usabilidad <> 'MOVILIDAD_REDUCIDA'
+            OR EXISTS (SELECT 1 FROM conductor co
+                        WHERE co.id = p_conductor_id
+                          AND co.movilidad_reducida = TRUE))
+     ORDER BY p.nombre, c.numero;
 $$;
 
 
@@ -941,6 +986,54 @@ $$;
 
 
 --
+-- Name: fn_sugerir_celda(integer, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_sugerir_celda(p_conductor_id integer, p_vehiculo_id integer) RETURNS TABLE(celda_id integer, numero character varying, parqueadero character varying, usabilidad public.usabilidad_enum, motivo text)
+    LANGUAGE plpgsql STABLE
+    AS $$
+DECLARE
+    v_tipo    tipo_vehiculo_enum;
+    v_apto    BOOLEAN;
+    v_tipo_pq tipo_parqueadero_enum;
+BEGIN
+    SELECT ve.tipo INTO v_tipo FROM vehiculo ve WHERE ve.id = p_vehiculo_id;
+    SELECT co.movilidad_reducida INTO v_apto FROM conductor co WHERE co.id = p_conductor_id;
+
+    SELECT CASE tu.nombre
+             WHEN 'Instructor'     THEN 'DOCENTES'
+             WHEN 'Administrativo' THEN 'ADMINISTRATIVOS'
+             WHEN 'Aprendiz'       THEN 'APRENDICES'
+             WHEN 'Visitante'      THEN 'VISITANTES'
+             ELSE 'GENERAL' END::tipo_parqueadero_enum
+      INTO v_tipo_pq
+      FROM conductor co JOIN tipo_usuario tu ON tu.id = co.tipo_usuario_id
+     WHERE co.id = p_conductor_id;
+
+    RETURN QUERY
+    SELECT c.id, c.numero, p.nombre, c.usabilidad,
+           CASE
+             WHEN c.usabilidad = 'MOVILIDAD_REDUCIDA' THEN 'Celda preferencial disponible'
+             WHEN p.tipo = v_tipo_pq                  THEN 'Zona correspondiente al perfil'
+             ELSE 'Zona general'
+           END::TEXT
+      FROM celda c
+      JOIN parqueadero p ON p.id = c.parqueadero_id
+     WHERE c.estado = 'DISPONIBLE'
+       AND p.estado = TRUE
+       AND c.tipo = v_tipo
+       AND (c.usabilidad <> 'MOVILIDAD_REDUCIDA' OR COALESCE(v_apto, FALSE))
+     ORDER BY
+       -- 1) si tiene condicion, primero las preferenciales
+       (COALESCE(v_apto, FALSE) AND c.usabilidad = 'MOVILIDAD_REDUCIDA') DESC,
+       -- 2) luego la zona que corresponde a su perfil
+       (p.tipo = v_tipo_pq) DESC,
+       p.nombre, c.numero;
+END;
+$$;
+
+
+--
 -- Name: fn_usuario_autorizado_acceso(integer, integer, integer, timestamp without time zone); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1017,12 +1110,16 @@ CREATE FUNCTION public.fn_validar_ocupacion_celda() RETURNS trigger
 DECLARE
     v_estado_celda  estado_celda_enum;
     v_tipo_celda    tipo_vehiculo_enum;
+    v_usabilidad    usabilidad_enum;
     v_tipo_vehiculo tipo_vehiculo_enum;
     v_numero        VARCHAR(10);
     v_reservada_por INT;
+    v_conductor_id  INT;
+    v_apto          BOOLEAN;
+    v_nombre        VARCHAR(200);
 BEGIN
-    SELECT c.estado, c.tipo, c.numero
-      INTO v_estado_celda, v_tipo_celda, v_numero
+    SELECT c.estado, c.tipo, c.usabilidad, c.numero
+      INTO v_estado_celda, v_tipo_celda, v_usabilidad, v_numero
       FROM celda c WHERE c.id = NEW.celda_id;
 
     IF v_estado_celda IS NULL THEN
@@ -1030,48 +1127,123 @@ BEGIN
     END IF;
 
     SELECT v.tipo INTO v_tipo_vehiculo FROM vehiculo v WHERE v.id = NEW.vehiculo_id;
-
     IF v_tipo_vehiculo IS NULL THEN
         RAISE EXCEPTION 'El vehiculo % no existe.', NEW.vehiculo_id;
     END IF;
 
-    -- 1.1 Celda fuera de servicio
+    -- 3.1 Celda fuera de servicio
     IF v_estado_celda IN ('MANTENIMIENTO','INACTIVA') THEN
         RAISE EXCEPTION 'La celda % esta en % y no admite ocupacion.',
                         v_numero, v_estado_celda;
     END IF;
 
-    -- 1.2 Celda ya ocupada por otro vehiculo
+    -- 3.2 Celda ya ocupada
     IF EXISTS (SELECT 1 FROM ocupacion_celda oc
-               WHERE oc.celda_id = NEW.celda_id
-                 AND oc.estado = 'ACTIVA'
+               WHERE oc.celda_id = NEW.celda_id AND oc.estado = 'ACTIVA'
                  AND oc.id IS DISTINCT FROM NEW.id) THEN
         RAISE EXCEPTION 'La celda % ya tiene una ocupacion activa.', v_numero;
     END IF;
 
-    -- 1.3 Celda reservada: solo el vehiculo de la reserva puede entrar
+    -- 3.3 Celda reservada: solo el vehiculo de la reserva
     IF v_estado_celda = 'RESERVADA' THEN
         SELECT r.vehiculo_id INTO v_reservada_por
           FROM reserva r
-         WHERE r.celda_id = NEW.celda_id
-           AND r.estado = 'ACEPTADA'
+         WHERE r.celda_id = NEW.celda_id AND r.estado = 'ACEPTADA'
            AND COALESCE(NEW.fecha_hora_inicio, CURRENT_TIMESTAMP)
                BETWEEN r.fecha_hora_inicio AND r.fecha_hora_fin
-         ORDER BY r.fecha_hora_inicio
-         LIMIT 1;
+         ORDER BY r.fecha_hora_inicio LIMIT 1;
 
         IF v_reservada_por IS NOT NULL
            AND v_reservada_por IS DISTINCT FROM NEW.vehiculo_id THEN
-            RAISE EXCEPTION
-              'La celda % esta reservada para otro vehiculo.', v_numero;
+            RAISE EXCEPTION 'La celda % esta reservada para otro vehiculo.', v_numero;
         END IF;
     END IF;
 
-    -- 1.4 El tipo de celda debe corresponder al tipo de vehiculo
+    -- 3.4 Tipo de celda contra tipo de vehiculo
     IF v_tipo_celda <> v_tipo_vehiculo THEN
         RAISE EXCEPTION
           'El tipo de vehiculo (%) no corresponde con el tipo de la celda % (%).',
           v_tipo_vehiculo, v_numero, v_tipo_celda;
+    END IF;
+
+    -- 3.5 CELDA PREFERENCIAL: exige condicion de movilidad reducida
+    IF v_usabilidad = 'MOVILIDAD_REDUCIDA' THEN
+        -- conductor del ingreso; si no viene, el propietario principal
+        SELECT ra.conductor_id INTO v_conductor_id
+          FROM registro_acceso ra WHERE ra.id = NEW.registro_acceso_id;
+
+        IF v_conductor_id IS NULL THEN
+            SELECT dp.conductor_id INTO v_conductor_id
+              FROM detalle_propiedad dp
+             WHERE dp.vehiculo_id = NEW.vehiculo_id
+               AND dp.es_principal = TRUE AND dp.estado = TRUE
+             LIMIT 1;
+        END IF;
+
+        IF v_conductor_id IS NULL THEN
+            RAISE EXCEPTION
+              'La celda % es de movilidad reducida: se requiere identificar al conductor.', v_numero;
+        END IF;
+
+        SELECT co.movilidad_reducida, co.nombre_apellidos
+          INTO v_apto, v_nombre
+          FROM conductor co WHERE co.id = v_conductor_id;
+
+        IF NOT COALESCE(v_apto, FALSE) THEN
+            RAISE EXCEPTION
+              'La celda % es de caracter preferencial y % no tiene registrada condicion de movilidad reducida.',
+              v_numero, v_nombre;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: fn_validar_reserva_preferencial(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.fn_validar_reserva_preferencial() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_usabilidad   usabilidad_enum;
+    v_numero       VARCHAR(10);
+    v_conductor_id INT;
+    v_apto         BOOLEAN;
+    v_nombre       VARCHAR(200);
+BEGIN
+    SELECT c.usabilidad, c.numero INTO v_usabilidad, v_numero
+      FROM celda c WHERE c.id = NEW.celda_id;
+
+    IF v_usabilidad = 'MOVILIDAD_REDUCIDA' OR NEW.tipo_reserva = 'MOVILIDAD_REDUCIDA' THEN
+
+        v_conductor_id := NEW.conductor_id;
+
+        IF v_conductor_id IS NULL AND NEW.vehiculo_id IS NOT NULL THEN
+            SELECT dp.conductor_id INTO v_conductor_id
+              FROM detalle_propiedad dp
+             WHERE dp.vehiculo_id = NEW.vehiculo_id
+               AND dp.es_principal = TRUE AND dp.estado = TRUE
+             LIMIT 1;
+        END IF;
+
+        IF v_conductor_id IS NULL THEN
+            RAISE EXCEPTION
+              'Una reserva de movilidad reducida debe indicar el conductor beneficiario.';
+        END IF;
+
+        SELECT co.movilidad_reducida, co.nombre_apellidos
+          INTO v_apto, v_nombre
+          FROM conductor co WHERE co.id = v_conductor_id;
+
+        IF NOT COALESCE(v_apto, FALSE) THEN
+            RAISE EXCEPTION
+              '% no tiene registrada condicion de movilidad reducida: no puede reservar la celda %.',
+              v_nombre, COALESCE(v_numero, '(preferencial)');
+        END IF;
     END IF;
 
     RETURN NEW;
@@ -1226,8 +1398,9 @@ CREATE TABLE public.captura_placa (
     fecha_procesamiento timestamp without time zone,
     error_ocr character varying(500),
     direccion_captura character varying(10),
+    origen character varying(30) DEFAULT 'NAVEGADOR'::character varying NOT NULL,
     CONSTRAINT ck_captura_placa_confianza CHECK (((confianza IS NULL) OR ((confianza >= (0)::numeric) AND (confianza <= (100)::numeric)))),
-    CONSTRAINT ck_captura_placa_direccion CHECK (((direccion_captura IS NULL) OR ((direccion_captura)::text = ANY ((ARRAY['ENTRADA'::character varying, 'SALIDA'::character varying])::text[]))))
+    CONSTRAINT ck_captura_placa_direccion CHECK (((direccion_captura IS NULL) OR ((direccion_captura)::text = ANY (ARRAY[('ENTRADA'::character varying)::text, ('SALIDA'::character varying)::text]))))
 );
 
 
@@ -1250,6 +1423,13 @@ COMMENT ON COLUMN public.captura_placa.confianza IS '% de certeza del reconocimi
 --
 
 COMMENT ON COLUMN public.captura_placa.vehiculo_id IS 'NULL si la placa no está registrada';
+
+
+--
+-- Name: COLUMN captura_placa.origen; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.captura_placa.origen IS 'De donde vino la lectura: NAVEGADOR (tesseract.js en el cliente), CAMARA_FIJA o MANUAL.';
 
 
 --
@@ -1348,7 +1528,9 @@ CREATE TABLE public.conductor (
     vigencia date,
     movilidad_reducida boolean DEFAULT false NOT NULL,
     estado boolean DEFAULT true NOT NULL,
-    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    tipo_discapacidad character varying(150),
+    CONSTRAINT chk_conductor_discapacidad CHECK (((movilidad_reducida = true) OR (tipo_discapacidad IS NULL)))
 );
 
 
@@ -1374,6 +1556,13 @@ COMMENT ON COLUMN public.conductor.numero_documento IS 'E-32: antes era INTEGER;
 
 
 --
+-- Name: COLUMN conductor.correo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.correo IS 'Correo de contacto de la persona. Puede existir sin cuenta (visitantes). Si conductor.usuario_id tiene valor, la credencial de acceso es usuario.correo.';
+
+
+--
 -- Name: COLUMN conductor.regional_formacion; Type: COMMENT; Schema: public; Owner: -
 --
 
@@ -1384,7 +1573,14 @@ COMMENT ON COLUMN public.conductor.regional_formacion IS 'Dato proveniente de SO
 -- Name: COLUMN conductor.movilidad_reducida; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.conductor.movilidad_reducida IS 'Habilita reservas tipo MOVILIDAD_REDUCIDA';
+COMMENT ON COLUMN public.conductor.movilidad_reducida IS 'Indica que la persona tiene una condicion que la habilita para usar celdas de caracter preferencial. La base valida este campo al reservar y al ocupar una celda de usabilidad MOVILIDAD_REDUCIDA.';
+
+
+--
+-- Name: COLUMN conductor.tipo_discapacidad; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conductor.tipo_discapacidad IS 'Detalle de la condicion. Solo aplica cuando movilidad_reducida = TRUE.';
 
 
 --
@@ -2029,6 +2225,8 @@ CREATE TABLE public.parqueadero (
     piso character varying(50),
     plano_url character varying(500),
     observaciones character varying(500),
+    descripcion character varying(255),
+    tipo public.tipo_parqueadero_enum DEFAULT 'GENERAL'::public.tipo_parqueadero_enum NOT NULL,
     CONSTRAINT ck_parqueadero_capacidad CHECK ((capacidad_maxima >= 0))
 );
 
@@ -2038,6 +2236,13 @@ CREATE TABLE public.parqueadero (
 --
 
 COMMENT ON TABLE public.parqueadero IS 'Proceso 03.1. E-39: se eliminaron los 7 contadores de celdas (celdas_totales, celdas_motos, celdas_camion...). Ahora se calculan en la vista v_capacidad_parqueadero para que nunca queden desincronizados.';
+
+
+--
+-- Name: COLUMN parqueadero.acceso; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.parqueadero.acceso IS 'Porteria por la que se accede: REGIONAL o AVENIDA_BOYACA. No confundir con tipo.';
 
 
 --
@@ -2052,6 +2257,13 @@ COMMENT ON COLUMN public.parqueadero.hora_apertura IS 'E-10: exigido por HU 03.1
 --
 
 COMMENT ON COLUMN public.parqueadero.hora_cierre IS 'E-10: exigido por HU 03.1.1.1';
+
+
+--
+-- Name: COLUMN parqueadero.tipo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.parqueadero.tipo IS 'Publico objetivo del parqueadero. Lo usa la asignacion inteligente del frontend para sugerir zona. Distinto de acceso, que indica por cual porteria se ingresa.';
 
 
 --
@@ -2244,7 +2456,7 @@ CREATE TABLE public.reserva (
     id integer NOT NULL,
     tipo_reserva public.tipo_reserva_enum NOT NULL,
     celda_id integer NOT NULL,
-    usuario_id integer NOT NULL,
+    usuario_registra_id integer NOT NULL,
     conductor_id integer,
     vehiculo_id integer,
     motivo character varying(255),
@@ -2253,6 +2465,7 @@ CREATE TABLE public.reserva (
     estado public.estado_reserva_enum DEFAULT 'PENDIENTE'::public.estado_reserva_enum NOT NULL,
     usuario_gestiona_id integer,
     fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT chk_reserva_gestion CHECK (((estado = 'PENDIENTE'::public.estado_reserva_enum) OR (usuario_gestiona_id IS NOT NULL))),
     CONSTRAINT ck_reserva_fechas CHECK ((fecha_hora_fin > fecha_hora_inicio))
 );
 
@@ -2272,6 +2485,20 @@ COMMENT ON COLUMN public.reserva.tipo_reserva IS 'E-37: unifica los 3 subproceso
 
 
 --
+-- Name: COLUMN reserva.usuario_registra_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.usuario_registra_id IS 'Vigilante que registra la reserva en el sistema.';
+
+
+--
+-- Name: COLUMN reserva.conductor_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.conductor_id IS 'Persona para quien es la reserva. No es quien la registra.';
+
+
+--
 -- Name: COLUMN reserva.estado; Type: COMMENT; Schema: public; Owner: -
 --
 
@@ -2282,7 +2509,7 @@ COMMENT ON COLUMN public.reserva.estado IS 'E-25: antes se llamaba estado_celda,
 -- Name: COLUMN reserva.usuario_gestiona_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.reserva.usuario_gestiona_id IS 'Quién aprueba o rechaza';
+COMMENT ON COLUMN public.reserva.usuario_gestiona_id IS 'Vigilante o administrador que revisa la reserva y la acepta o la rechaza. Vacio mientras siga PENDIENTE.';
 
 
 --
@@ -2435,7 +2662,8 @@ CREATE TABLE public.usuario (
     intentos_fallidos smallint DEFAULT 0 NOT NULL,
     ultimo_acceso timestamp without time zone,
     fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    fecha_modificacion timestamp without time zone
+    fecha_modificacion timestamp without time zone,
+    numero_telefonico character varying(20)
 );
 
 
@@ -2457,7 +2685,7 @@ COMMENT ON COLUMN public.usuario.nombre IS 'E-06: faltaba. HU 02.1.1.2 y 02.1.2.
 -- Name: COLUMN usuario.correo; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.usuario.correo IS 'E-35: UNIQUE';
+COMMENT ON COLUMN public.usuario.correo IS 'Credencial de acceso. Unica en todo el sistema. Con este correo se inicia sesion.';
 
 
 --
@@ -2472,6 +2700,13 @@ COMMENT ON COLUMN public.usuario.contrasena IS 'E-31: antes se llamaba "contrase
 --
 
 COMMENT ON COLUMN public.usuario.fecha_creacion IS 'E-07: exigido por HU 02.1.2.2';
+
+
+--
+-- Name: COLUMN usuario.numero_telefonico; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.usuario.numero_telefonico IS 'Telefono de contacto de la cuenta. El de la persona esta en conductor.numero_telefonico.';
 
 
 --
@@ -2512,6 +2747,25 @@ CREATE VIEW public.v_autorizaciones_activas AS
      LEFT JOIN public.conductor c ON ((c.id = a.conductor_id)))
      LEFT JOIN public.parqueadero p ON ((p.id = a.parqueadero_id)))
   WHERE ((a.estado = true) AND ((a.fecha_inicio IS NULL) OR (a.fecha_inicio <= CURRENT_DATE)) AND ((a.fecha_fin IS NULL) OR (a.fecha_fin >= CURRENT_DATE)));
+
+
+--
+-- Name: v_celda_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_celda_front AS
+ SELECT c.id,
+    c.parqueadero_id,
+    p.nombre AS parqueadero,
+    c.numero,
+    c.tipo,
+    c.usabilidad,
+    (c.usabilidad = 'MOVILIDAD_REDUCIDA'::public.usabilidad_enum) AS es_preferencial,
+    c.estado,
+    (c.estado = 'OCUPADA'::public.estado_celda_enum) AS ocupada,
+    c.observaciones
+   FROM (public.celda c
+     JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)));
 
 
 --
@@ -2653,6 +2907,82 @@ CREATE VIEW public.v_comparativo_ocupacion_parqueaderos AS
    FROM (public.parqueadero p
      LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
   GROUP BY p.id, p.nombre, p.zona, p.piso;
+
+
+--
+-- Name: v_conductor_contacto; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_conductor_contacto AS
+ SELECT co.id AS conductor_id,
+    co.nombre_apellidos,
+    co.tipo_documento,
+    co.numero_documento,
+    co.direccion,
+    co.numero_telefonico,
+    COALESCE(u.correo, co.correo) AS correo_principal,
+    co.correo AS correo_contacto,
+    u.correo AS correo_acceso,
+    co.movilidad_reducida,
+    tu.nombre AS tipo_usuario,
+    co.vigencia,
+    (u.id IS NOT NULL) AS tiene_cuenta,
+    co.estado
+   FROM ((public.conductor co
+     LEFT JOIN public.usuario u ON ((u.id = co.usuario_id)))
+     LEFT JOIN public.tipo_usuario tu ON ((tu.id = co.tipo_usuario_id)));
+
+
+--
+-- Name: v_conductor_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_conductor_front AS
+ SELECT co.id,
+    co.usuario_id,
+    co.nombre_apellidos AS nombre,
+    co.tipo_documento,
+    co.numero_documento AS identificacion,
+    COALESCE(u.correo, co.correo) AS email,
+    co.numero_telefonico,
+    co.direccion,
+    tu.nombre AS tipo_conductor,
+    co.centro_formacion,
+    co.programa_formacion,
+    co.movilidad_reducida AS discapacidad,
+    co.tipo_discapacidad,
+    co.vigencia,
+    co.estado,
+    v.id AS vehiculo_id,
+    v.placa,
+    v.tipo AS tipo_vehiculo
+   FROM (((public.conductor co
+     LEFT JOIN public.usuario u ON ((u.id = co.usuario_id)))
+     LEFT JOIN public.tipo_usuario tu ON ((tu.id = co.tipo_usuario_id)))
+     LEFT JOIN LATERAL ( SELECT ve.id,
+            ve.placa,
+            ve.tipo,
+            ve.tarjeta_propiedad,
+            ve.marca,
+            ve.linea,
+            ve.modelo,
+            ve.cilindraje,
+            ve.color,
+            ve.servicio,
+            ve.carroceria,
+            ve.combustible,
+            ve.capacidad,
+            ve.numero_motor,
+            ve.numero_chasis,
+            ve.observaciones,
+            ve.vehiculo_sena,
+            ve.estado,
+            ve.fecha_creacion
+           FROM (public.detalle_propiedad dp
+             JOIN public.vehiculo ve ON ((ve.id = dp.vehiculo_id)))
+          WHERE ((dp.conductor_id = co.id) AND (dp.estado = true))
+          ORDER BY dp.es_principal DESC, dp.id
+         LIMIT 1) v ON (true));
 
 
 --
@@ -2953,7 +3283,7 @@ CREATE VIEW public.v_incumplimientos_reservas AS
      LEFT JOIN LATERAL ( SELECT r2.id,
             r2.tipo_reserva,
             r2.celda_id,
-            r2.usuario_id,
+            r2.usuario_registra_id AS usuario_id,
             r2.conductor_id,
             r2.vehiculo_id,
             r2.motivo,
@@ -2967,6 +3297,37 @@ CREATE VIEW public.v_incumplimientos_reservas AS
           ORDER BY r2.fecha_hora_inicio
          LIMIT 1) r ON (true))
   WHERE ((c.usabilidad = ANY (ARRAY['MOVILIDAD_REDUCIDA'::public.usabilidad_enum, 'EJECUTIVO'::public.usabilidad_enum, 'VEHICULO_SENA'::public.usabilidad_enum])) AND ((r.id IS NULL) OR (r.vehiculo_id IS DISTINCT FROM ra.vehiculo_id)));
+
+
+--
+-- Name: v_movimientos_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_movimientos_front AS
+ SELECT ra.id,
+    v.placa,
+    'entrada'::text AS tipo,
+    ra.fecha_hora_ingreso AS fecha,
+    ra.parqueadero_id,
+    p.nombre AS parqueadero,
+    co.nombre_apellidos AS conductor_nombre
+   FROM (((public.registro_acceso ra
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.conductor co ON ((co.id = ra.conductor_id)))
+UNION ALL
+ SELECT ra.id,
+    v.placa,
+    'salida'::text AS tipo,
+    ra.fecha_hora_salida AS fecha,
+    ra.parqueadero_id,
+    p.nombre AS parqueadero,
+    co.nombre_apellidos AS conductor_nombre
+   FROM (((public.registro_acceso ra
+     JOIN public.vehiculo v ON ((v.id = ra.vehiculo_id)))
+     JOIN public.parqueadero p ON ((p.id = ra.parqueadero_id)))
+     LEFT JOIN public.conductor co ON ((co.id = ra.conductor_id)))
+  WHERE (ra.fecha_hora_salida IS NOT NULL);
 
 
 --
@@ -3096,6 +3457,33 @@ CREATE VIEW public.v_ocupacion_por_hora AS
 
 
 --
+-- Name: v_parqueadero_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_parqueadero_front AS
+SELECT
+    NULL::integer AS id,
+    NULL::character varying(100) AS nombre,
+    NULL::character varying(255) AS direccion,
+    NULL::character varying(255) AS descripcion,
+    NULL::public.tipo_parqueadero_enum AS tipo,
+    NULL::public.acceso_enum AS acceso,
+    NULL::character varying(100) AS bloque,
+    NULL::character varying(50) AS piso,
+    NULL::integer AS capacidad,
+    NULL::time without time zone AS hora_inicio,
+    NULL::time without time zone AS hora_fin,
+    NULL::boolean AS estado,
+    NULL::bigint AS celdas_totales,
+    NULL::bigint AS celdas_carros,
+    NULL::bigint AS celdas_motos,
+    NULL::bigint AS celdas_bicicletas,
+    NULL::bigint AS celdas_movilidad_reducida,
+    NULL::bigint AS celdas_disponibles,
+    NULL::bigint AS celdas_ocupadas;
+
+
+--
 -- Name: v_parqueaderos_con_capacidad; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -3153,7 +3541,7 @@ CREATE VIEW public.v_reconocimiento_placas AS
 CREATE VIEW public.v_reservas_activas AS
  SELECT r.id AS reserva_id,
     r.tipo_reserva,
-    r.usuario_id,
+    r.usuario_registra_id AS usuario_id,
     r.conductor_id,
     r.vehiculo_id,
     v.placa,
@@ -3192,7 +3580,7 @@ CREATE VIEW public.v_reservas_celdas_exclusivas AS
      JOIN public.celda c ON ((c.id = r.celda_id)))
      JOIN public.parqueadero p ON ((p.id = c.parqueadero_id)))
      LEFT JOIN public.vehiculo v ON ((v.id = r.vehiculo_id)))
-     JOIN public.usuario u ON ((u.id = r.usuario_id)))
+     JOIN public.usuario u ON ((u.id = r.usuario_registra_id)))
   WHERE (c.usabilidad = ANY (ARRAY['MOVILIDAD_REDUCIDA'::public.usabilidad_enum, 'EJECUTIVO'::public.usabilidad_enum, 'VEHICULO_SENA'::public.usabilidad_enum]));
 
 
@@ -3207,7 +3595,7 @@ CREATE VIEW public.v_reservas_con_detalle AS
     r.fecha_hora_inicio,
     r.fecha_hora_fin,
     r.motivo,
-    r.usuario_id,
+    r.usuario_registra_id AS usuario_id,
     u.nombre AS usuario,
     r.conductor_id,
     co.nombre_apellidos AS conductor,
@@ -3223,7 +3611,7 @@ CREATE VIEW public.v_reservas_con_detalle AS
     p.zona,
     p.piso
    FROM (((((public.reserva r
-     JOIN public.usuario u ON ((u.id = r.usuario_id)))
+     JOIN public.usuario u ON ((u.id = r.usuario_registra_id)))
      LEFT JOIN public.conductor co ON ((co.id = r.conductor_id)))
      LEFT JOIN public.vehiculo v ON ((v.id = r.vehiculo_id)))
      JOIN public.celda c ON ((c.id = r.celda_id)))
@@ -3244,6 +3632,19 @@ CREATE VIEW public.v_resumen_celdas AS
    FROM (public.parqueadero p
      LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
   GROUP BY p.id, p.nombre;
+
+
+--
+-- Name: v_rol_permisos_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_rol_permisos_front AS
+SELECT
+    NULL::integer AS id,
+    NULL::character varying(50) AS nombre,
+    NULL::character varying(255) AS descripcion,
+    NULL::boolean AS estado,
+    NULL::jsonb AS permisos;
 
 
 --
@@ -3303,6 +3704,71 @@ CREATE VIEW public.v_vehiculo_conductor AS
    FROM ((public.vehiculo v
      LEFT JOIN public.detalle_propiedad dp ON (((dp.vehiculo_id = v.id) AND (dp.es_principal = true) AND (dp.estado = true))))
      LEFT JOIN public.conductor co ON ((co.id = dp.conductor_id)));
+
+
+--
+-- Name: v_vehiculo_front; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_vehiculo_front AS
+ SELECT v.id,
+    v.placa,
+    v.tipo,
+    v.marca,
+    v.linea AS modelo,
+    v.modelo AS anio,
+    v.color,
+    v.observaciones AS descripcion,
+    v.vehiculo_sena,
+    v.estado,
+    co.id AS conductor_id,
+    co.nombre_apellidos AS conductor,
+    ra.parqueadero_id,
+    ra.celda_id,
+    c.numero AS celda,
+    ra.fecha_hora_ingreso AS fecha_entrada,
+    (ra.id IS NOT NULL) AS esta_dentro
+   FROM (((public.vehiculo v
+     LEFT JOIN LATERAL ( SELECT co2.id,
+            co2.usuario_id,
+            co2.tipo_documento,
+            co2.numero_documento,
+            co2.nombre_apellidos,
+            co2.correo,
+            co2.direccion,
+            co2.numero_telefonico,
+            co2.tipo_usuario_id,
+            co2.regional_formacion,
+            co2.centro_formacion,
+            co2.programa_formacion,
+            co2.vigencia,
+            co2.movilidad_reducida,
+            co2.estado,
+            co2.fecha_creacion,
+            co2.tipo_discapacidad
+           FROM (public.detalle_propiedad dp
+             JOIN public.conductor co2 ON ((co2.id = dp.conductor_id)))
+          WHERE ((dp.vehiculo_id = v.id) AND (dp.estado = true))
+          ORDER BY dp.es_principal DESC, dp.id
+         LIMIT 1) co ON (true))
+     LEFT JOIN LATERAL ( SELECT ra2.id,
+            ra2.vehiculo_id,
+            ra2.conductor_id,
+            ra2.parqueadero_id,
+            ra2.celda_id,
+            ra2.reserva_id,
+            ra2.usuario_ingreso_id,
+            ra2.usuario_salida_id,
+            ra2.fecha_hora_ingreso,
+            ra2.fecha_hora_salida,
+            ra2.descripcion_ingreso,
+            ra2.descripcion_salida,
+            ra2.estado
+           FROM public.registro_acceso ra2
+          WHERE ((ra2.vehiculo_id = v.id) AND (ra2.fecha_hora_salida IS NULL))
+          ORDER BY ra2.fecha_hora_ingreso DESC
+         LIMIT 1) ra ON (true))
+     LEFT JOIN public.celda c ON ((c.id = ra.celda_id)));
 
 
 --
@@ -3511,11 +3977,11 @@ INSERT INTO public.modulo (id, nombre, descripcion, estado) VALUES (8, 'Medició
 -- Data for Name: parqueadero; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (1, 'Torre Sur', 'Acceso Regional - Torre Sur', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
-INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (2, 'Portería Regional', 'Acceso Regional - aledaño a portería', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
-INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (3, 'Sótano Torre Norte', 'Acceso Regional - sótano Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
-INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (4, 'Motos Torre Norte', 'Acceso Regional - aledaño Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
-INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones) VALUES (5, 'Avenida Boyacá', 'Acceso Avenida Boyacá', 'AVENIDA_BOYACA', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL);
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones, descripcion, tipo) VALUES (1, 'Torre Sur', 'Acceso Regional - Torre Sur', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL, NULL, 'GENERAL');
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones, descripcion, tipo) VALUES (2, 'Portería Regional', 'Acceso Regional - aledaño a portería', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL, NULL, 'GENERAL');
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones, descripcion, tipo) VALUES (3, 'Sótano Torre Norte', 'Acceso Regional - sótano Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL, NULL, 'GENERAL');
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones, descripcion, tipo) VALUES (4, 'Motos Torre Norte', 'Acceso Regional - aledaño Torre Norte', 'REGIONAL', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL, NULL, 'GENERAL');
+INSERT INTO public.parqueadero (id, nombre, ubicacion, acceso, capacidad_maxima, hora_apertura, hora_cierre, estado, zona, piso, plano_url, observaciones, descripcion, tipo) VALUES (5, 'Avenida Boyacá', 'Acceso Avenida Boyacá', 'AVENIDA_BOYACA', 0, '05:00:00', '22:00:00', true, NULL, NULL, NULL, NULL, NULL, 'GENERAL');
 
 
 --
@@ -3619,7 +4085,7 @@ INSERT INTO public.tipo_usuario (id, nombre, descripcion, estado) VALUES (5, 'Vi
 -- Data for Name: usuario; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.usuario (id, nombre, correo, contrasena, rol_id, estado, intentos_fallidos, ultimo_acceso, fecha_creacion, fecha_modificacion) VALUES (1, 'Administrador ParkU', 'admin@parku.sena.edu.co', '$2y$10$CAMBIAR_ESTE_HASH_EN_PRODUCCION', 1, 'ACTIVO', 0, NULL, '2026-08-09 23:08:57.206903', NULL);
+INSERT INTO public.usuario (id, nombre, correo, contrasena, rol_id, estado, intentos_fallidos, ultimo_acceso, fecha_creacion, fecha_modificacion, numero_telefonico) VALUES (1, 'Administrador ParkU', 'admin@parku.sena.edu.co', '$2y$10$CAMBIAR_ESTE_HASH_EN_PRODUCCION', 1, 'ACTIVO', 0, NULL, '2026-08-09 23:08:57.206903', NULL, NULL);
 
 
 --
@@ -4677,7 +5143,7 @@ CREATE INDEX idx_reserva_parqueadero_fecha ON public.reserva USING btree (celda_
 -- Name: idx_reserva_usuario_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_reserva_usuario_id ON public.reserva USING btree (usuario_id);
+CREATE INDEX idx_reserva_usuario_id ON public.reserva USING btree (usuario_registra_id);
 
 
 --
@@ -4863,6 +5329,51 @@ CREATE UNIQUE INDEX uq_vehiculo_acceso_dentro ON public.registro_acceso USING bt
 
 
 --
+-- Name: v_parqueadero_front _RETURN; Type: RULE; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE VIEW public.v_parqueadero_front AS
+ SELECT p.id,
+    p.nombre,
+    p.ubicacion AS direccion,
+    p.descripcion,
+    p.tipo,
+    p.acceso,
+    p.zona AS bloque,
+    p.piso,
+    p.capacidad_maxima AS capacidad,
+    p.hora_apertura AS hora_inicio,
+    p.hora_cierre AS hora_fin,
+    p.estado,
+    count(c.id) AS celdas_totales,
+    count(*) FILTER (WHERE (c.tipo = 'CARRO'::public.tipo_vehiculo_enum)) AS celdas_carros,
+    count(*) FILTER (WHERE (c.tipo = 'MOTO'::public.tipo_vehiculo_enum)) AS celdas_motos,
+    count(*) FILTER (WHERE (c.tipo = 'BICICLETA'::public.tipo_vehiculo_enum)) AS celdas_bicicletas,
+    count(*) FILTER (WHERE (c.usabilidad = 'MOVILIDAD_REDUCIDA'::public.usabilidad_enum)) AS celdas_movilidad_reducida,
+    count(*) FILTER (WHERE (c.estado = 'DISPONIBLE'::public.estado_celda_enum)) AS celdas_disponibles,
+    count(*) FILTER (WHERE (c.estado = 'OCUPADA'::public.estado_celda_enum)) AS celdas_ocupadas
+   FROM (public.parqueadero p
+     LEFT JOIN public.celda c ON ((c.parqueadero_id = p.id)))
+  GROUP BY p.id;
+
+
+--
+-- Name: v_rol_permisos_front _RETURN; Type: RULE; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE VIEW public.v_rol_permisos_front AS
+ SELECT r.id,
+    r.nombre,
+    r.descripcion,
+    r.estado,
+    jsonb_build_object('dashboard', bool_or(((p.nombre)::text = 'reportes.consultar'::text)), 'roles', bool_or(((p.nombre)::text = 'configuracion.gestionar'::text)), 'usuarios', bool_or(((p.nombre)::text = 'usuarios.gestionar'::text)), 'conductores', bool_or(((p.nombre)::text = ANY ((ARRAY['ingreso.gestionar'::character varying, 'ingreso.consultar'::character varying])::text[]))), 'vehiculos', bool_or(((p.nombre)::text = ANY ((ARRAY['ingreso.gestionar'::character varying, 'ingreso.consultar'::character varying])::text[]))), 'parqueaderos', bool_or(((p.nombre)::text = 'parqueaderos.gestionar'::text)), 'celdas', bool_or(((p.nombre)::text = 'parqueaderos.gestionar'::text)), 'asignaciones', bool_or(((p.nombre)::text = 'ingreso.gestionar'::text)), 'entradaSalida', bool_or(((p.nombre)::text = ANY ((ARRAY['ingreso.gestionar'::character varying, 'salida.gestionar'::character varying])::text[]))), 'reservas', bool_or(((p.nombre)::text = 'reservas.gestionar'::text)), 'incidentes', bool_or(((p.nombre)::text = 'novedades.gestionar'::text)), 'reconocimientoPlacas', bool_or(((p.nombre)::text = 'novedades.gestionar'::text))) AS permisos
+   FROM ((public.rol r
+     LEFT JOIN public.rol_permiso rp ON (((rp.rol_id = r.id) AND (rp.estado = true))))
+     LEFT JOIN public.permiso p ON ((p.id = rp.permiso_id)))
+  GROUP BY r.id;
+
+
+--
 -- Name: captura_placa trg_captura_placa_normalizar; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4986,6 +5497,13 @@ CREATE TRIGGER trg_validar_conflicto_reserva BEFORE INSERT OR UPDATE ON public.r
 --
 
 CREATE TRIGGER trg_validar_ocupacion_celda BEFORE INSERT OR UPDATE ON public.ocupacion_celda FOR EACH ROW WHEN ((new.estado = 'ACTIVA'::public.estado_ocupacion_enum)) EXECUTE FUNCTION public.fn_validar_ocupacion_celda();
+
+
+--
+-- Name: reserva trg_validar_reserva_preferencial; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_validar_reserva_preferencial BEFORE INSERT OR UPDATE ON public.reserva FOR EACH ROW EXECUTE FUNCTION public.fn_validar_reserva_preferencial();
 
 
 --
@@ -5448,7 +5966,7 @@ ALTER TABLE ONLY public.reserva
 --
 
 ALTER TABLE ONLY public.reserva
-    ADD CONSTRAINT reserva_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuario(id) DEFERRABLE;
+    ADD CONSTRAINT reserva_usuario_id_fkey FOREIGN KEY (usuario_registra_id) REFERENCES public.usuario(id) DEFERRABLE;
 
 
 --
