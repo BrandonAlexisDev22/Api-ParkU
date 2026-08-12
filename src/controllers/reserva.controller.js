@@ -14,70 +14,101 @@ const { handleError } = require('../helpers/errorHandler');
  *   schemas:
  *     Reserva:
  *       type: object
- *       required:
- *         - celda
- *         - vehiculo
- *         - fechaHora_inicio
- *         - fechaHora_fin
  *       properties:
  *         id:
  *           type: integer
  *           description: ID único de la reserva.
- *         celda:
+ *         tipo_reserva:
+ *           type: string
+ *           enum: [VEHICULO_SENA, MOVILIDAD_REDUCIDA, VISITANTE]
+ *         celda_id:
  *           type: integer
  *           description: ID de la celda a reservar.
- *         vehiculo:
+ *         usuario_registra_id:
  *           type: integer
- *           description: ID del vehículo que reserva.
- *         fechaHora_inicio:
+ *           description: Vigilante o administrador que registró la reserva.
+ *         conductor_id:
+ *           type: integer
+ *           nullable: true
+ *           description: Persona para quien es la reserva.
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         motivo:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora_inicio:
  *           type: string
  *           format: date-time
- *           description: Fecha y hora de inicio de la reserva.
- *         fechaHora_fin:
+ *         fecha_hora_fin:
  *           type: string
  *           format: date-time
- *           description: Fecha y hora de finalización de la reserva.
  *         estado:
+ *           type: string
+ *           enum: [PENDIENTE, ACEPTADA, RECHAZADA, TERMINADA, CANCELADA]
+ *         usuario_gestiona_id:
  *           type: integer
- *           enum: [0, 1]
- *           description: Estado (1=activa, 0=finalizada/cancelada).
+ *           nullable: true
+ *           description: Quién aceptó/rechazó la reserva. Vacío mientras siga PENDIENTE.
  *     ReservaCreate:
  *       type: object
  *       required:
- *         - celda
- *         - vehiculo
- *         - fechaHora_inicio
- *         - fechaHora_fin
+ *         - tipo_reserva
+ *         - celda_id
+ *         - fecha_hora_inicio
+ *         - fecha_hora_fin
  *       properties:
- *         celda:
+ *         tipo_reserva:
+ *           type: string
+ *           enum: [VEHICULO_SENA, MOVILIDAD_REDUCIDA, VISITANTE]
+ *         celda_id:
  *           type: integer
- *         vehiculo:
+ *         conductor_id:
  *           type: integer
- *         fechaHora_inicio:
+ *           nullable: true
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         motivo:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora_inicio:
  *           type: string
  *           format: date-time
- *         fechaHora_fin:
+ *         fecha_hora_fin:
  *           type: string
  *           format: date-time
- *         estado:
- *           type: integer
- *           default: 1
  *     ReservaUpdate:
  *       type: object
  *       properties:
- *         celda:
+ *         tipo_reserva:
+ *           type: string
+ *           enum: [VEHICULO_SENA, MOVILIDAD_REDUCIDA, VISITANTE]
+ *         celda_id:
  *           type: integer
- *         vehiculo:
+ *         conductor_id:
  *           type: integer
- *         fechaHora_inicio:
+ *           nullable: true
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         motivo:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora_inicio:
  *           type: string
  *           format: date-time
- *         fechaHora_fin:
+ *         fecha_hora_fin:
  *           type: string
  *           format: date-time
+ *     ReservaCambiarEstado:
+ *       type: object
+ *       required:
+ *         - estado
+ *       properties:
  *         estado:
- *           type: integer
- *           enum: [0, 1]
+ *           type: string
+ *           enum: [ACEPTADA, RECHAZADA, TERMINADA, CANCELADA]
  */
 
 /**
@@ -229,7 +260,7 @@ const getByCelda = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newReserva = await svc.create(req.body);
+    const newReserva = await svc.create(req.body, req.usuario?.id);
     res.status(201).json(newReserva);
   } catch (e) {
     handleError(res, e);
@@ -271,7 +302,48 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /reservas/{id}/estado:
+ *   patch:
+ *     summary: Acepta, rechaza, cancela o termina una reserva
+ *     description: La celda pasa a RESERVADA al aceptar, y se libera al cancelar/rechazar/terminar (lo hace la BD automáticamente).
+ *     tags: [Reservas]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la reserva
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ReservaCambiarEstado'
+ *     responses:
+ *       200:
+ *         description: Reserva actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Reserva'
+ *       400:
+ *         description: Estado inválido
+ *       404:
+ *         description: Reserva no encontrada
+ */
+const cambiarEstado = async (req, res) => {
+  try {
+    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -301,7 +373,7 @@ const update = async (req, res) => {
  */
 const remove = async (req, res) => {
   try {
-    await svc.remove(req.params.id);
+    await svc.remove(req.params.id, req.usuario?.id);
     res.status(204).send();
   } catch (e) {
     handleError(res, e);
@@ -315,5 +387,6 @@ module.exports = {
   getByCelda,
   create,
   update,
+  cambiarEstado,
   remove,
 };

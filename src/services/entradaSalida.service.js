@@ -1,69 +1,22 @@
 /**
- * @module IngresoSalidaService
- * @description Gestión de flujos de acceso. Controla el registro de movimientos 
- * y la actualización de disponibilidad de celdas (coherente con el modelo Celda).
+ * @module EntradaSalidaService
+ * @description Lógica de negocio para 'registro_acceso' (ingreso/salida de vehículos).
+ *
+ * Si el ingreso trae celda_id, el trigger fn_registro_ingreso_celda de la BD crea la
+ * ocupacion_celda y pasa la celda a OCUPADA -- validando ahí mismo (fn_validar_ocupacion_celda)
+ * que la celda no esté en MANTENIMIENTO/INACTIVA, que no tenga ya una ocupación activa, que el
+ * tipo de vehículo corresponda y que las celdas preferenciales tengan un conductor con
+ * movilidad reducida. Este service NO debe tocar celda.estado directamente: solo escribe en
+ * registro_acceso dentro de una transacción con SET LOCAL app.usuario_id (runWithUsuario) y dejar
+ * que la BD haga cascada. Los errores de esas validaciones llegan como RAISE EXCEPTION de
+ * Postgres y se traducen a 409 con traducirErrorTrigger.
  */
 
 const repo = require('../repositories/entradaSalida.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     EntradaSalida:
- *       type: object
- *       required:
- *         - tipo
- *         - vehiculo
- *         - celda
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del registro.
- *         tipo:
- *           type: string
- *           enum: [INGRESO, SALIDA]
- *           description: Tipo de movimiento.
- *         vehiculo:
- *           type: integer
- *           description: ID del vehículo.
- *         celda:
- *           type: integer
- *           description: ID de la celda utilizada.
- *         descripcion:
- *           type: string
- *           nullable: true
- *           description: Observaciones opcionales.
- *         fecha_hora:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora del movimiento.
- *         parqueadero_nombre:
- *           type: string
- *           description: Nombre del parqueadero (solo en respuestas con JOIN).
- *         vehiculo_placa:
- *           type: string
- *           description: Placa del vehículo (solo en respuestas con JOIN).
- *     EntradaSalidaCreate:
- *       type: object
- *       required:
- *         - vehiculo
- *         - celda
- *       properties:
- *         vehiculo:
- *           type: integer
- *         celda:
- *           type: integer
- *         descripcion:
- *           type: string
- *           nullable: true
- *         fecha_hora:
- *           type: string
- *           format: date-time
- *           description: Opcional, si no se envía se usa la actual.
- */
+const parqRepo = require('../repositories/parqueadero.repository');
+const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 /**
  * Obtiene el historial completo de entradas y salidas.
@@ -73,7 +26,7 @@ const getAll = () => repo.findAll();
 
 /**
  * Busca un registro específico por ID.
- * @param {number} id 
+ * @param {number} id
  * @throws {Object} 404 si el registro no existe.
  * @returns {Promise<Object>}
  */
@@ -85,7 +38,7 @@ const getById = async (id) => {
 
 /**
  * Filtra el historial por un vehículo específico.
- * @param {number} vehiculoId 
+ * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
 const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
@@ -103,115 +56,91 @@ const getByFecha = (desde, hasta) => {
 };
 
 /**
- * Registra el ingreso de un vehículo y marca la celda como OCUPADO.
- * @param {Object} data - Datos de la entrada.
- * @param {number} data.vehiculo - ID del vehículo.
- * @param {number} data.celda - ID de la celda.
- * @param {string} [data.descripcion] - Observaciones opcionales.
- * @param {string} [data.fecha_hora] - Fecha/hora personalizada (opcional).
+ * Registra el ingreso de un vehículo. La BD valida (vía trigger) el estado de la celda,
+ * el tipo de vehículo y las reglas de celdas preferenciales; aquí solo se resuelven los 404
+ * y el 409 de "vehículo ya adentro".
+ * @param {Object} data
+ * @param {number} usuarioId - Vigilante/administrador autenticado que registra el ingreso.
  * @throws {Object} 400 si faltan campos obligatorios.
- * @throws {Object} 404 si vehículo o celda no existen.
- * @throws {Object} 409 si la celda ya está ocupada o el vehículo ya tiene una entrada activa.
- * @returns {Promise<Object>} Registro de entrada creado.
+ * @throws {Object} 404 si vehículo, parqueadero o celda no existen.
+ * @throws {Object} 409 si el vehículo ya tiene un ingreso abierto, o la BD rechaza la ocupación.
+ * @returns {Promise<Object>} Registro de ingreso creado.
  */
-const registrarEntrada = async ({ vehiculo, celda, descripcion, fecha_hora }) => {
-  // Validar campos obligatorios
-  if (!vehiculo) throw { status: 400, message: 'El vehículo es requerido' };
-  if (!celda) throw { status: 400, message: 'La celda es requerida' };
+const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, descripcion_ingreso, fecha_hora_ingreso }, usuarioId) => {
+  if (!vehiculo_id) throw { status: 400, message: 'El vehículo es requerido' };
+  if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
 
-  // Verificar existencia del vehículo
-  const vehExiste = await vehRepo.findById(vehiculo);
+  const vehExiste = await vehRepo.findById(vehiculo_id);
   if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
 
-  // Verificar existencia y disponibilidad de la celda
-  const celdaExiste = await celdaRepo.findById(celda);
-  if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
-  if (celdaExiste.estado_celda === 'OCUPADO') {
-    throw { status: 409, message: 'La celda ya está ocupada' };
+  const parqExiste = await parqRepo.findById(parqueadero_id);
+  if (!parqExiste) throw { status: 404, message: 'Parqueadero no encontrado' };
+
+  if (celda_id) {
+    const celdaExiste = await celdaRepo.findById(celda_id);
+    if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
   }
 
-  // Validar que el vehículo no tenga una entrada activa (sin salida)
-  const historialVehiculo = await repo.findByVehiculo(vehiculo);
-  const entradaActiva = historialVehiculo.find(r => r.tipo === 'INGRESO' && !r.fecha_salida);
-  // Nota: Para esta validación se requiere que el modelo tenga un campo de salida o 
-  // se infiera por la ausencia de un registro de SALIDA posterior.
-  // Una implementación más robusta podría usar una columna 'activo' o buscar la última entrada sin salida.
-  // Supondremos que el repositorio tiene un método para obtener la última entrada sin salida,
-  // o podemos implementar una lógica más simple: buscar el último registro del vehículo y si es INGRESO y no tiene salida.
-  // Por simplicidad, omitimos esta validación compleja aquí, pero se recomienda agregarla.
-  // Se puede implementar así:
-  /*
-  const ultimoMovimiento = historialVehiculo[0]; // asumiendo orden DESC
-  if (ultimoMovimiento && ultimoMovimiento.tipo === 'INGRESO') {
-    // Verificar si ya existe una salida posterior (no en el mismo registro)
-    // Esta lógica depende de la estructura de la tabla, podría requerir un campo adicional.
-    // Una opción es agregar una columna 'activo' en ingreso_salida.
-    throw { status: 409, message: 'El vehículo ya tiene una entrada activa' };
+  const ingresoAbierto = await repo.findIngresoAbierto(vehiculo_id);
+  if (ingresoAbierto) {
+    throw { status: 409, message: 'El vehículo ya tiene un ingreso registrado sin salida' };
   }
-  */
 
-  // Actualizar estado de la celda a OCUPADO
-  await celdaRepo.update(celda, { estado_celda: 'OCUPADO' });
-
-  // Crear el registro de entrada
-  return repo.create({
-    tipo: 'INGRESO',
-    vehiculo,
-    celda,
-    descripcion: descripcion || null,
-    fecha_hora: fecha_hora || undefined,
-  });
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.registrarIngreso(
+      { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id: usuarioId, descripcion_ingreso, fecha_hora_ingreso },
+      { transaction },
+    ));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
- * Registra la salida de un vehículo y libera la celda (cambia a DISPONIBLE).
- * @param {Object} data - Datos de la salida.
- * @param {number} data.vehiculo - ID del vehículo.
- * @param {number} data.celda - ID de la celda.
- * @param {string} [data.descripcion] - Observaciones opcionales.
- * @param {string} [data.fecha_hora] - Fecha/hora personalizada (opcional).
- * @throws {Object} 400 si faltan campos obligatorios.
- * @throws {Object} 404 si vehículo o celda no existen.
- * @throws {Object} 409 si el vehículo no tiene una entrada activa.
- * @returns {Promise<Object>} Registro de salida creado.
+ * Registra la salida del ingreso abierto de un vehículo. La BD libera (o vuelve a
+ * reservar) la celda automáticamente vía trigger.
+ * @param {Object} data
+ * @param {number} data.vehiculo_id
+ * @param {string} [data.descripcion_salida]
+ * @param {string} [data.fecha_hora_salida]
+ * @param {number} usuarioId - Vigilante/administrador autenticado que registra la salida.
+ * @throws {Object} 400 si falta el vehículo.
+ * @throws {Object} 404 si el vehículo no existe.
+ * @throws {Object} 409 si el vehículo no tiene un ingreso abierto.
+ * @returns {Promise<Object>} Registro actualizado con la salida.
  */
-const registrarSalida = async ({ vehiculo, celda, descripcion, fecha_hora }) => {
-  if (!vehiculo) throw { status: 400, message: 'El vehículo es requerido' };
-  if (!celda) throw { status: 400, message: 'La celda es requerida' };
+const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_salida }, usuarioId) => {
+  if (!vehiculo_id) throw { status: 400, message: 'El vehículo es requerido' };
 
-  const vehExiste = await vehRepo.findById(vehiculo);
+  const vehExiste = await vehRepo.findById(vehiculo_id);
   if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
 
-  const celdaExiste = await celdaRepo.findById(celda);
-  if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+  const ingresoAbierto = await repo.findIngresoAbierto(vehiculo_id);
+  if (!ingresoAbierto) {
+    throw { status: 409, message: 'El vehículo no tiene un ingreso activo' };
+  }
 
-  // Validar que el vehículo tenga una entrada activa para esta celda (o al menos una entrada sin salida)
-  // Aquí se podría verificar que la celda esté ocupada por ese vehículo.
-  // Por simplicidad, se asume que la celda está ocupada por ese vehículo.
-  // Una implementación más robusta: buscar la última entrada del vehículo en esa celda sin salida registrada.
-  // Pero dado que no tenemos esa información, se puede omitir o agregar una columna 'activo' en la tabla.
-
-  // Liberar la celda (cambiar a DISPONIBLE)
-  await celdaRepo.update(celda, { estado_celda: 'DISPONIBLE' });
-
-  return repo.create({
-    tipo: 'SALIDA',
-    vehiculo,
-    celda,
-    descripcion: descripcion || null,
-    fecha_hora: fecha_hora || undefined,
-  });
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.registrarSalida(
+      ingresoAbierto.id,
+      { usuario_salida_id: usuarioId, descripcion_salida, fecha_hora_salida },
+      { transaction },
+    ));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
  * Elimina un registro del historial (uso administrativo).
- * @param {number} id 
+ * @param {number} id
+ * @param {number} usuarioId - Administrador autenticado que hace la operación (auditoría).
  * @throws {Object} 404 si no existe.
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
+const remove = async (id, usuarioId) => {
   await getById(id);
-  return repo.remove(id);
+  return runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
 };
 
 module.exports = {
@@ -219,7 +148,7 @@ module.exports = {
   getById,
   getByVehiculo,
   getByFecha,
-  registrarEntrada,
+  registrarIngreso,
   registrarSalida,
   remove,
 };

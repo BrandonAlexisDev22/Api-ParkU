@@ -1,111 +1,20 @@
 /**
  * @module VehiculoService
- * @description Lógica de negocio para la gestión de vehículos.
- * Alineado con el modelo Vehiculo.
+ * @description Lógica de negocio para la gestión de vehículos (Proceso 04.2).
+ * Alineado con el modelo Vehiculo real: la propiedad no es una FK directa, vive en
+ * detalle_propiedad (M:N con conductor); el repo acepta un conductor_id opcional en
+ * create() para registrar al propietario principal. placa es única y nula solo para
+ * bicicletas (ck_vehiculo_placa_por_tipo) -- la BD la normaliza y valida el formato.
+ *
+ * vehiculo lleva trigger de auditoría (requiere SET LOCAL app.usuario_id), por eso
+ * create/update/remove van envueltos en runWithUsuario.
  */
 
 const repo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
+const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Vehiculo:
- *       type: object
- *       required:
- *         - conductor
- *         - placa
- *       properties:
- *         id:
- *           type: integer
- *         conductor:
- *           type: integer
- *         placa:
- *           type: string
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
- *         marca:
- *           type: string
- *           nullable: true
- *         modelo:
- *           type: string
- *           nullable: true
- *         anio:
- *           type: integer
- *           nullable: true
- *         color:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
- *         conductor_nombre:
- *           type: string
- *           description: Nombre del conductor (solo lectura)
- *     VehiculoCreate:
- *       type: object
- *       required:
- *         - conductor
- *         - placa
- *       properties:
- *         conductor:
- *           type: integer
- *         placa:
- *           type: string
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
- *         marca:
- *           type: string
- *           nullable: true
- *         modelo:
- *           type: string
- *           nullable: true
- *         anio:
- *           type: integer
- *           nullable: true
- *         color:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
- *     VehiculoUpdate:
- *       type: object
- *       properties:
- *         conductor:
- *           type: integer
- *         placa:
- *           type: string
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
- *         marca:
- *           type: string
- *           nullable: true
- *         modelo:
- *           type: string
- *           nullable: true
- *         anio:
- *           type: integer
- *           nullable: true
- *         color:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
- */
+const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 
 /**
  * Obtiene la lista global de vehículos.
@@ -115,7 +24,7 @@ const getAll = () => repo.findAll();
 
 /**
  * Busca un vehículo por su ID.
- * @param {number} id 
+ * @param {number} id
  * @throws {Object} 404 si el vehículo no existe.
  * @returns {Promise<Object>}
  */
@@ -127,80 +36,88 @@ const getById = async (id) => {
 
 /**
  * Obtiene todos los vehículos asociados a un conductor.
- * @param {number} conductorId 
+ * @param {number} conductorId
  * @returns {Promise<Array>}
  */
 const getByConductor = (conductorId) => repo.findByConductor(conductorId);
 
 /**
- * Registra un nuevo vehículo validando conductor y placa.
- * @param {Object} data - Datos del vehículo (todos los campos)
- * @throws {Object} 400 si faltan datos, 404 si conductor no existe, 409 si placa duplicada.
+ * Registra un nuevo vehículo. La placa es obligatoria salvo para bicicletas.
+ * @param {Object} data - Datos del vehículo; conductor_id opcional (propietario principal).
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 400 si faltan datos, 404 si el conductor no existe, 409 si la placa ya está registrada.
  * @returns {Promise<Object>}
  */
-const create = async (data) => {
-  const { conductor, placa } = data;
-  if (!conductor || !placa) {
-    throw { status: 400, message: 'conductor y placa son requeridos' };
+const create = async (data, usuarioId) => {
+  const { conductor_id, placa, tipo } = data;
+
+  if (!tipo) throw { status: 400, message: 'El tipo de vehículo es requerido' };
+  if (!TIPOS_PERMITIDOS.includes(tipo)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  }
+  if (!placa && tipo !== 'BICICLETA') {
+    throw { status: 400, message: 'La placa es requerida (solo las bicicletas pueden omitirla)' };
   }
 
-  const conductorExiste = await conductorRepo.findById(conductor);
-  if (!conductorExiste) {
-    throw { status: 404, message: 'Conductor no encontrado' };
+  if (conductor_id) {
+    const conductorExiste = await conductorRepo.findById(conductor_id);
+    if (!conductorExiste) throw { status: 404, message: 'Conductor no encontrado' };
   }
 
-  const placaExiste = await repo.findByPlaca(placa);
-  if (placaExiste) {
-    throw { status: 409, message: 'La placa ya está registrada' };
+  if (placa) {
+    const placaExiste = await repo.findByPlaca(placa);
+    if (placaExiste) throw { status: 409, message: 'La placa ya está registrada' };
   }
 
-  return repo.create(data);
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.create(data, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
- * Actualiza un vehículo validando conductor y placa (si se cambian).
- * @param {number} id 
- * @param {Object} data - Campos a actualizar
- * @throws {Object} 404 si no existe, 400 si datos inválidos, 404 si nuevo conductor no existe, 409 si placa duplicada.
+ * Actualiza un vehículo validando placa duplicada (si se cambia).
+ * @param {number} id
+ * @param {Object} data - Campos a actualizar (atributos propios del vehículo).
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 404 si no existe, 400 si datos inválidos, 409 si placa duplicada.
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
+const update = async (id, data, usuarioId) => {
   const vehiculo = await getById(id);
 
-  // Validar nuevo conductor si se envía
-  if (data.conductor !== undefined && data.conductor !== vehiculo.conductor) {
-    const conductorExiste = await conductorRepo.findById(data.conductor);
-    if (!conductorExiste) {
-      throw { status: 404, message: 'Conductor no encontrado' };
-    }
+  if (data.tipo && !TIPOS_PERMITIDOS.includes(data.tipo)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
 
-  // Validar nueva placa si se envía
   if (data.placa && data.placa !== vehiculo.placa) {
     const dup = await repo.findByPlaca(data.placa);
-    if (dup && dup.id !== id) {
+    if (dup && dup.id !== Number(id)) {
       throw { status: 409, message: 'La placa ya está registrada' };
     }
   }
 
-  return repo.update(id, data);
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
  * Elimina un vehículo del sistema.
- * @param {number} id 
+ * @param {number} id
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
  * @throws {Object} 404 si no existe, 409 si está en uso en reservas o movimientos.
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
+const remove = async (id, usuarioId) => {
   await getById(id);
   try {
-    return await repo.remove(id);
+    return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
   } catch (error) {
-    if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-      throw { status: 409, message: 'No se puede eliminar porque el vehículo tiene registros asociados (reservas o movimientos)' };
-    }
-    throw error;
+    traducirErrorTrigger(error);
   }
 };
 

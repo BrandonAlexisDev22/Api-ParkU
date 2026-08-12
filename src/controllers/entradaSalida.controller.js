@@ -12,48 +12,83 @@ const { handleError } = require('../helpers/errorHandler');
  * @swagger
  * components:
  *   schemas:
- *     EntradaSalida:
+ *     RegistroAcceso:
  *       type: object
- *       required:
- *         - tipo
- *         - vehiculo
- *         - celda
  *       properties:
  *         id:
  *           type: integer
- *           description: ID autoincremental del registro.
- *         tipo:
- *           type: string
- *           enum: [INGRESO, SALIDA]
- *           description: Tipo de movimiento.
- *         vehiculo:
+ *         vehiculo_id:
  *           type: integer
- *           description: ID del vehículo.
- *         celda:
+ *         conductor_id:
  *           type: integer
- *           description: ID de la celda utilizada.
- *         descripcion:
- *           type: string
  *           nullable: true
- *           description: Observaciones opcionales.
- *         fecha_hora:
+ *         parqueadero_id:
+ *           type: integer
+ *         celda_id:
+ *           type: integer
+ *           nullable: true
+ *         reserva_id:
+ *           type: integer
+ *           nullable: true
+ *         usuario_ingreso_id:
+ *           type: integer
+ *         usuario_salida_id:
+ *           type: integer
+ *           nullable: true
+ *         fecha_hora_ingreso:
  *           type: string
  *           format: date-time
- *           description: Fecha y hora del movimiento (se asigna automáticamente si no se envía).
- *     EntradaSalidaCreate:
- *       type: object
- *       required:
- *         - vehiculo
- *         - celda
- *       properties:
- *         vehiculo:
- *           type: integer
- *         celda:
- *           type: integer
- *         descripcion:
+ *         fecha_hora_salida:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: NULL mientras el vehículo sigue adentro.
+ *         descripcion_ingreso:
  *           type: string
  *           nullable: true
- *         fecha_hora:
+ *         descripcion_salida:
+ *           type: string
+ *           nullable: true
+ *         estado:
+ *           type: string
+ *           enum: [DENTRO, FINALIZADO, BLOQUEADO]
+ *     RegistrarIngreso:
+ *       type: object
+ *       required:
+ *         - vehiculo_id
+ *         - parqueadero_id
+ *       properties:
+ *         vehiculo_id:
+ *           type: integer
+ *         conductor_id:
+ *           type: integer
+ *           nullable: true
+ *         parqueadero_id:
+ *           type: integer
+ *         celda_id:
+ *           type: integer
+ *           nullable: true
+ *         reserva_id:
+ *           type: integer
+ *           nullable: true
+ *         descripcion_ingreso:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora_ingreso:
+ *           type: string
+ *           format: date-time
+ *           description: Opcional, si no se envía se usa la actual.
+ *     RegistrarSalida:
+ *       type: object
+ *       required:
+ *         - vehiculo_id
+ *       properties:
+ *         vehiculo_id:
+ *           type: integer
+ *         descripcion_salida:
+ *           type: string
+ *           nullable: true
+ *         fecha_hora_salida:
  *           type: string
  *           format: date-time
  *           description: Opcional, si no se envía se usa la actual.
@@ -73,7 +108,7 @@ const { handleError } = require('../helpers/errorHandler');
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/EntradaSalida'
+ *                 $ref: '#/components/schemas/RegistroAcceso'
  */
 const getAll = async (req, res) => {
   try {
@@ -103,7 +138,7 @@ const getAll = async (req, res) => {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/EntradaSalida'
+ *               $ref: '#/components/schemas/RegistroAcceso'
  *       404:
  *         description: Registro no encontrado
  */
@@ -137,7 +172,7 @@ const getById = async (req, res) => {
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/EntradaSalida'
+ *                 $ref: '#/components/schemas/RegistroAcceso'
  */
 const getByVehiculo = async (req, res) => {
   try {
@@ -150,7 +185,7 @@ const getByVehiculo = async (req, res) => {
 
 /**
  * @swagger
- * /entradas-salidas/fecha:
+ * /entradas-salidas/filtro:
  *   get:
  *     summary: Obtener registros por rango de fechas
  *     tags: [EntradasSalidas]
@@ -177,7 +212,7 @@ const getByVehiculo = async (req, res) => {
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/EntradaSalida'
+ *                 $ref: '#/components/schemas/RegistroAcceso'
  *       400:
  *         description: Fechas inválidas o faltantes
  */
@@ -205,24 +240,24 @@ const getByFecha = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/EntradaSalidaCreate'
+ *             $ref: '#/components/schemas/RegistrarIngreso'
  *     responses:
  *       201:
  *         description: Entrada registrada exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/EntradaSalida'
+ *               $ref: '#/components/schemas/RegistroAcceso'
  *       400:
  *         description: Datos inválidos o faltantes
  *       404:
- *         description: Vehículo o celda no encontrados
+ *         description: Vehículo, parqueadero o celda no encontrados
  *       409:
- *         description: Conflicto (ej. celda ya ocupada)
+ *         description: Conflicto (ej. celda ya ocupada, vehículo ya adentro)
  */
 const registrarEntrada = async (req, res) => {
   try {
-    const data = await svc.registrarEntrada(req.body);
+    const data = await svc.registrarIngreso(req.body, req.usuario?.id);
     res.status(201).json(data);
   } catch (e) {
     handleError(res, e);
@@ -240,24 +275,24 @@ const registrarEntrada = async (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/EntradaSalidaCreate'
+ *             $ref: '#/components/schemas/RegistrarSalida'
  *     responses:
  *       201:
  *         description: Salida registrada exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/EntradaSalida'
+ *               $ref: '#/components/schemas/RegistroAcceso'
  *       400:
  *         description: Datos inválidos o faltantes
  *       404:
- *         description: Vehículo o celda no encontrados
+ *         description: Vehículo no encontrado
  *       409:
  *         description: Conflicto (ej. no hay entrada activa para ese vehículo)
  */
 const registrarSalida = async (req, res) => {
   try {
-    const data = await svc.registrarSalida(req.body);
+    const data = await svc.registrarSalida(req.body, req.usuario?.id);
     res.status(201).json(data);
   } catch (e) {
     handleError(res, e);
@@ -285,7 +320,7 @@ const registrarSalida = async (req, res) => {
  */
 const remove = async (req, res) => {
   try {
-    await svc.remove(req.params.id);
+    await svc.remove(req.params.id, req.usuario?.id);
     res.status(204).send();
   } catch (e) {
     handleError(res, e);

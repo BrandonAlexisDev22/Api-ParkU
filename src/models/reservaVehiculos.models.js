@@ -22,8 +22,8 @@ const Reserva = sequelize.define('Reserva', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  usuario_id: {
-    // Quién crea la reserva.
+  usuario_registra_id: {
+    // Vigilante que registra la reserva en el sistema (quién crea, no para quién es).
     type: DataTypes.INTEGER,
     allowNull: false,
   },

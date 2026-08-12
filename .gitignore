@@ -3,6 +3,7 @@ node_modules/
 .env.production
 *.txt
 
+
 .env
 .env.local
 .env.production

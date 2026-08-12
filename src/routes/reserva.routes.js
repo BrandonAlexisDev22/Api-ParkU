@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/reserva.controller');
+const historialCtrl = require('../controllers/historial.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
@@ -10,75 +11,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Reserva:
- *       type: object
- *       required:
- *         - celda
- *         - vehiculo_id
- *         - fecha_hora_inicio
- *         - fecha_hora_fin
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental de la reserva.
- *         celda:
- *           type: integer
- *           description: ID de la celda reservada.
- *         usuario_id:
- *           type: integer
- *           description: ID del usuario que realizó la reserva.
- *         vehiculo_id:
- *           type: integer
- *           description: ID del vehículo asociado a la reserva.
- *         fecha_hora_inicio:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora de inicio.
- *         fecha_hora_fin:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora de finalización.
- *         estado:
- *           type: boolean
- *           default: true
- *           description: true = Activa, false = Cancelada/Finalizada.
- *     ReservaCreate:
- *       type: object
- *       required:
- *         - celda
- *         - vehiculo_id
- *         - fecha_hora_inicio
- *         - fecha_hora_fin
- *       properties:
- *         celda:
- *           type: integer
- *         vehiculo_id:
- *           type: integer
- *         fecha_hora_inicio:
- *           type: string
- *           format: date-time
- *         fecha_hora_fin:
- *           type: string
- *           format: date-time
- *     ReservaUpdate:
- *       type: object
- *       properties:
- *         celda:
- *           type: integer
- *         vehiculo_id:
- *           type: integer
- *         fecha_hora_inicio:
- *           type: string
- *           format: date-time
- *         fecha_hora_fin:
- *           type: string
- *           format: date-time
- *         estado:
- *           type: boolean
- *           description: true = Activa, false = Cancelada/Finalizada.
+ * (Los schemas Reserva, ReservaCreate, ReservaUpdate y ReservaCambiarEstado
+ * se documentan en src/controllers/reserva.controller.js.)
  */
 
 /**
@@ -105,7 +39,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getAll
 );
 
@@ -276,8 +210,50 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.update
+);
+
+/**
+ * @swagger
+ * /api/reservas/{id}/estado:
+ *   patch:
+ *     summary: Acepta, rechaza, cancela o termina una reserva
+ *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ReservaCambiarEstado'
+ *     responses:
+ *       200:
+ *         description: Reserva actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Reserva'
+ *       400:
+ *         description: Estado inválido
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Reserva no encontrada
+ */
+router.patch('/:id/estado',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.cambiarEstado
 );
 
 /**
@@ -308,8 +284,33 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
+);
+
+/**
+ * @swagger
+ * /api/reservas/{id}/historial:
+ *   get:
+ *     summary: Historial de cambios de una reserva (poblado por trigger)
+ *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Historial de la reserva
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get('/:id/historial',
+  verificarToken,
+  historialCtrl.getByReserva
 );
 
 module.exports = router;

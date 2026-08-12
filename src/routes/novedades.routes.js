@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/novedades.controller');
+const historialCtrl = require('../controllers/historial.controller');
+const evidenciaCtrl = require('../controllers/evidenciaNovedad.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
@@ -10,102 +12,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Novedad:
- *       type: object
- *       required:
- *         - descripcion
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental de la novedad.
- *         vehiculo:
- *           type: integer
- *           nullable: true
- *           description: ID del vehículo relacionado.
- *         encargado:
- *           type: string
- *           nullable: true
- *           description: Persona que reporta o atiende la novedad.
- *         descripcion:
- *           type: string
- *           description: Descripción del incidente.
- *         evidencia:
- *           type: string
- *           nullable: true
- *           description: Ruta o URL de la evidencia.
- *         ingreso_salida:
- *           type: integer
- *           nullable: true
- *           description: ID del movimiento relacionado.
- *         fecha_hora:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora del registro.
- *         tipo_novedad:
- *           type: string
- *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
- *           default: OTRO
- *         prioridad:
- *           type: string
- *           enum: [BAJA, MEDIA, ALTA, CRITICA]
- *           default: MEDIA
- *         estado:
- *           type: boolean
- *           default: true
- *           description: true = Pendiente, false = Resuelta.
- *         placa:
- *           type: string
- *           description: Placa del vehículo (solo en respuestas con JOIN).
- *     NovedadCreate:
- *       type: object
- *       required:
- *         - descripcion
- *       properties:
- *         vehiculo:
- *           type: integer
- *           nullable: true
- *         encargado:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *         evidencia:
- *           type: string
- *           nullable: true
- *         ingreso_salida:
- *           type: integer
- *           nullable: true
- *         tipo_novedad:
- *           type: string
- *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
- *           default: OTRO
- *         prioridad:
- *           type: string
- *           enum: [BAJA, MEDIA, ALTA, CRITICA]
- *           default: MEDIA
- *     NovedadUpdate:
- *       type: object
- *       properties:
- *         encargado:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *         evidencia:
- *           type: string
- *           nullable: true
- *         tipo_novedad:
- *           type: string
- *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
- *         prioridad:
- *           type: string
- *           enum: [BAJA, MEDIA, ALTA, CRITICA]
- *         estado:
- *           type: boolean
- *           description: true = Pendiente, false = Resuelta.
+ * (Los schemas Novedad, NovedadCreate y NovedadUpdate se documentan
+ * en src/controllers/novedades.controller.js.)
  */
 
 /**
@@ -132,7 +40,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getAll
 );
 
@@ -166,27 +74,27 @@ router.get('/',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getByVehiculo
 );
 
 /**
  * @swagger
- * /api/novedades/movimiento/{movimientoId}:
+ * /api/novedades/registro-acceso/{registroAccesoId}:
  *   get:
- *     summary: Obtiene novedades por movimiento
+ *     summary: Obtiene novedades por registro de acceso (ingreso/salida)
  *     tags: [Novedades]
  *     security:
  *       - BearerAuth: []
  *     parameters:
  *       - in: path
- *         name: movimientoId
+ *         name: registroAccesoId
  *         required: true
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: Novedades del movimiento
+ *         description: Novedades del registro de acceso
  *         content:
  *           application/json:
  *             schema:
@@ -198,10 +106,10 @@ router.get('/vehiculo/:vehiculoId',
  *       403:
  *         description: Prohibido - No tienes permisos
  */
-router.get('/movimiento/:movimientoId',
+router.get('/registro-acceso/:registroAccesoId',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
-  ctrl.getByMovimiento
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.getByRegistroAcceso
 );
 
 /**
@@ -214,10 +122,10 @@ router.get('/movimiento/:movimientoId',
  *       - BearerAuth: []
  *     parameters:
  *       - in: query
- *         name: tipo
+ *         name: tipo_novedad
  *         schema:
  *           type: string
- *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *           enum: [DANIO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
  *       - in: query
  *         name: prioridad
  *         schema:
@@ -226,7 +134,8 @@ router.get('/movimiento/:movimientoId',
  *       - in: query
  *         name: estado
  *         schema:
- *           type: boolean
+ *           type: string
+ *           enum: [PENDIENTE, EN_PROCESO, RESUELTA, CERRADA, CANCELADA]
  *     responses:
  *       200:
  *         description: Novedades filtradas
@@ -243,7 +152,7 @@ router.get('/movimiento/:movimientoId',
  */
 router.get('/filtros',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getByFiltros
 );
 
@@ -277,7 +186,7 @@ router.get('/filtros',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getById
 );
 
@@ -350,7 +259,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.update
 );
 
@@ -380,8 +289,95 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
+);
+
+/**
+ * @swagger
+ * /api/novedades/{id}/historial:
+ *   get:
+ *     summary: Historial de cambios de una novedad (poblado por trigger)
+ *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Historial de la novedad
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get('/:id/historial',
+  verificarToken,
+  historialCtrl.getByNovedad
+);
+
+/**
+ * @swagger
+ * /api/novedades/{id}/evidencias:
+ *   get:
+ *     summary: Listar las evidencias de una novedad
+ *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Lista de evidencias
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       404:
+ *         description: Novedad no encontrada
+ */
+router.get('/:id/evidencias',
+  verificarToken,
+  evidenciaCtrl.getByNovedad
+);
+
+/**
+ * @swagger
+ * /api/novedades/{id}/evidencias:
+ *   post:
+ *     summary: Adjuntar una evidencia a una novedad
+ *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EvidenciaNovedadCreate'
+ *     responses:
+ *       201:
+ *         description: Evidencia creada
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       404:
+ *         description: Novedad no encontrada
+ */
+router.post('/:id/evidencias',
+  verificarToken,
+  evidenciaCtrl.create
 );
 
 module.exports = router;

@@ -12,7 +12,7 @@ const { Reserva, Celda, Usuario, Conductor, Vehiculo } = require('../models');
 
 const includeContexto = [
   { model: Celda, as: 'celda', attributes: ['id', 'numero', 'parqueadero'] },
-  { model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] },
+  { model: Usuario, as: 'usuarioRegistra', attributes: ['id', 'nombre'] },
   { model: Conductor, as: 'conductor', attributes: ['id', 'nombre_apellidos'] },
   { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa'] },
 ];
@@ -93,12 +93,12 @@ const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
  */
 const create = async (data, { transaction } = {}) => {
   const {
-    tipo_reserva, celda_id, usuario_id, conductor_id, vehiculo_id,
+    tipo_reserva, celda_id, usuario_registra_id, conductor_id, vehiculo_id,
     motivo, fecha_hora_inicio, fecha_hora_fin, estado = 'PENDIENTE',
   } = data;
 
   const nueva = await Reserva.create(
-    { tipo_reserva, celda_id, usuario_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin, estado },
+    { tipo_reserva, celda_id, usuario_registra_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin, estado },
     { transaction }
   );
   return findById(nueva.id);
@@ -143,10 +143,11 @@ const cambiarEstado = async (id, estado, usuarioGestionaId, { transaction } = {}
 /**
  * Elimina una reserva del sistema.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await Reserva.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await Reserva.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 

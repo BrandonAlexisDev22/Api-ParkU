@@ -20,6 +20,18 @@ const Reserva = require('./reservaVehiculos.models');
 const RegistroAcceso = require('./control-salidas.models');
 const Novedad = require('./novedades.models');
 const Notificacion = require('./notificacion.models');
+const OcupacionCelda = require('./ocupacionCelda.models');
+const DisponibilidadCelda = require('./disponibilidadCelda.models');
+const HistorialCelda = require('./historialCelda.models');
+const HistorialParqueadero = require('./historialParqueadero.models');
+const HistorialReserva = require('./historialReserva.models');
+const HistorialNovedad = require('./historialNovedad.models');
+const HistorialDisponibilidadCelda = require('./historialDisponibilidadCelda.models');
+const Auditoria = require('./auditoria.models');
+const EquipamientoParqueadero = require('./equipamientoParqueadero.models');
+const EvidenciaNovedad = require('./evidenciaNovedad.models');
+const RecuperacionPassword = require('./recuperacionPassword.models');
+const AsignacionVigilante = require('./asignacionVigilante.models');
 
 // ============================================
 // RELACIONES: Usuario - Rol
@@ -93,7 +105,7 @@ Vehiculo.belongsToMany(Conductor, {
 // ============================================
 
 Reserva.belongsTo(Celda, { foreignKey: 'celda_id', as: 'celda' });
-Reserva.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+Reserva.belongsTo(Usuario, { foreignKey: 'usuario_registra_id', as: 'usuarioRegistra' });
 Reserva.belongsTo(Usuario, { foreignKey: 'usuario_gestiona_id', as: 'gestionadoPor' });
 Reserva.belongsTo(Conductor, { foreignKey: 'conductor_id', as: 'conductor' });
 Reserva.belongsTo(Vehiculo, { foreignKey: 'vehiculo_id', as: 'vehiculo' });
@@ -127,6 +139,43 @@ Novedad.belongsTo(RegistroAcceso, { foreignKey: 'registro_acceso_id', as: 'regis
 
 Notificacion.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 
+// ============================================
+// RELACIONES: OcupacionCelda (quién ocupa cada celda ahora e histórico)
+// ============================================
+
+OcupacionCelda.belongsTo(Celda, { foreignKey: 'celda_id', as: 'celda' });
+OcupacionCelda.belongsTo(Vehiculo, { foreignKey: 'vehiculo_id', as: 'vehiculo' });
+OcupacionCelda.belongsTo(Usuario, { foreignKey: 'usuario_asigna_id', as: 'usuarioAsigna' });
+
+// ============================================
+// RELACIONES: DisponibilidadCelda / HistorialDisponibilidadCelda
+// ============================================
+
+DisponibilidadCelda.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+HistorialDisponibilidadCelda.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+
+// ============================================
+// RELACIONES: Historiales (celda, parqueadero, reserva, novedad)
+// ============================================
+
+HistorialCelda.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+HistorialParqueadero.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+HistorialReserva.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+HistorialNovedad.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+
+// ============================================
+// RELACIONES: Auditoria
+// ============================================
+
+Auditoria.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+
+// ============================================
+// RELACIONES: AsignacionVigilante
+// ============================================
+
+AsignacionVigilante.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
+AsignacionVigilante.belongsTo(Parqueadero, { foreignKey: 'parqueadero_id', as: 'parqueadero' });
+
 module.exports = {
   sequelize,
   Celda,
@@ -144,4 +193,16 @@ module.exports = {
   RegistroAcceso,
   Novedad,
   Notificacion,
+  OcupacionCelda,
+  DisponibilidadCelda,
+  HistorialCelda,
+  HistorialParqueadero,
+  HistorialReserva,
+  HistorialNovedad,
+  HistorialDisponibilidadCelda,
+  Auditoria,
+  EquipamientoParqueadero,
+  EvidenciaNovedad,
+  RecuperacionPassword,
+  AsignacionVigilante,
 };

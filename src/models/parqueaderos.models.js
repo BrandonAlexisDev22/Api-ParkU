@@ -61,6 +61,15 @@ const Parqueadero = sequelize.define('Parqueadero', {
     type: DataTypes.STRING(500),
     allowNull: true,
   },
+  descripcion: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  tipo: {
+    type: DataTypes.ENUM('GENERAL', 'DOCENTES', 'ADMINISTRATIVOS', 'APRENDICES', 'VISITANTES', 'MOTOS', 'VEHICULO_SENA'),
+    allowNull: false,
+    defaultValue: 'GENERAL',
+  },
 }, {
   tableName: 'parqueadero',
   timestamps: false,

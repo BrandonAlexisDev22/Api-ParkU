@@ -176,7 +176,7 @@ router.post(
  *               rol:
  *                 type: integer
  *                 example: 3
- *                 description: "1=Vigilante, 2=Admin, 3=Conductor"
+ *                 description: "1=Administrador, 2=Vigilante, 3=Conductor (el registro público ignora este campo; siempre queda en 3=Conductor)"
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
@@ -280,6 +280,75 @@ router.post(
   '/logout',
   verificarToken,
   authCtrl.logout
+);
+
+// =============================================
+// RECUPERACIÓN DE CONTRASEÑA
+// =============================================
+
+/**
+ * @swagger
+ * /api/auth/recuperar-password:
+ *   post:
+ *     summary: Solicitar un token de recuperación de contraseña
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - correo
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Si el correo existe, se generó un token (se envía por correo en producción)
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.post(
+  '/recuperar-password',
+  authLimiter,
+  authCtrl.recuperarPassword
+);
+
+/**
+ * @swagger
+ * /api/auth/restablecer-password:
+ *   post:
+ *     summary: Restablecer la contraseña usando un token de recuperación
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - nuevaContrasena
+ *             properties:
+ *               token:
+ *                 type: string
+ *               nuevaContrasena:
+ *                 type: string
+ *                 minLength: 8
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada correctamente
+ *       400:
+ *         description: Token inválido, ya usado, expirado, o contraseña muy corta
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.post(
+  '/restablecer-password',
+  authLimiter,
+  authCtrl.restablecerPassword
 );
 
 // =============================================

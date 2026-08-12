@@ -17,12 +17,7 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - numero_documento
  *         - nombre_apellidos
- *         - direccion
  *         - tipo_usuario_id
- *         - regional_formacion_id
- *         - centro_formacion_id
- *         - programa_formacion_id
- *         - vigencia
  *       properties:
  *         id:
  *           type: integer
@@ -33,7 +28,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           description: ID de la cuenta de usuario asociada (opcional).
  *         tipo_documento:
  *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
  *           default: CC
  *         numero_documento:
  *           type: string
@@ -46,33 +41,40 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         direccion:
  *           type: string
+ *           nullable: true
  *         numero_telefonico:
  *           type: string
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion_id:
- *           type: integer
- *         centro_formacion_id:
- *           type: integer
- *         programa_formacion_id:
- *           type: integer
+ *         regional_formacion:
+ *           type: string
+ *           nullable: true
+ *           description: Texto libre proveniente de SOFIA Plus.
+ *         centro_formacion:
+ *           type: string
+ *           nullable: true
+ *         programa_formacion:
+ *           type: string
+ *           nullable: true
  *         vigencia:
  *           type: string
- *           format: date-time
+ *           format: date
+ *           nullable: true
+ *         movilidad_reducida:
+ *           type: boolean
+ *           default: false
+ *         tipo_discapacidad:
+ *           type: string
+ *           nullable: true
+ *           description: Solo válido si movilidad_reducida es true.
  *         estado:
  *           type: boolean
  *           default: true
  *         tipo_usuario_nombre:
  *           type: string
  *           description: Solo en respuestas (JOIN).
- *         regional_formacion_nombre:
- *           type: string
- *           description: Solo en respuestas (JOIN).
- *         centro_formacion_nombre:
- *           type: string
- *           description: Solo en respuestas (JOIN).
- *         programa_formacion_nombre:
+ *         usuario_correo:
  *           type: string
  *           description: Solo en respuestas (JOIN).
  *     ConductorCreate:
@@ -80,19 +82,14 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - numero_documento
  *         - nombre_apellidos
- *         - direccion
  *         - tipo_usuario_id
- *         - regional_formacion_id
- *         - centro_formacion_id
- *         - programa_formacion_id
- *         - vigencia
  *       properties:
  *         usuario_id:
  *           type: integer
  *           nullable: true
  *         tipo_documento:
  *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
  *           default: CC
  *         numero_documento:
  *           type: string
@@ -104,20 +101,31 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         direccion:
  *           type: string
+ *           nullable: true
  *         numero_telefonico:
  *           type: string
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion_id:
- *           type: integer
- *         centro_formacion_id:
- *           type: integer
- *         programa_formacion_id:
- *           type: integer
+ *         regional_formacion:
+ *           type: string
+ *           nullable: true
+ *         centro_formacion:
+ *           type: string
+ *           nullable: true
+ *         programa_formacion:
+ *           type: string
+ *           nullable: true
  *         vigencia:
  *           type: string
- *           format: date-time
+ *           format: date
+ *           nullable: true
+ *         movilidad_reducida:
+ *           type: boolean
+ *           default: false
+ *         tipo_discapacidad:
+ *           type: string
+ *           nullable: true
  *         estado:
  *           type: boolean
  *           default: true
@@ -129,7 +137,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo_documento:
  *           type: string
- *           enum: [CC, CE, PAS, TI, NIT]
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
  *         numero_documento:
  *           type: string
  *         nombre_apellidos:
@@ -140,20 +148,30 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         direccion:
  *           type: string
+ *           nullable: true
  *         numero_telefonico:
  *           type: string
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion_id:
- *           type: integer
- *         centro_formacion_id:
- *           type: integer
- *         programa_formacion_id:
- *           type: integer
+ *         regional_formacion:
+ *           type: string
+ *           nullable: true
+ *         centro_formacion:
+ *           type: string
+ *           nullable: true
+ *         programa_formacion:
+ *           type: string
+ *           nullable: true
  *         vigencia:
  *           type: string
- *           format: date-time
+ *           format: date
+ *           nullable: true
+ *         movilidad_reducida:
+ *           type: boolean
+ *         tipo_discapacidad:
+ *           type: string
+ *           nullable: true
  *         estado:
  *           type: boolean
  */

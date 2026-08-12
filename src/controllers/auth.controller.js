@@ -3,6 +3,8 @@ const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
 const { Usuario } = require('../models');
 const { generarToken, generarRefreshToken } = require('../middlewares/auth.middleware');
+const recuperacionPasswordSvc = require('../services/recuperacionPassword.service');
+const { handleError } = require('../helpers/errorHandler');
 
 class AuthController {
   /**
@@ -43,7 +45,7 @@ class AuthController {
         correo,
         contrasena: hashedPassword,
         nombre,
-        estado: true,
+        estado: 'ACTIVO',
       });
 
       return res.status(201).json({
@@ -94,10 +96,12 @@ class AuthController {
         });
       }
 
-      if (!user.estado) {
+      if (user.estado !== 'ACTIVO') {
         return res.status(403).json({
           success: false,
-          message: 'Usuario inactivo. Contacte al administrador'
+          message: user.estado === 'BLOQUEADO'
+            ? 'Usuario bloqueado. Contacte al administrador'
+            : 'Usuario inactivo. Contacte al administrador'
         });
       }
 
@@ -120,8 +124,8 @@ class AuthController {
       const token = generarToken(payload);
       const refreshToken = generarRefreshToken(payload);
 
-      // Guardar refresh token en BD
-      await user.update({ refresh_token: refreshToken });
+      // Los refresh tokens son JWT sin estado (usuario no tiene columna
+      // refresh_token en la BD real) -- no hay nada que persistir aquí.
 
       // Respuesta sin datos sensibles
       return res.status(200).json({
@@ -203,15 +207,16 @@ class AuthController {
         });
       }
 
-      // Verificar que el refresh token coincida con el guardado
+      // Los refresh tokens son JWT sin estado: ya se verificó la firma/expiración
+      // arriba. Solo falta confirmar que el usuario siga existiendo y activo.
       const user = await Usuario.findOne({
-        where: { id: decoded.id, refresh_token: refreshToken }
+        where: { id: decoded.id, estado: 'ACTIVO' }
       });
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Refresh token inválido'
+          message: 'Usuario no encontrado o inactivo'
         });
       }
 
@@ -243,12 +248,8 @@ class AuthController {
    */
   static async logout(req, res) {
     try {
-      const userId = req.usuario?.id;
-
-      if (userId) {
-        await Usuario.update({ refresh_token: null }, { where: { id: userId } });
-      }
-
+      // Los refresh tokens son JWT sin estado (no hay columna que limpiar en BD);
+      // el cliente simplemente descarta el token.
       return res.status(200).json({
         success: true,
         message: 'Logout exitoso'
@@ -259,6 +260,37 @@ class AuthController {
         success: false,
         message: 'Error al cerrar sesión'
       });
+    }
+  }
+
+  /**
+   * POST /api/auth/recuperar-password - Solicita un token de recuperación de contraseña
+   */
+  static async recuperarPassword(req, res) {
+    try {
+      const { correo } = req.body;
+      const { token } = await recuperacionPasswordSvc.solicitar(correo);
+      return res.status(200).json({
+        success: true,
+        message: 'Si el correo está registrado, se generó un enlace de recuperación',
+        // Solo viaja fuera de producción; en producción debe enviarse por correo.
+        ...(token ? { token } : {}),
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+
+  /**
+   * POST /api/auth/restablecer-password - Consume el token y fija la nueva contraseña
+   */
+  static async restablecerPassword(req, res) {
+    try {
+      const { token, nuevaContrasena } = req.body;
+      await recuperacionPasswordSvc.restablecer(token, nuevaContrasena);
+      return res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+      handleError(res, error);
     }
   }
 }

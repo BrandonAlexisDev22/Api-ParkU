@@ -113,7 +113,7 @@ const remove = async (id) => {
   try {
     return await repo.remove(id);
   } catch (error) {
-    if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+    if (error?.name === 'SequelizeForeignKeyConstraintError') {
       throw { status: 409, message: 'No se puede eliminar porque está asignado a algún rol' };
     }
     throw error;

@@ -1,50 +1,23 @@
 /**
  * @module CeldaService
  * @description Lógica de negocio para la gestión de celdas de parqueo.
- * Alineado con el modelo Celda (tipo, usabilidad, estado_celda).
+ * Alineado con el modelo Celda real (parqueadero, numero, tipo, usabilidad, estado).
+ *
+ * celda.estado es la ÚNICA fuente de verdad y la BD la protege con triggers de
+ * auditoría/historial que exigen SET LOCAL app.usuario_id -- por eso create/update/
+ * remove van envueltos en runWithUsuario. El cambio MANUAL de estado (mantenimiento,
+ * inactivar) no se hace aquí: va por disponibilidad_celda, que además exige un motivo
+ * (ver disponibilidad_celda.service.js). Los cambios automáticos de estado (ingreso,
+ * salida, reservas) los hace la propia BD vía trigger cuando se escribe en
+ * registro_acceso/reserva -- este service nunca debe tocar celda.estado directamente.
  */
 
 const repo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
+const { runWithUsuario } = require('../utils/dbContext.util');
 
-// Constantes para facilitar validaciones y evitar errores tipográficos
-const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'MOVILIDAD_REDUCIDA', 'BICICLETA'];
-const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA'];
-const ESTADOS_PERMITIDOS = ['DISPONIBLE', 'OCUPADO', 'MANTENIMIENTO', 'INACTIVA'];
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     Celda:
- *       type: object
- *       required:
- *         - parqueadero
- *         - tipo
- *         - usabilidad
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental de la celda.
- *         parqueadero:
- *           type: integer
- *           description: ID del parqueadero al que pertenece.
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
- *           description: Tipo de vehículo que puede ocupar la celda.
- *         usabilidad:
- *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
- *           description: Nivel de uso permitido.
- *         estado_celda:
- *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
- *           description: Estado actual de la celda.
- *         parqueadero_nombre:
- *           type: string
- *           description: Nombre del parqueadero (solo en respuestas con JOIN).
- */
+const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
+const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'];
 
 /**
  * Obtiene todas las celdas registradas.
@@ -66,61 +39,54 @@ const getById = async (id) => {
 
 /**
  * Filtra celdas por parqueadero.
- * @param {number} parqueaderoId 
+ * @param {number} parqueaderoId
  * @returns {Promise<Array>}
  */
 const getByParqueadero = (parqueaderoId) => repo.findByParqueadero(parqueaderoId);
 
 /**
- * Obtiene celdas disponibles (estado_celda = 'DISPONIBLE') en un parqueadero.
- * @param {number} parqueaderoId 
+ * Obtiene celdas disponibles (estado = 'DISPONIBLE') en un parqueadero.
+ * @param {number} parqueaderoId
  * @returns {Promise<Array>}
  */
 const getDisponibles = (parqueaderoId) => repo.findDisponibles(parqueaderoId);
 
 /**
  * Filtra celdas por tipo de vehículo.
- * @param {string} tipo - CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA
+ * @param {string} tipo - CARRO, MOTO, BICICLETA, CAMION, BUS
  * @returns {Promise<Array>}
  */
 const getByTipo = async (tipo) => {
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
     throw { status: 400, message: `Tipo no válido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
-  // Nota: Se asume que el repositorio tiene un método findByTipo; si no existe, se puede implementar.
-  // Por ahora, se filtra en memoria (no óptimo para grandes volúmenes).
-  const todas = await repo.findAll();
-  return todas.filter(c => c.tipo === tipo);
+  return repo.findByTipo(tipo);
 };
 
 /**
  * Filtra celdas por usabilidad.
- * @param {string} usabilidad - GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA
+ * @param {string} usabilidad - GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA
  * @returns {Promise<Array>}
  */
 const getByUsabilidad = async (usabilidad) => {
   if (!USABILIDADES_PERMITIDAS.includes(usabilidad)) {
     throw { status: 400, message: `Usabilidad no válida. Permitidas: ${USABILIDADES_PERMITIDAS.join(', ')}` };
   }
-  const todas = await repo.findAll();
-  return todas.filter(c => c.usabilidad === usabilidad);
+  return repo.findByUsabilidad(usabilidad);
 };
 
 /**
- * Crea una nueva celda validando existencia del parqueadero y valores permitidos.
- * @param {Object} data 
- * @param {number} data.parqueadero - ID del parqueadero.
- * @param {string} data.tipo - Tipo de celda.
- * @param {string} data.usabilidad - Usabilidad.
- * @param {string} [data.estado_celda='DISPONIBLE'] - Estado inicial.
- * @throws {Object} 400 si faltan datos o son inválidos; 404 si el parqueadero no existe.
+ * Crea una nueva celda validando existencia del parqueadero, valores permitidos
+ * y unicidad de (parqueadero, numero).
+ * @param {Object} data
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 400 si faltan datos o son inválidos; 404 si el parqueadero no existe; 409 si el número ya existe en ese parqueadero.
  * @returns {Promise<Object>} Celda creada.
  */
-const create = async ({ parqueadero, tipo, usabilidad, estado_celda = 'DISPONIBLE' }) => {
-  // Validaciones
+const create = async ({ parqueadero, numero, tipo, usabilidad = 'GENERAL', observaciones, posicion_x, posicion_y, ancho, alto }, usuarioId) => {
   if (!parqueadero) throw { status: 400, message: 'El parqueadero es requerido' };
+  if (!numero) throw { status: 400, message: 'El número de la celda es requerido' };
   if (!tipo) throw { status: 400, message: 'El tipo es requerido' };
-  if (!usabilidad) throw { status: 400, message: 'La usabilidad es requerida' };
 
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
@@ -128,54 +94,56 @@ const create = async ({ parqueadero, tipo, usabilidad, estado_celda = 'DISPONIBL
   if (!USABILIDADES_PERMITIDAS.includes(usabilidad)) {
     throw { status: 400, message: `Usabilidad inválida. Permitidas: ${USABILIDADES_PERMITIDAS.join(', ')}` };
   }
-  if (!ESTADOS_PERMITIDOS.includes(estado_celda)) {
-    throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
-  }
 
-  // Verificar existencia del parqueadero
   const existeParq = await parqRepo.findById(parqueadero);
   if (!existeParq) throw { status: 404, message: 'Parqueadero no encontrado' };
 
-  return repo.create({ parqueadero, tipo, usabilidad, estado_celda });
+  const existeNumero = await repo.findByParqueaderoYNumero(parqueadero, numero);
+  if (existeNumero) throw { status: 409, message: 'Ya existe una celda con ese número en ese parqueadero' };
+
+  return runWithUsuario(usuarioId, (transaction) => repo.create(
+    { parqueadero, numero, tipo, usabilidad, observaciones, posicion_x, posicion_y, ancho, alto },
+    { transaction },
+  ));
 };
 
 /**
- * Actualiza parcialmente una celda.
+ * Actualiza parcialmente una celda (atributos físicos; el estado no se toca aquí).
  * @param {number} id - ID de la celda.
  * @param {Object} data - Campos a actualizar (todos opcionales).
- * @param {string} [data.tipo] - Nuevo tipo.
- * @param {string} [data.usabilidad] - Nueva usabilidad.
- * @param {string} [data.estado_celda] - Nuevo estado.
- * @throws {Object} 404 si la celda no existe; 400 si algún valor no es permitido.
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 404 si la celda no existe; 400 si algún valor no es permitido; 409 si el número ya existe en ese parqueadero.
  * @returns {Promise<Object>} Celda actualizada.
  */
-const update = async (id, data) => {
-  // Verificar que la celda existe
-  await getById(id);
+const update = async (id, data, usuarioId) => {
+  const celda = await getById(id);
 
-  // Validar valores si se proporcionan
   if (data.tipo && !TIPOS_PERMITIDOS.includes(data.tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
   if (data.usabilidad && !USABILIDADES_PERMITIDAS.includes(data.usabilidad)) {
     throw { status: 400, message: `Usabilidad inválida. Permitidas: ${USABILIDADES_PERMITIDAS.join(', ')}` };
   }
-  if (data.estado_celda && !ESTADOS_PERMITIDOS.includes(data.estado_celda)) {
-    throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
+  if (data.numero && data.numero !== celda.numero) {
+    const existeNumero = await repo.findByParqueaderoYNumero(celda.parqueadero, data.numero);
+    if (existeNumero && existeNumero.id !== Number(id)) {
+      throw { status: 409, message: 'Ya existe una celda con ese número en ese parqueadero' };
+    }
   }
 
-  return repo.update(id, data);
+  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
 };
 
 /**
  * Elimina una celda del sistema.
  * @param {number} id - ID de la celda.
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
  * @throws {Object} 404 si no existe.
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
+const remove = async (id, usuarioId) => {
   await getById(id);
-  return repo.remove(id);
+  return runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
 };
 
 module.exports = {

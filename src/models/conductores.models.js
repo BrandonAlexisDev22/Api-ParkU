@@ -70,6 +70,11 @@ const Conductor = sequelize.define('Conductor', {
     allowNull: false,
     defaultValue: false,
   },
+  tipo_discapacidad: {
+    // Detalle de la condición. Solo aplica cuando movilidad_reducida = true.
+    type: DataTypes.STRING(150),
+    allowNull: true,
+  },
   estado: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

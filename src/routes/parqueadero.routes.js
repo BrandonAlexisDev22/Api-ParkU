@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/parqueadero.controller');
+const historialCtrl = require('../controllers/historial.controller');
+const equipamientoCtrl = require('../controllers/equipamientoParqueadero.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
@@ -103,7 +105,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -148,8 +150,50 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
+);
+
+/**
+ * @swagger
+ * /api/parqueaderos/{id}/estado:
+ *   patch:
+ *     summary: Activa o inactiva un parqueadero (requiere motivo)
+ *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ParqueaderoCambiarEstado'
+ *     responses:
+ *       200:
+ *         description: Parqueadero actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Parqueadero'
+ *       400:
+ *         description: Falta el motivo o el estado no es válido
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - Solo administradores
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+router.patch('/:id/estado',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  ctrl.cambiarEstado
 );
 
 /**
@@ -181,8 +225,98 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
+);
+
+/**
+ * @swagger
+ * /api/parqueaderos/{id}/historial:
+ *   get:
+ *     summary: Historial de cambios de un parqueadero (poblado por trigger)
+ *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Historial del parqueadero
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get('/:id/historial',
+  verificarToken,
+  historialCtrl.getByParqueadero
+);
+
+/**
+ * @swagger
+ * /api/parqueaderos/{id}/equipamiento:
+ *   get:
+ *     summary: Listar el equipamiento de un parqueadero
+ *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Lista de equipamiento
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+router.get('/:id/equipamiento',
+  verificarToken,
+  equipamientoCtrl.getByParqueadero
+);
+
+/**
+ * @swagger
+ * /api/parqueaderos/{id}/equipamiento:
+ *   post:
+ *     summary: Registrar equipamiento en un parqueadero
+ *     tags: [Parqueaderos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EquipamientoParqueaderoCreate'
+ *     responses:
+ *       201:
+ *         description: Equipamiento creado
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+router.post('/:id/equipamiento',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1)
+  equipamientoCtrl.create
 );
 
 module.exports = router;

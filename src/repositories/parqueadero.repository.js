@@ -9,7 +9,7 @@ const { Parqueadero } = require('../models');
 
 const CAMPOS_EDITABLES = [
   'nombre', 'ubicacion', 'acceso', 'capacidad_maxima', 'hora_apertura',
-  'hora_cierre', 'zona', 'piso', 'plano_url', 'observaciones',
+  'hora_cierre', 'zona', 'piso', 'plano_url', 'observaciones', 'descripcion', 'tipo',
 ];
 
 /**
@@ -87,10 +87,11 @@ const cambiarEstado = async (id, estado, { transaction } = {}) => {
 /**
  * Elimina un parqueadero.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await Parqueadero.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await Parqueadero.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 

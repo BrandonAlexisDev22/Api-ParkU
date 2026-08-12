@@ -62,7 +62,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.getAll
 );
 
@@ -96,7 +96,7 @@ router.get('/',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.getById
 );
 
@@ -132,7 +132,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.create
 );
 
@@ -176,7 +176,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.update
 );
 
@@ -208,7 +208,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

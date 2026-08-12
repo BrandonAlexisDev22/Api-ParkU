@@ -16,8 +16,8 @@ const { handleError } = require('../helpers/errorHandler');
  *       type: object
  *       required:
  *         - parqueadero
+ *         - numero
  *         - tipo
- *         - usabilidad
  *       properties:
  *         id:
  *           type: integer
@@ -25,18 +25,24 @@ const { handleError } = require('../helpers/errorHandler');
  *         parqueadero:
  *           type: integer
  *           description: ID del parqueadero al que pertenece.
+ *         numero:
+ *           type: string
+ *           description: Numeración de la celda (única dentro de su parqueadero).
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *           description: Tipo de vehículo que puede ocupar la celda.
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
  *           description: Nivel de uso permitido.
- *         estado_celda:
+ *         estado:
  *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
- *           description: Estado actual de la celda.
+ *           enum: [DISPONIBLE, OCUPADA, RESERVADA, MANTENIMIENTO, INACTIVA]
+ *           description: Estado actual de la celda (solo lectura aquí; usar /celdas/{id}/disponibilidad para cambiarlo).
+ *         observaciones:
+ *           type: string
+ *           nullable: true
  *         parqueadero_nombre:
  *           type: string
  *           description: Nombre del parqueadero (solo en respuestas con JOIN).
@@ -44,33 +50,37 @@ const { handleError } = require('../helpers/errorHandler');
  *       type: object
  *       required:
  *         - parqueadero
+ *         - numero
  *         - tipo
- *         - usabilidad
  *       properties:
  *         parqueadero:
  *           type: integer
+ *         numero:
+ *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
- *         estado_celda:
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
+ *           default: GENERAL
+ *         observaciones:
  *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
- *           default: DISPONIBLE
+ *           nullable: true
  *     CeldaUpdate:
  *       type: object
  *       properties:
+ *         numero:
+ *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
- *         estado_celda:
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
+ *         observaciones:
  *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
+ *           nullable: true
  */
 
 /**
@@ -290,7 +300,7 @@ const getByUsabilidad = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newCelda = await svc.create(req.body);
+    const newCelda = await svc.create(req.body, req.usuario?.id);
     res.status(201).json(newCelda);
   } catch (e) {
     handleError(res, e);
@@ -330,7 +340,7 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -358,7 +368,7 @@ const update = async (req, res) => {
  */
 const remove = async (req, res) => {
   try {
-    await svc.remove(req.params.id);
+    await svc.remove(req.params.id, req.usuario?.id);
     res.status(204).send();
   } catch (e) {
     handleError(res, e);

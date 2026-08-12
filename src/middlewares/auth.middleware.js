@@ -43,7 +43,7 @@ const verificarToken = async (req, res, next) => {
     }
 
     const user = await Usuario.findOne({
-      where: { id: decoded.id, estado: true },
+      where: { id: decoded.id, estado: 'ACTIVO' },
       attributes: ['id', 'correo', 'nombre', 'rol_id', 'estado'],
     });
 

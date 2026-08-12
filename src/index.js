@@ -7,7 +7,6 @@ const rateLimit = require('express-rate-limit');
 const { swaggerDocs } = require('./config/swagger');
 const { testConnection, sequelize } = require('./config/database');
 const Logger = require('./utils/logger.util');
-const { auditLog, auditLoginAttempt, auditTokenExpired } = require('./middlewares/audit.middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,17 +49,12 @@ app.use((req, res, next) => {
 });
 
 // =============================================
-// 2. MIDDLEWARES DE AUDITORÍA
+// 2. AUDITORÍA
 // =============================================
-
-// Auditoría de login fallidos
-app.use('/api/auth/login', auditLoginAttempt);
-
-// Auditoría de tokens expirados
-app.use(auditTokenExpired);
-
-// Auditoría de mutaciones (POST, PUT, PATCH, DELETE)
-app.use(auditLog);
+// La auditoría de mutaciones (CREAR/EDITAR/CAMBIAR_ESTADO/ELIMINAR) la hace la propia
+// base de datos vía trigger (fn_auditoria_generica -> tabla 'auditoria'), no un
+// middleware de Express -- ver database/parku.postgres y src/utils/dbContext.util.js.
+// Se expone en modo lectura en GET /api/auditoria.
 
 // =============================================
 // 3. RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
@@ -137,9 +131,6 @@ app.use('/api/permisos', require('./routes/permiso.routes'));
 // Asignación de Permisos (Solo Admin)
 app.use('/api/roles-permisos', require('./routes/rolPermiso.routes'));
 
-// Gestión de Perfiles
-app.use('/api/perfiles', require('./routes/perfil.routes'));
-
 // Gestión de Conductores
 app.use('/api/conductores', require('./routes/conductor.routes'));
 
@@ -163,6 +154,24 @@ app.use('/api/reservas', require('./routes/reserva.routes'));
 
 // Gestión de Novedades/Reportes
 app.use('/api/novedades', require('./routes/novedades.routes'));
+
+// Evidencias de novedades (borrado directo por ID; alta/listado van bajo /api/novedades/:id/evidencias)
+app.use('/api/evidencias', require('./routes/evidenciaNovedad.routes'));
+
+// Equipamiento de parqueaderos (edición/borrado directo por ID)
+app.use('/api/equipamiento', require('./routes/equipamientoParqueadero.routes'));
+
+// Ocupación de celdas (quién ocupa cada celda ahora e histórico; solo lectura)
+app.use('/api/ocupaciones', require('./routes/ocupacionCelda.routes'));
+
+// Notificaciones del usuario autenticado
+app.use('/api/notificaciones', require('./routes/notificacion.routes'));
+
+// Auditoría (solo lectura, solo administradores)
+app.use('/api/auditoria', require('./routes/auditoria.routes'));
+
+// Asignación de turnos de vigilantes
+app.use('/api/asignaciones-vigilante', require('./routes/asignacionVigilante.routes'));
 
 // =============================================
 // 6. MANEJADOR DE RUTAS NO ENCONTRADAS (404)

@@ -1,85 +1,23 @@
 /**
  * @module ReservaService
- * @description Gestión de reservas de celdas. Incluye lógica de validación de fechas 
- * y control de solapamientos horarios para evitar conflictos.
- * Alineado con el modelo Reserva.
+ * @description Gestión de reservas de celdas (Proceso 06.1). Alineado con el modelo
+ * Reserva real: celda_id, usuario_registra_id (vigilante que la crea), conductor_id
+ * (para quién es), vehiculo_id, fecha_hora_inicio/fin, estado, usuario_gestiona_id
+ * (quién la acepta/rechaza).
+ *
+ * La BD valida solapamientos (fn_validar_conflicto_reserva) y celdas preferenciales
+ * (fn_validar_reserva_preferencial), y mueve celda.estado sola vía fn_reserva_bloquea_celda
+ * cuando la reserva pasa a ACEPTADA o sale de ese estado -- por eso create/cambiarEstado/
+ * remove van envueltos en runWithUsuario, y los RAISE EXCEPTION de esos triggers se
+ * traducen a 409 con traducirErrorTrigger.
  */
 
 const repo = require('../repositories/reserva.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
+const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Reserva:
- *       type: object
- *       required:
- *         - celda
- *         - vehiculo
- *         - fechaHora_inicio
- *         - fechaHora_fin
- *       properties:
- *         id:
- *           type: integer
- *           description: ID único de la reserva.
- *         celda:
- *           type: integer
- *           description: ID de la celda a reservar.
- *         vehiculo:
- *           type: integer
- *           description: ID del vehículo que reserva.
- *         fechaHora_inicio:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora de inicio de la reserva.
- *         fechaHora_fin:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora de finalización de la reserva.
- *         estado:
- *           type: integer
- *           enum: [0, 1]
- *           description: Estado (1=activa, 0=finalizada/cancelada).
- *     ReservaCreate:
- *       type: object
- *       required:
- *         - celda
- *         - vehiculo
- *         - fechaHora_inicio
- *         - fechaHora_fin
- *       properties:
- *         celda:
- *           type: integer
- *         vehiculo:
- *           type: integer
- *         fechaHora_inicio:
- *           type: string
- *           format: date-time
- *         fechaHora_fin:
- *           type: string
- *           format: date-time
- *         estado:
- *           type: integer
- *           default: 1
- *     ReservaUpdate:
- *       type: object
- *       properties:
- *         celda:
- *           type: integer
- *         vehiculo:
- *           type: integer
- *         fechaHora_inicio:
- *           type: string
- *           format: date-time
- *         fechaHora_fin:
- *           type: string
- *           format: date-time
- *         estado:
- *           type: integer
- *           enum: [0, 1]
- */
+const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
 
 /**
  * Obtiene el listado de todas las reservas.
@@ -89,7 +27,7 @@ const getAll = () => repo.findAll();
 
 /**
  * Busca una reserva por su ID.
- * @param {number} id 
+ * @param {number} id
  * @throws {Object} 404 si la reserva no existe.
  * @returns {Promise<Object>}
  */
@@ -101,14 +39,14 @@ const getById = async (id) => {
 
 /**
  * Filtra reservas por vehículo.
- * @param {number} vehiculoId 
+ * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
 const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
 
 /**
  * Filtra reservas por celda.
- * @param {number} celdaId 
+ * @param {number} celdaId
  * @returns {Promise<Array>}
  */
 const getByCelda = (celdaId) => repo.findByCelda(celdaId);
@@ -116,27 +54,17 @@ const getByCelda = (celdaId) => repo.findByCelda(celdaId);
 /**
  * Valida la coherencia de las fechas de reserva.
  * @private
- * @param {string} inicio 
- * @param {string} fin 
- * @throws {Object} 400 si las fechas son inválidas, pasadas o el inicio es mayor al fin.
  */
 const _validarFechas = (inicio, fin) => {
   const i = new Date(inicio);
   const f = new Date(fin);
   if (isNaN(i) || isNaN(f)) throw { status: 400, message: 'Fechas inválidas' };
-  if (i >= f) throw { status: 400, message: 'fechaHora_inicio debe ser anterior a fechaHora_fin' };
-  const now = new Date();
-  // Permitir reservas para hoy si la hora de inicio es futura (comparar solo fecha si es hoy)
-  if (i < now && i.toDateString() === now.toDateString()) {
-    // Si es hoy y la hora ya pasó, se rechaza
-    if (i < now) throw { status: 400, message: 'No se puede reservar en una hora pasada de hoy' };
-  } else if (i < now) {
-    throw { status: 400, message: 'No se puede reservar en una fecha pasada' };
-  }
+  if (i >= f) throw { status: 400, message: 'fecha_hora_inicio debe ser anterior a fecha_hora_fin' };
+  if (i < new Date()) throw { status: 400, message: 'No se puede reservar en una fecha/hora pasada' };
 };
 
 /**
- * Valida que una celda y vehículo existan (si se proporcionan).
+ * Valida que la celda y (si viene) el vehículo existan.
  * @private
  */
 const _validarEntidades = async (celdaId, vehiculoId) => {
@@ -144,86 +72,115 @@ const _validarEntidades = async (celdaId, vehiculoId) => {
     const celda = await celdaRepo.findById(celdaId);
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
   }
-  if (vehiculoId !== undefined) {
+  if (vehiculoId) {
     const vehiculo = await vehRepo.findById(vehiculoId);
     if (!vehiculo) throw { status: 404, message: 'Vehículo no encontrado' };
   }
 };
 
 /**
- * Crea una reserva verificando disponibilidad horaria.
- * @param {Object} data - { celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado? }
- * @throws {Object} 400 Datos faltantes, 404 Entidades no encontradas, 409 Conflicto de horario.
+ * Crea una reserva verificando disponibilidad horaria (la BD hace una segunda
+ * validación de solapamiento y de celdas preferenciales).
+ * @param {Object} data - { tipo_reserva, celda_id, conductor_id?, vehiculo_id?, motivo?, fecha_hora_inicio, fecha_hora_fin }
+ * @param {number} usuarioId - Vigilante/administrador autenticado que registra la reserva.
+ * @throws {Object} 400 datos faltantes/fechas inválidas, 404 entidades no encontradas, 409 conflicto de horario o regla de negocio.
  * @returns {Promise<Object>}
  */
-const create = async ({ celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado = 1 }) => {
-  if (!celda || !vehiculo || !fechaHora_inicio || !fechaHora_fin) {
-    throw { status: 400, message: 'celda, vehiculo, fechaHora_inicio y fechaHora_fin son requeridos' };
+const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin }, usuarioId) => {
+  if (!tipo_reserva || !celda_id || !fecha_hora_inicio || !fecha_hora_fin) {
+    throw { status: 400, message: 'tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos' };
   }
 
-  _validarFechas(fechaHora_inicio, fechaHora_fin);
-  await _validarEntidades(celda, vehiculo);
+  _validarFechas(fecha_hora_inicio, fecha_hora_fin);
+  await _validarEntidades(celda_id, vehiculo_id);
 
-  // Lógica de Solapamiento
-  const conflictos = await repo.findConflictos(celda, fechaHora_inicio, fechaHora_fin);
+  const conflictos = await repo.findConflictos(celda_id, fecha_hora_inicio, fecha_hora_fin);
   if (conflictos.length) {
     throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
   }
 
-  return repo.create({ celda, vehiculo, fechaHora_inicio, fechaHora_fin, estado });
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.create(
+      { tipo_reserva, celda_id, usuario_registra_id: usuarioId, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin },
+      { transaction },
+    ));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
- * Actualiza una reserva existente validando nuevos conflictos.
- * @param {number} id 
+ * Actualiza los datos de una reserva PENDIENTE (no su estado; usar cambiarEstado).
+ * @param {number} id
  * @param {Object} datos - Campos a actualizar (todos opcionales).
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
  * @throws {Object} 404 si no existe, 400 si fechas inválidas, 409 si conflicto.
  * @returns {Promise<Object>}
  */
-const update = async (id, datos) => {
+const update = async (id, datos, usuarioId) => {
   const reservaActual = await getById(id);
 
-  // Si se cambia celda o vehículo, validar existencia
-  if (datos.celda !== undefined || datos.vehiculo !== undefined) {
+  if (datos.celda_id !== undefined || datos.vehiculo_id !== undefined) {
     await _validarEntidades(
-      datos.celda !== undefined ? datos.celda : reservaActual.celda,
-      datos.vehiculo !== undefined ? datos.vehiculo : reservaActual.vehiculo
+      datos.celda_id !== undefined ? datos.celda_id : reservaActual.celda_id,
+      datos.vehiculo_id !== undefined ? datos.vehiculo_id : reservaActual.vehiculo_id,
     );
   }
 
-  // Validar fechas si se envían
-  const inicio = datos.fechaHora_inicio !== undefined ? datos.fechaHora_inicio : reservaActual.fechaHora_inicio;
-  const fin = datos.fechaHora_fin !== undefined ? datos.fechaHora_fin : reservaActual.fechaHora_fin;
-  if (datos.fechaHora_inicio !== undefined || datos.fechaHora_fin !== undefined) {
+  const inicio = datos.fecha_hora_inicio !== undefined ? datos.fecha_hora_inicio : reservaActual.fecha_hora_inicio;
+  const fin = datos.fecha_hora_fin !== undefined ? datos.fecha_hora_fin : reservaActual.fecha_hora_fin;
+  if (datos.fecha_hora_inicio !== undefined || datos.fecha_hora_fin !== undefined) {
     _validarFechas(inicio, fin);
   }
 
-  // Verificar conflictos de horario (usando la celda final)
-  const celdaFinal = datos.celda !== undefined ? datos.celda : reservaActual.celda;
+  const celdaFinal = datos.celda_id !== undefined ? datos.celda_id : reservaActual.celda_id;
   const conflictos = await repo.findConflictos(celdaFinal, inicio, fin, id);
   if (conflictos.length) {
     throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
   }
 
-  // Actualizar solo los campos enviados
-  return repo.update(id, datos);
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.update(id, datos, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+};
+
+/**
+ * Acepta, rechaza, cancela o termina una reserva. La BD bloquea/libera la celda sola
+ * (fn_reserva_bloquea_celda). Toda transición que salga de PENDIENTE debe decir quién la gestionó.
+ * @param {number} id
+ * @param {string} estado - ACEPTADA, RECHAZADA, TERMINADA o CANCELADA.
+ * @param {number} usuarioId - Quien gestiona la reserva (auditoría + usuario_gestiona_id).
+ * @throws {Object} 404 si no existe, 400 si el estado no es válido.
+ * @returns {Promise<Object>}
+ */
+const cambiarEstado = async (id, estado, usuarioId) => {
+  await getById(id);
+  if (!ESTADOS_GESTIONABLES.includes(estado)) {
+    throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(', ')}` };
+  }
+
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.cambiarEstado(id, estado, usuarioId, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
  * Elimina una reserva.
- * @param {number} id 
- * @throws {Object} 404 si no existe, 409 si no se puede eliminar (por integridad).
+ * @param {number} id
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 404 si no existe, 409 si no se puede eliminar (por integridad referencial).
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
+const remove = async (id, usuarioId) => {
   await getById(id);
   try {
-    return await repo.remove(id);
+    return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
   } catch (error) {
-    if (error.code === 'ER_ROW_IS_REFERENCED_2') {
-      throw { status: 409, message: 'No se puede eliminar porque está referenciado en otros registros' };
-    }
-    throw error;
+    traducirErrorTrigger(error);
   }
 };
 
@@ -234,5 +191,6 @@ module.exports = {
   getByCelda,
   create,
   update,
+  cambiarEstado,
   remove,
 };

@@ -90,7 +90,8 @@ const create = async (data) => {
   const {
     usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
     direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
-    centro_formacion, programa_formacion, vigencia, movilidad_reducida = false, estado = true,
+    centro_formacion, programa_formacion, vigencia, movilidad_reducida = false,
+    tipo_discapacidad, estado = true,
   } = data;
 
   const nuevo = await Conductor.create({
@@ -107,6 +108,7 @@ const create = async (data) => {
     programa_formacion: programa_formacion || null,
     vigencia: vigencia || null,
     movilidad_reducida,
+    tipo_discapacidad: tipo_discapacidad || null,
     estado,
   });
   return findById(nuevo.id);
@@ -122,7 +124,8 @@ const update = async (id, data) => {
   const allowedFields = [
     'usuario_id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo',
     'direccion', 'numero_telefonico', 'tipo_usuario_id', 'regional_formacion',
-    'centro_formacion', 'programa_formacion', 'vigencia', 'movilidad_reducida', 'estado',
+    'centro_formacion', 'programa_formacion', 'vigencia', 'movilidad_reducida',
+    'tipo_discapacidad', 'estado',
   ];
   const cambios = {};
   for (const field of allowedFields) {

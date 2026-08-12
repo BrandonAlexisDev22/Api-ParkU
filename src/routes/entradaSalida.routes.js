@@ -10,60 +10,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     EntradaSalida:
- *       type: object
- *       required:
- *         - tipo
- *         - vehiculo
- *         - celda
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del registro.
- *         tipo:
- *           type: string
- *           enum: [INGRESO, SALIDA]
- *           description: Tipo de movimiento.
- *         vehiculo:
- *           type: integer
- *           description: ID del vehículo.
- *         celda:
- *           type: integer
- *           description: ID de la celda utilizada.
- *         descripcion:
- *           type: string
- *           nullable: true
- *           description: Observaciones opcionales.
- *         fecha_hora:
- *           type: string
- *           format: date-time
- *           description: Fecha y hora del movimiento.
- *         parqueadero_nombre:
- *           type: string
- *           description: Nombre del parqueadero (solo en respuestas con JOIN).
- *         vehiculo_placa:
- *           type: string
- *           description: Placa del vehículo (solo en respuestas con JOIN).
- *     EntradaSalidaCreate:
- *       type: object
- *       required:
- *         - vehiculo
- *         - celda
- *       properties:
- *         vehiculo:
- *           type: integer
- *         celda:
- *           type: integer
- *         descripcion:
- *           type: string
- *           nullable: true
- *         fecha_hora:
- *           type: string
- *           format: date-time
- *           description: Opcional, si no se envía se usa la actual.
+ * (Los schemas RegistroAcceso, RegistrarIngreso y RegistrarSalida se documentan
+ * en src/services/entradaSalida.service.js.)
  */
 
 /**
@@ -88,7 +36,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getAll
 );
 
@@ -133,7 +81,7 @@ router.get('/',
  */
 router.get('/filtro',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getByFecha
 );
 
@@ -168,7 +116,7 @@ router.get('/filtro',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getByVehiculo
 );
 
@@ -203,7 +151,7 @@ router.get('/vehiculo/:vehiculoId',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.getById
 );
 
@@ -242,7 +190,7 @@ router.get('/:id',
  */
 router.post('/entrada',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.registrarEntrada
 );
 
@@ -281,7 +229,7 @@ router.post('/entrada',
  */
 router.post('/salida',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.registrarSalida
 );
 
@@ -312,7 +260,7 @@ router.post('/salida',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

@@ -10,104 +10,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 
 /**
- * @swagger
- * components:
- *   schemas:
- *     Vehiculo:
- *       type: object
- *       required:
- *         - tipo
- *         - marca
- *         - placa
- *         - conductor
- *       properties:
- *         id:
- *           type: integer
- *           description: ID autoincremental del vehículo.
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
- *           description: Tipo de vehículo.
- *         marca:
- *           type: string
- *           description: Marca del vehículo.
- *         modelo:
- *           type: string
- *           nullable: true
- *           description: Modelo del vehículo.
- *         placa:
- *           type: string
- *           description: Placa única del vehículo.
- *         color:
- *           type: string
- *           nullable: true
- *           description: Color del vehículo.
- *         conductor:
- *           type: integer
- *           description: ID del conductor asociado.
- *         observaciones:
- *           type: string
- *           nullable: true
- *           description: Observaciones adicionales.
- *         estado:
- *           type: boolean
- *           default: true
- *           description: true = Activo, false = Inactivo.
- *         conductor_nombre:
- *           type: string
- *           description: Nombre del conductor (solo en respuestas con JOIN).
- *     VehiculoCreate:
- *       type: object
- *       required:
- *         - tipo
- *         - marca
- *         - placa
- *         - conductor
- *       properties:
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
- *         marca:
- *           type: string
- *         modelo:
- *           type: string
- *           nullable: true
- *         placa:
- *           type: string
- *         color:
- *           type: string
- *           nullable: true
- *         conductor:
- *           type: integer
- *         observaciones:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
- *     VehiculoUpdate:
- *       type: object
- *       properties:
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, CAMIONETA, CAMION, BICICLETA]
- *         marca:
- *           type: string
- *         modelo:
- *           type: string
- *           nullable: true
- *         placa:
- *           type: string
- *         color:
- *           type: string
- *           nullable: true
- *         conductor:
- *           type: integer
- *         observaciones:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
+ * (Los schemas Vehiculo, VehiculoCreate y VehiculoUpdate se documentan
+ * en src/controllers/vehiculo.controller.js.)
  */
 
 /**
@@ -232,7 +136,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.create
 );
 
@@ -276,7 +180,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.update
 );
 
@@ -308,7 +212,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
 );
 

@@ -121,10 +121,11 @@ const update = async (id, data, { transaction } = {}) => {
 /**
  * Elimina un vehículo del sistema.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await Vehiculo.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await Vehiculo.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 

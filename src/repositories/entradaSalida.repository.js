@@ -128,10 +128,11 @@ const registrarSalida = async (id, { usuario_salida_id, descripcion_salida, fech
 /**
  * Elimina un registro del historial (uso administrativo/corrección).
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await RegistroAcceso.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await RegistroAcceso.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 

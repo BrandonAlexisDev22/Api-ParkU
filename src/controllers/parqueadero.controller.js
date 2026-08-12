@@ -14,36 +14,90 @@ const { handleError } = require('../helpers/errorHandler');
  *   schemas:
  *     Parqueadero:
  *       type: object
- *       required:
- *         - nombre
  *       properties:
  *         id:
  *           type: integer
- *           description: ID autoincremental del parqueadero.
  *         nombre:
  *           type: string
- *           description: Nombre del parqueadero.
  *         ubicacion:
  *           type: string
+ *         acceso:
+ *           type: string
+ *           enum: [REGIONAL, AVENIDA_BOYACA]
+ *           description: Portería por la que se accede.
+ *         tipo:
+ *           type: string
+ *           enum: [GENERAL, DOCENTES, ADMINISTRATIVOS, APRENDICES, VISITANTES, MOTOS, VEHICULO_SENA]
+ *           description: Público objetivo del parqueadero.
+ *         capacidad_maxima:
+ *           type: integer
+ *         hora_apertura:
+ *           type: string
  *           nullable: true
- *           description: Ubicación física del parqueadero.
+ *         hora_cierre:
+ *           type: string
+ *           nullable: true
+ *         zona:
+ *           type: string
+ *           nullable: true
+ *         piso:
+ *           type: string
+ *           nullable: true
+ *         plano_url:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         descripcion:
+ *           type: string
+ *           nullable: true
  *         estado:
  *           type: boolean
  *           default: true
- *           description: Estado del parqueadero (activo/inactivo).
+ *           description: Activo/inactivo (solo lectura aquí; usar PATCH /{id}/estado).
  *     ParqueaderoCreate:
  *       type: object
  *       required:
  *         - nombre
+ *         - ubicacion
+ *         - acceso
  *       properties:
  *         nombre:
  *           type: string
  *         ubicacion:
  *           type: string
+ *         acceso:
+ *           type: string
+ *           enum: [REGIONAL, AVENIDA_BOYACA]
+ *         tipo:
+ *           type: string
+ *           enum: [GENERAL, DOCENTES, ADMINISTRATIVOS, APRENDICES, VISITANTES, MOTOS, VEHICULO_SENA]
+ *           default: GENERAL
+ *         capacidad_maxima:
+ *           type: integer
+ *           default: 0
+ *         hora_apertura:
+ *           type: string
  *           nullable: true
- *         estado:
- *           type: boolean
- *           default: true
+ *         hora_cierre:
+ *           type: string
+ *           nullable: true
+ *         zona:
+ *           type: string
+ *           nullable: true
+ *         piso:
+ *           type: string
+ *           nullable: true
+ *         plano_url:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         descripcion:
+ *           type: string
+ *           nullable: true
  *     ParqueaderoUpdate:
  *       type: object
  *       properties:
@@ -51,9 +105,46 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: string
  *         ubicacion:
  *           type: string
+ *         acceso:
+ *           type: string
+ *           enum: [REGIONAL, AVENIDA_BOYACA]
+ *         tipo:
+ *           type: string
+ *           enum: [GENERAL, DOCENTES, ADMINISTRATIVOS, APRENDICES, VISITANTES, MOTOS, VEHICULO_SENA]
+ *         capacidad_maxima:
+ *           type: integer
+ *         hora_apertura:
+ *           type: string
  *           nullable: true
+ *         hora_cierre:
+ *           type: string
+ *           nullable: true
+ *         zona:
+ *           type: string
+ *           nullable: true
+ *         piso:
+ *           type: string
+ *           nullable: true
+ *         plano_url:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         descripcion:
+ *           type: string
+ *           nullable: true
+ *     ParqueaderoCambiarEstado:
+ *       type: object
+ *       required:
+ *         - estado
+ *         - motivo
+ *       properties:
  *         estado:
  *           type: boolean
+ *         motivo:
+ *           type: string
+ *           description: Obligatorio (HU 03.1.6.2).
  */
 
 /**
@@ -135,11 +226,11 @@ const getById = async (req, res) => {
  *       400:
  *         description: Datos inválidos o faltantes
  *       409:
- *         description: Conflicto - nombre duplicado (si aplica)
+ *         description: Conflicto - nombre duplicado
  */
 const create = async (req, res) => {
   try {
-    const newParking = await svc.create(req.body);
+    const newParking = await svc.create(req.body, req.usuario?.id);
     res.status(201).json(newParking);
   } catch (e) {
     handleError(res, e);
@@ -150,7 +241,7 @@ const create = async (req, res) => {
  * @swagger
  * /parqueaderos/{id}:
  *   put:
- *     summary: Actualizar un parqueadero (parcial o total)
+ *     summary: Actualizar un parqueadero (parcial o total, sin tocar el estado)
  *     tags: [Parqueaderos]
  *     parameters:
  *       - in: path
@@ -177,11 +268,51 @@ const create = async (req, res) => {
  *       404:
  *         description: Parqueadero no encontrado
  *       409:
- *         description: Conflicto - nombre duplicado (si aplica)
+ *         description: Conflicto - nombre duplicado
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /parqueaderos/{id}/estado:
+ *   patch:
+ *     summary: Activa o inactiva un parqueadero (requiere motivo)
+ *     tags: [Parqueaderos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del parqueadero
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ParqueaderoCambiarEstado'
+ *     responses:
+ *       200:
+ *         description: Parqueadero actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Parqueadero'
+ *       400:
+ *         description: Falta el motivo o el estado no es válido
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+const cambiarEstado = async (req, res) => {
+  try {
+    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.body.motivo, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -207,11 +338,11 @@ const update = async (req, res) => {
  *       404:
  *         description: Parqueadero no encontrado
  *       409:
- *         description: No se puede eliminar porque tiene celdas asociadas (si aplica)
+ *         description: No se puede eliminar porque tiene celdas asociadas
  */
 const remove = async (req, res) => {
   try {
-    await svc.remove(req.params.id);
+    await svc.remove(req.params.id, req.usuario?.id);
     res.status(204).send();
   } catch (e) {
     handleError(res, e);
@@ -223,5 +354,6 @@ module.exports = {
   getById,
   create,
   update,
+  cambiarEstado,
   remove,
 };

@@ -3,18 +3,16 @@
  * @description Lógica de negocio para la gestión de conductores.
  * Alineado con la tabla real 'conductor' (esquema Postgres/SENA):
  * usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
- * direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
- * centro_formacion_id, programa_formacion_id, vigencia, estado.
+ * direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+ * centro_formacion, programa_formacion (texto libre, dato de SOFIA Plus),
+ * vigencia, movilidad_reducida, tipo_discapacidad, estado.
  */
 
 const repo = require('../repositories/conductor.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
-const regionalFormacionRepo = require('../repositories/regionalFormacion.repository');
-const centroFormacionRepo = require('../repositories/centroFormacion.repository');
-const programaFormacionRepo = require('../repositories/programaFormacion.repository');
 
-const TIPOS_DOCUMENTO = ['CC', 'CE', 'PAS', 'TI', 'NIT'];
+const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
 const validarCorreo = (correo) => {
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
@@ -23,10 +21,20 @@ const validarCorreo = (correo) => {
 };
 
 /**
+ * La BD exige (CHECK chk_conductor_discapacidad) que tipo_discapacidad solo
+ * venga poblado cuando movilidad_reducida = true.
+ */
+const validarDiscapacidad = (movilidadReducida, tipoDiscapacidad) => {
+  if (tipoDiscapacidad && !movilidadReducida) {
+    throw { status: 400, message: 'tipo_discapacidad solo puede registrarse si movilidad_reducida es true' };
+  }
+};
+
+/**
  * Valida que las referencias a catálogos y usuario existan.
  * @param {Object} data
  */
-const validarReferencias = async ({ usuario_id, tipo_usuario_id, regional_formacion_id, centro_formacion_id, programa_formacion_id }) => {
+const validarReferencias = async ({ usuario_id, tipo_usuario_id }) => {
   if (usuario_id) {
     const usuario = await usuarioRepo.findById(usuario_id);
     if (!usuario) throw { status: 404, message: 'El usuario indicado no existe' };
@@ -34,18 +42,6 @@ const validarReferencias = async ({ usuario_id, tipo_usuario_id, regional_formac
   if (tipo_usuario_id !== undefined) {
     const tipoUsuario = await tipoUsuarioRepo.findById(tipo_usuario_id);
     if (!tipoUsuario) throw { status: 404, message: 'El tipo de usuario indicado no existe' };
-  }
-  if (regional_formacion_id !== undefined) {
-    const regional = await regionalFormacionRepo.findById(regional_formacion_id);
-    if (!regional) throw { status: 404, message: 'La regional de formación indicada no existe' };
-  }
-  if (centro_formacion_id !== undefined) {
-    const centro = await centroFormacionRepo.findById(centro_formacion_id);
-    if (!centro) throw { status: 404, message: 'El centro de formación indicado no existe' };
-  }
-  if (programa_formacion_id !== undefined) {
-    const programa = await programaFormacionRepo.findById(programa_formacion_id);
-    if (!programa) throw { status: 404, message: 'El programa de formación indicado no existe' };
   }
 };
 
@@ -104,23 +100,20 @@ const getByCorreo = (correo) => repo.findByCorreo(correo);
 const create = async (data) => {
   const {
     usuario_id, tipo_documento = 'CC', numero_documento, nombre_apellidos, correo,
-    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
-    centro_formacion_id, programa_formacion_id, vigencia, estado = true,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+    centro_formacion, programa_formacion, vigencia,
+    movilidad_reducida = false, tipo_discapacidad, estado = true,
   } = data;
 
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
-  if (!direccion) throw { status: 400, message: 'La dirección es requerida' };
   if (!tipo_usuario_id) throw { status: 400, message: 'El tipo de usuario es requerido' };
-  if (!regional_formacion_id) throw { status: 400, message: 'La regional de formación es requerida' };
-  if (!centro_formacion_id) throw { status: 400, message: 'El centro de formación es requerido' };
-  if (!programa_formacion_id) throw { status: 400, message: 'El programa de formación es requerido' };
-  if (!vigencia) throw { status: 400, message: 'La vigencia es requerida' };
 
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
   }
   validarCorreo(correo);
+  validarDiscapacidad(movilidad_reducida, tipo_discapacidad);
 
   const existeDoc = await repo.findByDocumento(tipo_documento, numero_documento);
   if (existeDoc) {
@@ -134,12 +127,13 @@ const create = async (data) => {
     }
   }
 
-  await validarReferencias({ usuario_id, tipo_usuario_id, regional_formacion_id, centro_formacion_id, programa_formacion_id });
+  await validarReferencias({ usuario_id, tipo_usuario_id });
 
   return repo.create({
     usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
-    direccion, numero_telefonico, tipo_usuario_id, regional_formacion_id,
-    centro_formacion_id, programa_formacion_id, vigencia, estado,
+    direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+    centro_formacion, programa_formacion, vigencia,
+    movilidad_reducida, tipo_discapacidad, estado,
   });
 };
 
@@ -159,6 +153,10 @@ const update = async (id, data) => {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
   }
   if (data.correo !== undefined) validarCorreo(data.correo);
+
+  const movilidadReducidaFinal = data.movilidad_reducida !== undefined ? data.movilidad_reducida : conductor.movilidad_reducida;
+  const tipoDiscapacidadFinal = data.tipo_discapacidad !== undefined ? data.tipo_discapacidad : conductor.tipo_discapacidad;
+  validarDiscapacidad(movilidadReducidaFinal, tipoDiscapacidadFinal);
 
   const tipoDocumentoFinal = data.tipo_documento !== undefined ? data.tipo_documento : conductor.tipo_documento;
   const numeroDocumentoFinal = data.numero_documento !== undefined ? data.numero_documento : conductor.numero_documento;

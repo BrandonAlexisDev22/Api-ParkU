@@ -15,93 +15,177 @@ const { handleError } = require('../helpers/errorHandler');
  *     Vehiculo:
  *       type: object
  *       required:
- *         - conductor
- *         - placa
+ *         - tipo
  *       properties:
  *         id:
  *           type: integer
- *         conductor:
- *           type: integer
  *         placa:
  *           type: string
+ *           nullable: true
+ *           description: Única en el sistema. Solo las bicicletas pueden omitirla.
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *         tarjeta_propiedad:
+ *           type: string
+ *           nullable: true
  *         marca:
  *           type: string
  *           nullable: true
- *         modelo:
+ *         linea:
  *           type: string
  *           nullable: true
- *         anio:
+ *         modelo:
+ *           type: integer
+ *           nullable: true
+ *           description: Año del vehículo.
+ *         cilindraje:
  *           type: integer
  *           nullable: true
  *         color:
  *           type: string
  *           nullable: true
- *         descripcion:
+ *         servicio:
  *           type: string
  *           nullable: true
- *         estado:
+ *         carroceria:
+ *           type: string
+ *           nullable: true
+ *         combustible:
+ *           type: string
+ *           nullable: true
+ *         capacidad:
+ *           type: integer
+ *           nullable: true
+ *         numero_motor:
+ *           type: string
+ *           nullable: true
+ *         numero_chasis:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         vehiculo_sena:
  *           type: boolean
- *         conductor_nombre:
- *           type: string
- *     VehiculoCreate:
- *       type: object
- *       required:
- *         - conductor
- *         - placa
- *       properties:
- *         conductor:
- *           type: integer
- *         placa:
- *           type: string
- *         tipo:
- *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
- *         marca:
- *           type: string
- *           nullable: true
- *         modelo:
- *           type: string
- *           nullable: true
- *         anio:
- *           type: integer
- *           nullable: true
- *         color:
- *           type: string
- *           nullable: true
- *         descripcion:
- *           type: string
- *           nullable: true
+ *           default: false
  *         estado:
  *           type: boolean
  *           default: true
- *     VehiculoUpdate:
- *       type: object
- *       properties:
- *         conductor:
+ *         conductor_principal_id:
  *           type: integer
+ *           nullable: true
+ *           description: Solo lectura (JOIN con detalle_propiedad).
+ *         conductor_principal_nombre:
+ *           type: string
+ *           description: Solo lectura (JOIN con detalle_propiedad).
+ *     VehiculoCreate:
+ *       type: object
+ *       required:
+ *         - tipo
+ *       properties:
+ *         conductor_id:
+ *           type: integer
+ *           nullable: true
+ *           description: Si se envía, queda registrado como propietario principal.
  *         placa:
  *           type: string
+ *           nullable: true
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *         tarjeta_propiedad:
+ *           type: string
+ *           nullable: true
  *         marca:
  *           type: string
  *           nullable: true
- *         modelo:
+ *         linea:
  *           type: string
  *           nullable: true
- *         anio:
+ *         modelo:
+ *           type: integer
+ *           nullable: true
+ *         cilindraje:
  *           type: integer
  *           nullable: true
  *         color:
  *           type: string
  *           nullable: true
- *         descripcion:
+ *         servicio:
  *           type: string
  *           nullable: true
+ *         carroceria:
+ *           type: string
+ *           nullable: true
+ *         combustible:
+ *           type: string
+ *           nullable: true
+ *         capacidad:
+ *           type: integer
+ *           nullable: true
+ *         numero_motor:
+ *           type: string
+ *           nullable: true
+ *         numero_chasis:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         vehiculo_sena:
+ *           type: boolean
+ *           default: false
+ *     VehiculoUpdate:
+ *       type: object
+ *       properties:
+ *         placa:
+ *           type: string
+ *           nullable: true
+ *         tipo:
+ *           type: string
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *         tarjeta_propiedad:
+ *           type: string
+ *           nullable: true
+ *         marca:
+ *           type: string
+ *           nullable: true
+ *         linea:
+ *           type: string
+ *           nullable: true
+ *         modelo:
+ *           type: integer
+ *           nullable: true
+ *         cilindraje:
+ *           type: integer
+ *           nullable: true
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         servicio:
+ *           type: string
+ *           nullable: true
+ *         carroceria:
+ *           type: string
+ *           nullable: true
+ *         combustible:
+ *           type: string
+ *           nullable: true
+ *         capacidad:
+ *           type: integer
+ *           nullable: true
+ *         numero_motor:
+ *           type: string
+ *           nullable: true
+ *         numero_chasis:
+ *           type: string
+ *           nullable: true
+ *         observaciones:
+ *           type: string
+ *           nullable: true
+ *         vehiculo_sena:
+ *           type: boolean
  *         estado:
  *           type: boolean
  */
@@ -223,7 +307,7 @@ const getByConductor = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newVehiculo = await svc.create(req.body);
+    const newVehiculo = await svc.create(req.body, req.usuario?.id);
     res.status(201).json(newVehiculo);
   } catch (e) {
     handleError(res, e);
@@ -265,7 +349,7 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -295,7 +379,7 @@ const update = async (req, res) => {
  */
 const remove = async (req, res) => {
   try {
-    await svc.remove(req.params.id);
+    await svc.remove(req.params.id, req.usuario?.id);
     res.status(204).send();
   } catch (e) {
     handleError(res, e);

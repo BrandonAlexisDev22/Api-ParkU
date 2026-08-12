@@ -162,10 +162,11 @@ const cambiarEstado = async (id, estado, { transaction } = {}) => {
 /**
  * Elimina una celda de la base de datos.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await Celda.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await Celda.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 

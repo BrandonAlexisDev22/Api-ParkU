@@ -8,7 +8,122 @@
 const svc = require('../services/novedades.service');
 const { handleError } = require('../helpers/errorHandler');
 
-// (Los schemas se definen en el servicio, pero los referenciamos aquí)
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Novedad:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DANIO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *         estado:
+ *           type: string
+ *           enum: [PENDIENTE, EN_PROCESO, RESUELTA, CERRADA, CANCELADA]
+ *         descripcion:
+ *           type: string
+ *         usuario_reporta_id:
+ *           type: integer
+ *           description: Quien reporta (se asigna automáticamente al usuario autenticado).
+ *         usuario_asignado_id:
+ *           type: integer
+ *           nullable: true
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         celda_id:
+ *           type: integer
+ *           nullable: true
+ *           description: Ubicación de la novedad.
+ *         parqueadero_id:
+ *           type: integer
+ *           nullable: true
+ *         registro_acceso_id:
+ *           type: integer
+ *           nullable: true
+ *         fecha_hora:
+ *           type: string
+ *           format: date-time
+ *         fecha_hora_cierre:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         justificacion_cierre:
+ *           type: string
+ *           nullable: true
+ *     NovedadCreate:
+ *       type: object
+ *       required:
+ *         - descripcion
+ *       properties:
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DANIO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *           default: OTRO
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *           default: MEDIA
+ *         descripcion:
+ *           type: string
+ *         usuario_asignado_id:
+ *           type: integer
+ *           nullable: true
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         celda_id:
+ *           type: integer
+ *           nullable: true
+ *         parqueadero_id:
+ *           type: integer
+ *           nullable: true
+ *         registro_acceso_id:
+ *           type: integer
+ *           nullable: true
+ *     NovedadUpdate:
+ *       type: object
+ *       properties:
+ *         tipo_novedad:
+ *           type: string
+ *           enum: [DANIO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *         prioridad:
+ *           type: string
+ *           enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *         estado:
+ *           type: string
+ *           enum: [PENDIENTE, EN_PROCESO, RESUELTA, CERRADA, CANCELADA]
+ *         descripcion:
+ *           type: string
+ *         usuario_asignado_id:
+ *           type: integer
+ *           nullable: true
+ *         vehiculo_id:
+ *           type: integer
+ *           nullable: true
+ *         celda_id:
+ *           type: integer
+ *           nullable: true
+ *         parqueadero_id:
+ *           type: integer
+ *           nullable: true
+ *         registro_acceso_id:
+ *           type: integer
+ *           nullable: true
+ *         fecha_hora_cierre:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         justificacion_cierre:
+ *           type: string
+ *           nullable: true
+ */
 
 /**
  * @swagger
@@ -101,20 +216,20 @@ const getByVehiculo = async (req, res) => {
 
 /**
  * @swagger
- * /novedades/movimiento/{movimientoId}:
+ * /novedades/registro-acceso/{registroAccesoId}:
  *   get:
- *     summary: Obtener novedades por movimiento
+ *     summary: Obtener novedades por registro de acceso (ingreso/salida)
  *     tags: [Novedades]
  *     parameters:
  *       - in: path
- *         name: movimientoId
+ *         name: registroAccesoId
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del movimiento (ingreso_salida)
+ *         description: ID del registro de acceso
  *     responses:
  *       200:
- *         description: Lista de novedades del movimiento
+ *         description: Lista de novedades del registro de acceso
  *         content:
  *           application/json:
  *             schema:
@@ -122,9 +237,9 @@ const getByVehiculo = async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Novedad'
  */
-const getByMovimiento = async (req, res) => {
+const getByRegistroAcceso = async (req, res) => {
   try {
-    const data = await svc.getByMovimiento(req.params.movimientoId);
+    const data = await svc.getByRegistroAcceso(req.params.registroAccesoId);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -139,10 +254,10 @@ const getByMovimiento = async (req, res) => {
  *     tags: [Novedades]
  *     parameters:
  *       - in: query
- *         name: tipo
+ *         name: tipo_novedad
  *         schema:
  *           type: string
- *           enum: [DAÑO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
+ *           enum: [DANIO, ACCIDENTE, MAL_ESTACIONAMIENTO, QUEJA, OTRO]
  *       - in: query
  *         name: prioridad
  *         schema:
@@ -151,7 +266,8 @@ const getByMovimiento = async (req, res) => {
  *       - in: query
  *         name: estado
  *         schema:
- *           type: boolean
+ *           type: string
+ *           enum: [PENDIENTE, EN_PROCESO, RESUELTA, CERRADA, CANCELADA]
  *     responses:
  *       200:
  *         description: Novedades filtradas
@@ -194,11 +310,11 @@ const getByFiltros = async (req, res) => {
  *       400:
  *         description: Datos inválidos
  *       404:
- *         description: Vehículo, movimiento o encargado no encontrado
+ *         description: Alguna referencia (vehículo, celda, parqueadero, registro de acceso, usuario asignado) no existe
  */
 const create = async (req, res) => {
   try {
-    const newItem = await svc.create(req.body);
+    const newItem = await svc.create(req.body, req.usuario?.id);
     res.status(201).json(newItem);
   } catch (e) {
     handleError(res, e);
@@ -238,7 +354,7 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -277,7 +393,7 @@ module.exports = {
   getAll,
   getById,
   getByVehiculo,
-  getByMovimiento,
+  getByRegistroAcceso,
   getByFiltros,
   create,
   update,

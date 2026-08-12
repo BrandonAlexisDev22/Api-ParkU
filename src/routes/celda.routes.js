@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/celda.controller');
+const disponibilidadCtrl = require('../controllers/disponibilidadCelda.controller');
+const historialCtrl = require('../controllers/historial.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
 
 /**
@@ -17,8 +19,8 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *       type: object
  *       required:
  *         - parqueadero
+ *         - numero
  *         - tipo
- *         - usabilidad
  *       properties:
  *         id:
  *           type: integer
@@ -26,18 +28,21 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *         parqueadero:
  *           type: integer
  *           description: ID del parqueadero al que pertenece.
+ *         numero:
+ *           type: string
+ *           description: Numeración de la celda (única dentro de su parqueadero).
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *           description: Tipo de vehículo que puede ocupar la celda.
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
  *           description: Nivel de uso permitido.
- *         estado_celda:
+ *         estado:
  *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
- *           description: Estado actual de la celda.
+ *           enum: [DISPONIBLE, OCUPADA, RESERVADA, MANTENIMIENTO, INACTIVA]
+ *           description: Estado actual de la celda (solo lectura aquí; usar /celdas/{id}/disponibilidad para cambiarlo).
  *         parqueadero_nombre:
  *           type: string
  *           description: Nombre del parqueadero (solo en respuestas con JOIN).
@@ -45,33 +50,31 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *       type: object
  *       required:
  *         - parqueadero
+ *         - numero
  *         - tipo
- *         - usabilidad
  *       properties:
  *         parqueadero:
  *           type: integer
+ *         numero:
+ *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
- *         estado_celda:
- *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
- *           default: DISPONIBLE
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
+ *           default: GENERAL
  *     CeldaUpdate:
  *       type: object
  *       properties:
+ *         numero:
+ *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *         usabilidad:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
- *         estado_celda:
- *           type: string
- *           enum: [DISPONIBLE, OCUPADO, MANTENIMIENTO, INACTIVA]
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
  */
 
 /**
@@ -177,7 +180,7 @@ router.get('/parqueadero/:parqueaderoId',
  *         required: true
  *         schema:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
  *         description: Tipo de vehículo
  *     responses:
  *       200:
@@ -212,7 +215,7 @@ router.get('/tipo/:tipo',
  *         required: true
  *         schema:
  *           type: string
- *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA]
+ *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
  *         description: Nivel de usabilidad
  *     responses:
  *       200:
@@ -297,7 +300,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.create
 );
 
@@ -340,7 +343,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Vigilante (1) o Admin (2)
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
   ctrl.update
 );
 
@@ -371,8 +374,123 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([2]), // Solo Admin (2)
+  verificarRol([1]), // Solo Admin (1)
   ctrl.remove
+);
+
+/**
+ * @swagger
+ * /api/celdas/{id}/historial:
+ *   get:
+ *     summary: Historial de cambios de una celda (poblado por trigger)
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Historial de la celda
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get('/:id/historial',
+  verificarToken,
+  historialCtrl.getByCelda
+);
+
+/**
+ * @swagger
+ * /api/celdas/{id}/disponibilidad:
+ *   get:
+ *     summary: Último cambio manual de disponibilidad de una celda
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Disponibilidad vigente
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       404:
+ *         description: La celda no tiene cambios de disponibilidad registrados
+ */
+router.get('/:id/disponibilidad',
+  verificarToken,
+  disponibilidadCtrl.getByCelda
+);
+
+/**
+ * @swagger
+ * /api/celdas/{id}/disponibilidad/historial:
+ *   get:
+ *     summary: Histórico de cambios manuales de disponibilidad de una celda
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Histórico de disponibilidad
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get('/:id/disponibilidad/historial',
+  verificarToken,
+  disponibilidadCtrl.getHistorialPorCelda
+);
+
+/**
+ * @swagger
+ * /api/celdas/{id}/disponibilidad:
+ *   put:
+ *     summary: Cambia manualmente el estado de una celda (mantenimiento, inactivar, reactivar)
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DisponibilidadCeldaCambiar'
+ *     responses:
+ *       200:
+ *         description: Disponibilidad actualizada
+ *       400:
+ *         description: Falta o es inválido el estado/motivo
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Celda no encontrada
+ */
+router.put('/:id/disponibilidad',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  disponibilidadCtrl.cambiar
 );
 
 module.exports = router;
