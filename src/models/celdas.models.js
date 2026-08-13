@@ -25,7 +25,7 @@ const Celda = sequelize.define('Celda', {
   tipo: {
     type: DataTypes.ENUM('CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'),
     allowNull: false,
-  },
+  },      
   usabilidad: {
     type: DataTypes.ENUM('GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'),
     allowNull: false,

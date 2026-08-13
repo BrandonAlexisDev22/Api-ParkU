@@ -1,0 +1,4 @@
+{"timestamp":"2026-08-13T01:29:49.153Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-13T02:11:07.688Z","level":"INFO","message":"GET /api/health 200 - 7759ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
+{"timestamp":"2026-08-13T02:11:07.802Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"GET","url":"/favicon.ico","ip":"::1"}}
+{"timestamp":"2026-08-13T02:11:07.806Z","level":"WARN","message":"GET /favicon.ico 404 - 5ms","data":{"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"}}
