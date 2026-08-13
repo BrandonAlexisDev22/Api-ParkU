@@ -5,10 +5,8 @@
  * el ingreso/salida de vehículos, la aceptación de reservas y los triggers de la BD.
  * No inferir disponibilidad desde ocupacion_celda ni disponibilidad_celda.
  */
-
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-
 const Celda = sequelize.define('Celda', {
   id: {
     type: DataTypes.INTEGER,
