@@ -19,8 +19,18 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // CORS configurado
+// Los orígenes de CORS_ORIGIN se recortan (evita fallos por espacios extra tipo
+// "a, b") y siempre se permite el frontend de producción, aunque falte o esté
+// mal escrito en la variable de entorno del servicio desplegado.
+const DEFAULT_CORS_ORIGINS = ['https://park-u.vercel.app'];
+const envCorsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const corsOrigins = [...new Set([...envCorsOrigins, ...DEFAULT_CORS_ORIGINS])];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
