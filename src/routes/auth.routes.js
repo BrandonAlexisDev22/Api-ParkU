@@ -31,6 +31,19 @@ const authLimiter = rateLimit({
   },
 });
 
+// Límite para los chequeos de disponibilidad (existe-correo/existe-numero):
+// se llaman mientras el usuario escribe (con debounce en el frontend), así
+// que necesitan una ventana más laxa que authLimiter, pero igual acotada
+// para no habilitar enumeración masiva de cuentas.
+const disponibilidadLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 30,
+  message: {
+    status: 429,
+    message: 'Demasiadas solicitudes, intente más tarde',
+  },
+});
+
 // =============================================
 // VALIDACIONES
 // =============================================
@@ -194,6 +207,62 @@ router.post(
   registerValidation,
   validate,
   authCtrl.register
+);
+
+// =============================================
+// DISPONIBILIDAD (correo/número) — validación en tiempo real del registro
+// =============================================
+
+/**
+ * @swagger
+ * /api/auth/existe-correo:
+ *   get:
+ *     summary: Verifica si un correo ya está registrado (validación en vivo del formulario de registro)
+ *     tags: [Autenticación]
+ *     parameters:
+ *       - in: query
+ *         name: correo
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: "{ existe: boolean }"
+ *       400:
+ *         description: Falta el parámetro correo
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.get(
+  '/existe-correo',
+  disponibilidadLimiter,
+  authCtrl.existeCorreo
+);
+
+/**
+ * @swagger
+ * /api/auth/existe-numero:
+ *   get:
+ *     summary: Verifica si un número de teléfono ya está registrado (validación en vivo del formulario de registro)
+ *     tags: [Autenticación]
+ *     parameters:
+ *       - in: query
+ *         name: numero
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: "{ existe: boolean }"
+ *       400:
+ *         description: Falta el parámetro numero
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.get(
+  '/existe-numero',
+  disponibilidadLimiter,
+  authCtrl.existeNumero
 );
 
 // =============================================

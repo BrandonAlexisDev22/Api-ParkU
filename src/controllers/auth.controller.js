@@ -82,6 +82,44 @@ class AuthController {
   }
 
   /**
+   * GET /api/auth/existe-correo - Chequeo de disponibilidad para el formulario
+   * de registro (validación en tiempo real, antes del submit). Público pero
+   * rate-limitado (ver disponibilidadLimiter en auth.routes.js) porque
+   * revela si un correo está registrado.
+   */
+  static async existeCorreo(req, res) {
+    try {
+      const correo = (req.query.correo || '').toString().trim().toLowerCase();
+      if (!correo) {
+        return res.status(400).json({ success: false, message: 'correo es requerido' });
+      }
+      const usuario = await Usuario.findOne({ where: { correo } });
+      return res.status(200).json({ success: true, existe: !!usuario });
+    } catch (error) {
+      console.error('Error en existeCorreo:', error);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * GET /api/auth/existe-numero - Mismo propósito que existeCorreo, para el
+   * teléfono de contacto de la cuenta.
+   */
+  static async existeNumero(req, res) {
+    try {
+      const numero = (req.query.numero || '').toString().trim();
+      if (!numero) {
+        return res.status(400).json({ success: false, message: 'numero es requerido' });
+      }
+      const usuario = await Usuario.findOne({ where: { numero_telefonico: numero } });
+      return res.status(200).json({ success: true, existe: !!usuario });
+    } catch (error) {
+      console.error('Error en existeNumero:', error);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
    * POST /api/auth/login - Inicio de sesión
    */
   static async login(req, res) {
