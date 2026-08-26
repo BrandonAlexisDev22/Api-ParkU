@@ -265,6 +265,38 @@ router.get(
   authCtrl.existeNumero
 );
 
+/**
+ * @swagger
+ * /api/auth/existe-documento:
+ *   get:
+ *     summary: Verifica si un documento (tipo + número) ya pertenece a un conductor registrado (validación en vivo del formulario de registro)
+ *     tags: [Autenticación]
+ *     parameters:
+ *       - in: query
+ *         name: tipoDocumento
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *       - in: query
+ *         name: numeroDocumento
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: "{ existe: boolean }"
+ *       400:
+ *         description: Faltan parámetros
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.get(
+  '/existe-documento',
+  disponibilidadLimiter,
+  authCtrl.existeDocumento
+);
+
 // =============================================
 // VERIFICAR TOKEN
 // =============================================

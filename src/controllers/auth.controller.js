@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
-const { Usuario } = require('../models');
+const { Usuario, Conductor } = require('../models');
+
+// Debe coincidir con el ENUM real de conductor.tipo_documento (conductores.models.js).
+// Comparar contra un valor fuera de este set haría que Postgres rechace la
+// consulta con "invalid input value for enum" en vez de simplemente no encontrar nada.
+const TIPOS_DOCUMENTO_VALIDOS = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 const { generarToken, generarRefreshToken } = require('../middlewares/auth.middleware');
 const recuperacionPasswordSvc = require('../services/recuperacionPassword.service');
 const { handleError } = require('../helpers/errorHandler');
@@ -115,6 +120,36 @@ class AuthController {
       return res.status(200).json({ success: true, existe: !!usuario });
     } catch (error) {
       console.error('Error en existeNumero:', error);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * GET /api/auth/existe-documento - Mismo propósito que existeCorreo/existeNumero,
+   * pero contra la entidad Conductor (tipo_documento + numero_documento es su
+   * clave única compuesta). El registro público NO crea un Conductor (ver
+   * comentario en `register`), así que este chequeo es solo informativo: evita
+   * que alguien registre una cuenta con un documento que ya pertenece a otra
+   * persona en el sistema, aunque el documento en sí no quede asociado a la
+   * cuenta que se está creando.
+   */
+  static async existeDocumento(req, res) {
+    try {
+      const tipoDocumento = (req.query.tipoDocumento || '').toString().trim().toUpperCase();
+      const numeroDocumento = (req.query.numeroDocumento || '').toString().trim();
+      if (!tipoDocumento || !numeroDocumento) {
+        return res.status(400).json({ success: false, message: 'tipoDocumento y numeroDocumento son requeridos' });
+      }
+      if (!TIPOS_DOCUMENTO_VALIDOS.includes(tipoDocumento)) {
+        // Un tipo de documento que ni siquiera es válido no puede existir.
+        return res.status(200).json({ success: true, existe: false });
+      }
+      const conductor = await Conductor.findOne({
+        where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+      });
+      return res.status(200).json({ success: true, existe: !!conductor });
+    } catch (error) {
+      console.error('Error en existeDocumento:', error);
       return res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
   }
