@@ -32,7 +32,7 @@ const getById = async (id) => {
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { nombre, correo, contrasena, rol, estado } = data;
+  const { nombre, correo, contrasena, rol, estado, numero_telefonico } = data;
 
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
@@ -40,6 +40,11 @@ const create = async (data) => {
 
   const existe = await repo.findByCorreo(correo);
   if (existe) throw { status: 409, message: 'El correo ya está registrado' };
+
+  if (numero_telefonico) {
+    const telefonoEnUso = await repo.findByTelefono(numero_telefonico);
+    if (telefonoEnUso) throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
+  }
 
   const hash = await bcrypt.hash(contrasena, 10);
 
@@ -49,6 +54,7 @@ const create = async (data) => {
     contrasena: hash,
     rol_id: rol || 3,
     estado: estado !== undefined ? estado : true,
+    numero_telefonico: numero_telefonico || null,
   });
 };
 
@@ -67,6 +73,14 @@ const update = async (id, data) => {
     const duplicado = await repo.findByCorreo(data.correo);
     if (duplicado && duplicado.id !== id) {
       throw { status: 409, message: 'El correo ya está registrado por otro usuario' };
+    }
+  }
+
+  // Igual chequeo para el teléfono de la cuenta
+  if (data.numero_telefonico && data.numero_telefonico !== usuario.numero_telefonico) {
+    const duplicado = await repo.findByTelefono(data.numero_telefonico);
+    if (duplicado && duplicado.id !== id) {
+      throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
     }
   }
 

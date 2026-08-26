@@ -38,6 +38,10 @@ const Usuario = sequelize.define('Usuario', {
     allowNull: false,
     defaultValue: 'ACTIVO',
   },
+  numero_telefonico: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
   intentos_fallidos: {
     type: DataTypes.SMALLINT,
     allowNull: false,

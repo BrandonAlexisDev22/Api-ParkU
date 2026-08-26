@@ -28,7 +28,7 @@ const mapUsuario = (instancia) => {
   };
 };
 
-const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'rol_id', 'estado', 'ultimo_acceso', 'fecha_creacion'];
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'ultimo_acceso', 'fecha_creacion'];
 
 /**
  * Recupera todos los usuarios con el nombre de su rol.
@@ -68,13 +68,23 @@ const findByCorreo = async (correo) => {
 };
 
 /**
+ * Busca un usuario por número de teléfono de la cuenta (para chequeo de duplicados).
+ * @param {string} numeroTelefonico
+ * @returns {Promise<Object|null>}
+ */
+const findByTelefono = async (numeroTelefonico) => {
+  const row = await Usuario.findOne({ where: { numero_telefonico: numeroTelefonico } });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Crea un nuevo usuario.
- * @param {Object} data - { correo, nombre, contrasena, rol_id, estado? }
+ * @param {Object} data - { correo, nombre, contrasena, rol_id, estado?, numero_telefonico? }
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { correo, nombre, contrasena, rol_id, estado = 'ACTIVO' } = data;
-  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado });
+  const { correo, nombre, contrasena, rol_id, estado = 'ACTIVO', numero_telefonico = null } = data;
+  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, numero_telefonico });
   return findById(nuevo.id);
 };
 
@@ -85,7 +95,7 @@ const create = async (data) => {
  * @returns {Promise<Object>}
  */
 const update = async (id, data) => {
-  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado'];
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];
@@ -150,6 +160,7 @@ module.exports = {
   findAll,
   findById,
   findByCorreo,
+  findByTelefono,
   create,
   update,
   updateContrasena,

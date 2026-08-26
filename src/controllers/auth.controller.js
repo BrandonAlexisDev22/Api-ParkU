@@ -23,7 +23,7 @@ class AuthController {
         });
       }
 
-      const { correo, contrasena, nombre } = req.body;
+      const { correo, contrasena, nombre, numero } = req.body;
       // 🔒 El rol NUNCA se toma del body. Todo registro público usa el rol_id
       // por defecto del modelo (3 = Conductor). Si necesitas crear cuentas de
       // Admin (2) o Vigilante (1), hazlo desde un endpoint protegido
@@ -38,6 +38,17 @@ class AuthController {
         });
       }
 
+      // Verificar que el teléfono de contacto no esté ya en uso por otra cuenta
+      if (numero) {
+        const telefonoEnUso = await Usuario.findOne({ where: { numero_telefonico: numero } });
+        if (telefonoEnUso) {
+          return res.status(400).json({
+            success: false,
+            message: 'Este número de teléfono ya está registrado en otra cuenta'
+          });
+        }
+      }
+
       // Encriptar contraseña
       const hashedPassword = await PasswordUtil.hash(contrasena);
 
@@ -45,6 +56,7 @@ class AuthController {
         correo,
         contrasena: hashedPassword,
         nombre,
+        numero_telefonico: numero || null,
         estado: 'ACTIVO',
       });
 
@@ -55,6 +67,7 @@ class AuthController {
           id: nuevo.id,
           correo: nuevo.correo,
           nombre: nuevo.nombre,
+          numero: nuevo.numero_telefonico,
           rol: nuevo.rol_id,
           estado: nuevo.estado,
         }
@@ -136,6 +149,7 @@ class AuthController {
             id: user.id,
             correo: user.correo,
             nombre: user.nombre,
+            numero: user.numero_telefonico,
             rol: user.rol_id,
             estado: user.estado,
           },
