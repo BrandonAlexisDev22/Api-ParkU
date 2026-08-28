@@ -386,6 +386,92 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /vehiculos/{id}/conductores:
+ *   post:
+ *     summary: Vincula un conductor adicional como copropietario del vehículo
+ *     description: No reemplaza al propietario principal -- un vehículo puede tener más de un dueño (p. ej. una pareja o una familia compartiendo un carro).
+ *     tags: [Vehículos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del vehículo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [conductor_id]
+ *             properties:
+ *               conductor_id:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Copropietario vinculado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Vehiculo'
+ *       404:
+ *         description: Vehículo o conductor no encontrado
+ *       409:
+ *         description: El conductor ya es propietario de este vehículo
+ */
+const agregarPropietario = async (req, res) => {
+  try {
+    const updated = await svc.agregarPropietario(req.params.id, req.body?.conductor_id, req.usuario?.id);
+    res.status(201).json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /vehiculos/{id}/conductores/{conductorId}:
+ *   delete:
+ *     summary: Desvincula a un conductor como propietario del vehículo
+ *     description: No permite quitar al propietario principal ni dejar el vehículo sin ningún propietario.
+ *     tags: [Vehículos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del vehículo
+ *       - in: path
+ *         name: conductorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del conductor a desvincular
+ *     responses:
+ *       200:
+ *         description: Copropietario desvinculado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Vehiculo'
+ *       404:
+ *         description: El conductor no es propietario de este vehículo
+ *       409:
+ *         description: Es el propietario principal, o el único propietario del vehículo
+ */
+const quitarPropietario = async (req, res) => {
+  try {
+    const updated = await svc.quitarPropietario(req.params.id, req.params.conductorId, req.usuario?.id);
+    res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -393,4 +479,6 @@ module.exports = {
   create,
   update,
   remove,
+  agregarPropietario,
+  quitarPropietario,
 };

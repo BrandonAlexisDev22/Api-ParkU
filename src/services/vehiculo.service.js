@@ -121,4 +121,57 @@ const remove = async (id, usuarioId) => {
   }
 };
 
-module.exports = { getAll, getById, getByConductor, create, update, remove };
+/**
+ * Vincula un conductor adicional como copropietario de un vehículo -- un mismo vehículo
+ * puede tener más de un dueño (p. ej. una pareja o una familia compartiendo un carro), sin
+ * reemplazar al propietario principal que ya tiene fijado desde `create`.
+ * @param {number} vehiculoId
+ * @param {number} conductorId
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 404 si el vehículo o el conductor no existen, 409 si ya es propietario.
+ * @returns {Promise<Object>}
+ */
+const agregarPropietario = async (vehiculoId, conductorId, usuarioId) => {
+  await getById(vehiculoId);
+  const conductorExiste = await conductorRepo.findById(conductorId);
+  if (!conductorExiste) throw { status: 404, message: 'Conductor no encontrado' };
+
+  const yaEsPropietario = await repo.findPropietario(vehiculoId, conductorId);
+  if (yaEsPropietario) throw { status: 409, message: 'Este conductor ya es propietario de este vehículo' };
+
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.agregarPropietario(vehiculoId, conductorId, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+};
+
+/**
+ * Desvincula a un conductor como propietario de un vehículo. No se puede quitar al
+ * propietario principal por esta vía (reasignar el principal no está soportado) ni dejar el
+ * vehículo sin ningún propietario.
+ * @param {number} vehiculoId
+ * @param {number} conductorId
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 404 si el vínculo no existe, 409 si es el principal o el único propietario.
+ * @returns {Promise<Object>}
+ */
+const quitarPropietario = async (vehiculoId, conductorId, usuarioId) => {
+  const vehiculo = await getById(vehiculoId);
+  const propietario = await repo.findPropietario(vehiculoId, conductorId);
+  if (!propietario) throw { status: 404, message: 'Este conductor no es propietario de este vehículo' };
+  if (propietario.es_principal) {
+    throw { status: 409, message: 'No se puede quitar al propietario principal; asigna otro principal antes de intentarlo' };
+  }
+  if (vehiculo.conductores.length <= 1) {
+    throw { status: 409, message: 'El vehículo debe tener al menos un propietario' };
+  }
+
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.quitarPropietario(vehiculoId, conductorId, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+};
+
+module.exports = { getAll, getById, getByConductor, create, update, remove, agregarPropietario, quitarPropietario };

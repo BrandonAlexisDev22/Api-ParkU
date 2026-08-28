@@ -47,7 +47,8 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', globalLimiter);
+// TEMPORAL: limiter global desactivado para pruebas. Reactivar antes de producción.
+// app.use('/api', globalLimiter);
 
 // Parsear JSON
 app.use(express.json({ limit: '10mb' }));

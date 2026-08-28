@@ -216,4 +216,91 @@ router.delete('/:id',
   ctrl.remove
 );
 
+/**
+ * @swagger
+ * /api/vehiculos/{id}/conductores:
+ *   post:
+ *     summary: Vincula un conductor adicional como copropietario del vehículo
+ *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [conductor_id]
+ *             properties:
+ *               conductor_id:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Copropietario vinculado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Vehiculo'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Vehículo o conductor no encontrado
+ *       409:
+ *         description: El conductor ya es propietario de este vehículo
+ */
+router.post('/:id/conductores',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.agregarPropietario
+);
+
+/**
+ * @swagger
+ * /api/vehiculos/{id}/conductores/{conductorId}:
+ *   delete:
+ *     summary: Desvincula a un conductor como propietario del vehículo
+ *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: conductorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Copropietario desvinculado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Vehiculo'
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: El conductor no es propietario de este vehículo
+ *       409:
+ *         description: Es el propietario principal, o el único propietario del vehículo
+ */
+router.delete('/:id/conductores/:conductorId',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.quitarPropietario
+);
+
 module.exports = router;

@@ -129,4 +129,45 @@ const remove = async (id, { transaction } = {}) => {
   return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, findByPlaca, findByConductor, create, update, remove };
+/**
+ * Busca el vínculo de propiedad entre un vehículo y un conductor puntual, si existe.
+ * @param {number} vehiculoId
+ * @param {number} conductorId
+ * @returns {Promise<import('sequelize').Model|null>}
+ */
+const findPropietario = (vehiculoId, conductorId) =>
+  DetallePropiedad.findOne({ where: { vehiculo_id: vehiculoId, conductor_id: conductorId } });
+
+/**
+ * Vincula un conductor adicional como copropietario de un vehículo ya existente (no
+ * reemplaza al propietario principal fijado en `create`).
+ * @param {number} vehiculoId
+ * @param {number} conductorId
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<Object>} El vehículo con la lista de propietarios actualizada.
+ */
+const agregarPropietario = async (vehiculoId, conductorId, { transaction } = {}) => {
+  await DetallePropiedad.create(
+    { conductor_id: conductorId, vehiculo_id: vehiculoId, es_principal: false },
+    { transaction }
+  );
+  return findById(vehiculoId);
+};
+
+/**
+ * Desvincula a un conductor como propietario de un vehículo (no permite quitar al
+ * principal -- eso lo valida el service antes de llamar aquí).
+ * @param {number} vehiculoId
+ * @param {number} conductorId
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<Object>} El vehículo con la lista de propietarios actualizada.
+ */
+const quitarPropietario = async (vehiculoId, conductorId, { transaction } = {}) => {
+  await DetallePropiedad.destroy({ where: { vehiculo_id: vehiculoId, conductor_id: conductorId }, transaction });
+  return findById(vehiculoId);
+};
+
+module.exports = {
+  findAll, findById, findByPlaca, findByConductor, create, update, remove,
+  findPropietario, agregarPropietario, quitarPropietario,
+};
