@@ -17,6 +17,7 @@ const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { validarHorarioOperacion } = require('../config/horarioOperacion');
 
 /**
  * Obtiene el historial completo de entradas y salidas.
@@ -70,6 +71,8 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
   if (!vehiculo_id) throw { status: 400, message: 'El vehículo es requerido' };
   if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
 
+  validarHorarioOperacion();
+
   const vehExiste = await vehRepo.findById(vehiculo_id);
   if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
 
@@ -111,6 +114,8 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
  */
 const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_salida }, usuarioId) => {
   if (!vehiculo_id) throw { status: 400, message: 'El vehículo es requerido' };
+
+  validarHorarioOperacion();
 
   const vehExiste = await vehRepo.findById(vehiculo_id);
   if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };

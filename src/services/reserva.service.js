@@ -16,6 +16,7 @@ const repo = require('../repositories/reserva.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { validarHorarioOperacion } = require('../config/horarioOperacion');
 
 const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
 
@@ -91,6 +92,7 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
     throw { status: 400, message: 'tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos' };
   }
 
+  validarHorarioOperacion();
   _validarFechas(fecha_hora_inicio, fecha_hora_fin);
   await _validarEntidades(celda_id, vehiculo_id);
 
@@ -155,14 +157,17 @@ const update = async (id, datos, usuarioId) => {
  * @throws {Object} 404 si no existe, 400 si el estado no es válido.
  * @returns {Promise<Object>}
  */
-const cambiarEstado = async (id, estado, usuarioId) => {
+const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   await getById(id);
   if (!ESTADOS_GESTIONABLES.includes(estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(', ')}` };
   }
+  if (estado === 'RECHAZADA' && !motivoRechazo?.trim()) {
+    throw { status: 400, message: 'El motivo de rechazo es obligatorio para rechazar una reserva' };
+  }
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.cambiarEstado(id, estado, usuarioId, { transaction }));
+    return await runWithUsuario(usuarioId, (transaction) => repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, { transaction }));
   } catch (error) {
     traducirErrorTrigger(error);
   }

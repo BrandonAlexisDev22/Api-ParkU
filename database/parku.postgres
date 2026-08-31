@@ -2465,6 +2465,7 @@ CREATE TABLE public.reserva (
     estado public.estado_reserva_enum DEFAULT 'PENDIENTE'::public.estado_reserva_enum NOT NULL,
     usuario_gestiona_id integer,
     fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    motivo_rechazo character varying(500),
     CONSTRAINT chk_reserva_gestion CHECK (((estado = 'PENDIENTE'::public.estado_reserva_enum) OR (usuario_gestiona_id IS NOT NULL))),
     CONSTRAINT ck_reserva_fechas CHECK ((fecha_hora_fin > fecha_hora_inicio))
 );
@@ -2510,6 +2511,13 @@ COMMENT ON COLUMN public.reserva.estado IS 'E-25: antes se llamaba estado_celda,
 --
 
 COMMENT ON COLUMN public.reserva.usuario_gestiona_id IS 'Vigilante o administrador que revisa la reserva y la acepta o la rechaza. Vacio mientras siga PENDIENTE.';
+
+
+--
+-- Name: COLUMN reserva.motivo_rechazo; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.reserva.motivo_rechazo IS 'Obligatorio (validado en la capa de servicio) cuando estado pasa a RECHAZADA.';
 
 
 --

@@ -57,6 +57,11 @@ const Reserva = sequelize.define('Reserva', {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
+  motivo_rechazo: {
+    // Obligatorio cuando estado pasa a RECHAZADA (ver reserva.service.js).
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
 }, {
   tableName: 'reserva',
   timestamps: true,

@@ -306,6 +306,62 @@ router.post('/',
 
 /**
  * @swagger
+ * /api/celdas/parqueadero/{parqueaderoId}/generar-lote:
+ *   post:
+ *     summary: Genera celdas en lote para un parqueadero, numerándolas automáticamente
+ *     description: Recibe cantidades por tipo (carro/moto/movilidad reducida), calcula la siguiente numeración libre por prefijo y crea todas las celdas en una sola transacción.
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: parqueaderoId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del parqueadero
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cantidadCarro:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMoto:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMovilidadReducida:
+ *                 type: integer
+ *                 minimum: 0
+ *     responses:
+ *       201:
+ *         description: Celdas creadas con éxito
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Cantidades inválidas, o ninguna cantidad mayor a 0
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+router.post('/parqueadero/:parqueaderoId/generar-lote',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.generarLote
+);
+
+/**
+ * @swagger
  * /api/celdas/{id}:
  *   put:
  *     summary: Actualiza una celda (parcial o totalmente)

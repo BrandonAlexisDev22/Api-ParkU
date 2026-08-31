@@ -9,6 +9,7 @@
  */
 
 const { Celda, Parqueadero } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Aplana el resultado de Sequelize para mantener el mismo shape
@@ -160,6 +161,65 @@ const cambiarEstado = async (id, estado, { transaction } = {}) => {
 };
 
 /**
+ * Calcula, dentro de una lista de números ya usados, el mayor consecutivo de un
+ * prefijo dado (numero = "PREFIJO-NN"). Devuelve 0 si el prefijo no se ha usado.
+ * @private
+ * @param {string[]} numerosExistentes
+ * @param {string} prefijo
+ * @returns {number}
+ */
+const _maxNumeroPorPrefijo = (numerosExistentes, prefijo) => {
+  const regex = new RegExp(`^${prefijo}-(\\d+)$`);
+  let max = 0;
+  for (const numero of numerosExistentes) {
+    const match = regex.exec(numero);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  return max;
+};
+
+/**
+ * Crea varias celdas de un parqueadero en una sola transacción, numerándolas
+ * automáticamente por prefijo a partir del consecutivo libre más alto ya usado
+ * (p. ej. si ya existen C-01..C-03, el siguiente grupo CARRO empieza en C-04).
+ * @param {number} parqueaderoId
+ * @param {Array<{prefijo:string, tipo:string, usabilidad:string, cantidad:number}>} grupos
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Array<Object>>} Celdas creadas, en el mismo orden de los grupos.
+ */
+const generarLote = async (parqueaderoId, grupos, { transaction } = {}) => {
+  const existentes = await Celda.findAll({
+    where: { parqueadero: parqueaderoId },
+    attributes: ['numero'],
+    transaction,
+    lock: transaction ? transaction.LOCK.UPDATE : undefined,
+  });
+  const numeros = existentes.map((c) => c.numero);
+
+  const nuevas = [];
+  for (const { prefijo, tipo, usabilidad, cantidad } of grupos) {
+    let siguiente = _maxNumeroPorPrefijo(numeros, prefijo) + 1;
+    for (let i = 0; i < cantidad; i++) {
+      const numero = `${prefijo}-${String(siguiente).padStart(2, '0')}`;
+      numeros.push(numero);
+      nuevas.push({ parqueadero: parqueaderoId, numero, tipo, usabilidad, estado: 'DISPONIBLE' });
+      siguiente++;
+    }
+  }
+
+  if (!nuevas.length) return [];
+
+  await Celda.bulkCreate(nuevas, { transaction });
+  const rows = await Celda.findAll({
+    where: { parqueadero: parqueaderoId, numero: { [Op.in]: nuevas.map((n) => n.numero) } },
+    include: [includeParqueadero],
+    transaction,
+    order: [['numero', 'ASC']],
+  });
+  return rows.map(mapCelda);
+};
+
+/**
  * Elimina una celda de la base de datos.
  * @param {number} id
  * @param {import('sequelize').Transaction} [opciones.transaction]
@@ -181,5 +241,6 @@ module.exports = {
   create,
   update,
   cambiarEstado,
+  generarLote,
   remove,
 };

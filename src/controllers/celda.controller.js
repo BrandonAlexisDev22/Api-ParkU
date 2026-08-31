@@ -309,6 +309,58 @@ const create = async (req, res) => {
 
 /**
  * @swagger
+ * /celdas/parqueadero/{parqueaderoId}/generar-lote:
+ *   post:
+ *     summary: Genera celdas en lote para un parqueadero, numerándolas automáticamente
+ *     tags: [Celdas]
+ *     parameters:
+ *       - in: path
+ *         name: parqueaderoId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del parqueadero
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cantidadCarro:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMoto:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMovilidadReducida:
+ *                 type: integer
+ *                 minimum: 0
+ *     responses:
+ *       201:
+ *         description: Celdas creadas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Celda'
+ *       400:
+ *         description: Cantidades inválidas, o ninguna cantidad mayor a 0
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+const generarLote = async (req, res) => {
+  try {
+    const nuevas = await svc.generarLote(req.params.parqueaderoId, req.body, req.usuario?.id);
+    res.status(201).json(nuevas);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /celdas/{id}:
  *   put:
  *     summary: Actualizar una celda (parcialmente o completa)
@@ -384,5 +436,6 @@ module.exports = {
   getByUsabilidad,
   create,
   update,
+  generarLote,
   remove,
 };

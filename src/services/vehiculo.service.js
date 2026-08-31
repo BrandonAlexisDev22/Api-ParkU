@@ -15,6 +15,38 @@ const conductorRepo = require('../repositories/conductor.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
+// Placas colombianas: 5-6 caracteres alfanuméricos tras normalizar (mayúsculas, sin
+// espacios/guiones) -- mismo criterio que ck_vehiculo_placa_formato en la BD, más estricto
+// en longitud para que el frontend y el backend rechacen el mismo formato.
+const PLACA_REGEX = /^[A-Z0-9]{5,6}$/;
+
+/**
+ * Normaliza y valida el formato de la placa.
+ * @private
+ * @throws {Object} 400 si el formato no es válido.
+ * @returns {string} Placa normalizada (mayúsculas, sin espacios/guiones).
+ */
+const _validarPlaca = (placa) => {
+  const normalizada = placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!PLACA_REGEX.test(normalizada)) {
+    throw { status: 400, message: 'Formato de placa inválido (debe tener 5 o 6 caracteres alfanuméricos)' };
+  }
+  return normalizada;
+};
+
+/**
+ * Valida que, si vienen en el payload, marca y color no lleguen vacíos.
+ * @private
+ * @throws {Object} 400 si marca o color vienen como cadena vacía.
+ */
+const _validarMarcaColor = (data) => {
+  if (data.marca !== undefined && !String(data.marca).trim()) {
+    throw { status: 400, message: 'La marca no puede estar vacía' };
+  }
+  if (data.color !== undefined && !String(data.color).trim()) {
+    throw { status: 400, message: 'El color no puede estar vacío' };
+  }
+};
 
 /**
  * Obtiene la lista global de vehículos.
@@ -49,7 +81,8 @@ const getByConductor = (conductorId) => repo.findByConductor(conductorId);
  * @returns {Promise<Object>}
  */
 const create = async (data, usuarioId) => {
-  const { conductor_id, placa, tipo } = data;
+  const { conductor_id, tipo } = data;
+  let { placa } = data;
 
   if (!tipo) throw { status: 400, message: 'El tipo de vehículo es requerido' };
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
@@ -58,6 +91,7 @@ const create = async (data, usuarioId) => {
   if (!placa && tipo !== 'BICICLETA') {
     throw { status: 400, message: 'La placa es requerida (solo las bicicletas pueden omitirla)' };
   }
+  _validarMarcaColor(data);
 
   if (conductor_id) {
     const conductorExiste = await conductorRepo.findById(conductor_id);
@@ -65,6 +99,8 @@ const create = async (data, usuarioId) => {
   }
 
   if (placa) {
+    placa = _validarPlaca(placa);
+    data = { ...data, placa };
     const placaExiste = await repo.findByPlaca(placa);
     if (placaExiste) throw { status: 409, message: 'La placa ya está registrada' };
   }
@@ -89,6 +125,11 @@ const update = async (id, data, usuarioId) => {
 
   if (data.tipo && !TIPOS_PERMITIDOS.includes(data.tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  }
+  _validarMarcaColor(data);
+
+  if (data.placa) {
+    data = { ...data, placa: _validarPlaca(data.placa) };
   }
 
   if (data.placa && data.placa !== vehiculo.placa) {

@@ -61,7 +61,6 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - nombre
  *         - ubicacion
- *         - acceso
  *       properties:
  *         nombre:
  *           type: string
@@ -70,6 +69,7 @@ const { handleError } = require('../helpers/errorHandler');
  *         acceso:
  *           type: string
  *           enum: [REGIONAL, AVENIDA_BOYACA]
+ *           default: REGIONAL
  *         tipo:
  *           type: string
  *           enum: [GENERAL, DOCENTES, ADMINISTRATIVOS, APRENDICES, VISITANTES, MOTOS, VEHICULO_SENA]

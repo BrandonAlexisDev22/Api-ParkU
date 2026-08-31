@@ -19,6 +19,16 @@ const { runWithUsuario } = require('../utils/dbContext.util');
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'];
 
+// Prefijos de numeración automática para /generar-lote, uno por grupo pedido en el
+// formulario de creación de parqueadero (fase 9): carro, moto y movilidad reducida
+// (esta última es tipo CARRO con usabilidad MOVILIDAD_REDUCIDA -- no existe un tipo de
+// celda propio para movilidad reducida, es una usabilidad sobre una celda de carro).
+const GRUPOS_LOTE = {
+  cantidadCarro: { prefijo: 'C', tipo: 'CARRO', usabilidad: 'GENERAL' },
+  cantidadMoto: { prefijo: 'M', tipo: 'MOTO', usabilidad: 'GENERAL' },
+  cantidadMovilidadReducida: { prefijo: 'PMR', tipo: 'CARRO', usabilidad: 'MOVILIDAD_REDUCIDA' },
+};
+
 /**
  * Obtiene todas las celdas registradas.
  * @returns {Promise<Array>} Lista de celdas.
@@ -135,6 +145,37 @@ const update = async (id, data, usuarioId) => {
 };
 
 /**
+ * Genera en lote las celdas de un parqueadero recién creado (o para ampliarlo),
+ * numerándolas automáticamente por prefijo (C-01, M-01, PMR-01...). Pensado para el
+ * formulario simplificado de creación de parqueadero, que solo pide cantidades por tipo.
+ * @param {number} parqueaderoId
+ * @param {Object} cantidades - { cantidadCarro?, cantidadMoto?, cantidadMovilidadReducida? }
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @throws {Object} 400 si las cantidades son inválidas o no se pidió ninguna celda; 404 si el parqueadero no existe.
+ * @returns {Promise<Array<Object>>} Celdas creadas.
+ */
+const generarLote = async (parqueaderoId, cantidades, usuarioId) => {
+  const existeParq = await parqRepo.findById(parqueaderoId);
+  if (!existeParq) throw { status: 404, message: 'Parqueadero no encontrado' };
+
+  const grupos = [];
+  for (const [campo, { prefijo, tipo, usabilidad }] of Object.entries(GRUPOS_LOTE)) {
+    const cantidad = cantidades?.[campo];
+    if (cantidad === undefined || cantidad === null) continue;
+    if (!Number.isInteger(cantidad) || cantidad < 0) {
+      throw { status: 400, message: `${campo} debe ser un entero mayor o igual a 0` };
+    }
+    if (cantidad > 0) grupos.push({ prefijo, tipo, usabilidad, cantidad });
+  }
+
+  if (!grupos.length) {
+    throw { status: 400, message: 'Debes indicar al menos una cantidad mayor a 0 (cantidadCarro, cantidadMoto o cantidadMovilidadReducida)' };
+  }
+
+  return runWithUsuario(usuarioId, (transaction) => repo.generarLote(parqueaderoId, grupos, { transaction }));
+};
+
+/**
  * Elimina una celda del sistema.
  * @param {number} id - ID de la celda.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
@@ -155,5 +196,6 @@ module.exports = {
   getByUsabilidad,
   create,
   update,
+  generarLote,
   remove,
 };

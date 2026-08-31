@@ -41,11 +41,10 @@ const getById = async (id) => {
  * @returns {Promise<Object>} Parqueadero creado.
  */
 const create = async (data, usuarioId) => {
-  const { nombre, ubicacion, acceso, tipo = 'GENERAL' } = data;
+  const { nombre, ubicacion, acceso = 'REGIONAL', tipo = 'GENERAL' } = data;
 
   if (!nombre) throw { status: 400, message: 'El nombre es requerido' };
   if (!ubicacion) throw { status: 400, message: 'La ubicación es requerida' };
-  if (!acceso) throw { status: 400, message: 'El acceso (REGIONAL o AVENIDA_BOYACA) es requerido' };
   if (!ACCESOS_PERMITIDOS.includes(acceso)) {
     throw { status: 400, message: `Acceso inválido. Permitidos: ${ACCESOS_PERMITIDOS.join(', ')}` };
   }
@@ -57,7 +56,7 @@ const create = async (data, usuarioId) => {
   if (existe) throw { status: 409, message: 'Ya existe un parqueadero con ese nombre' };
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.create({ ...data, tipo }, { transaction }));
+    return await runWithUsuario(usuarioId, (transaction) => repo.create({ ...data, acceso, tipo }, { transaction }));
   } catch (error) {
     traducirErrorTrigger(error);
   }

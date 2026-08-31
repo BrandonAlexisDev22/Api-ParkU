@@ -50,6 +50,10 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: integer
  *           nullable: true
  *           description: Quién aceptó/rechazó la reserva. Vacío mientras siga PENDIENTE.
+ *         motivo_rechazo:
+ *           type: string
+ *           nullable: true
+ *           description: Obligatorio cuando estado es RECHAZADA.
  *     ReservaCreate:
  *       type: object
  *       required:
@@ -109,6 +113,9 @@ const { handleError } = require('../helpers/errorHandler');
  *         estado:
  *           type: string
  *           enum: [ACEPTADA, RECHAZADA, TERMINADA, CANCELADA]
+ *         motivoRechazo:
+ *           type: string
+ *           description: Obligatorio cuando estado es RECHAZADA.
  */
 
 /**
@@ -343,7 +350,7 @@ const update = async (req, res) => {
  */
 const cambiarEstado = async (req, res) => {
   try {
-    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.usuario?.id);
+    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.usuario?.id, req.body.motivoRechazo);
     res.json(updated);
   } catch (e) {
     handleError(res, e);

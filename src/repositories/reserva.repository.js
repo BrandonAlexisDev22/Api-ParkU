@@ -133,9 +133,10 @@ const update = async (id, data, { transaction } = {}) => {
  * @param {import('sequelize').Transaction} opciones.transaction
  * @returns {Promise<Object>}
  */
-const cambiarEstado = async (id, estado, usuarioGestionaId, { transaction } = {}) => {
+const cambiarEstado = async (id, estado, usuarioGestionaId, motivoRechazo, { transaction } = {}) => {
   const cambios = { estado };
   if (usuarioGestionaId) cambios.usuario_gestiona_id = usuarioGestionaId;
+  if (motivoRechazo !== undefined) cambios.motivo_rechazo = motivoRechazo;
   await Reserva.update(cambios, { where: { id }, transaction });
   return findById(id);
 };
