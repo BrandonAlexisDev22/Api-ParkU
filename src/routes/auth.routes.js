@@ -145,8 +145,7 @@ const refreshValidation = [
 
 router.post(
   '/login',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // authLimiter,
+  authLimiter,
   loginValidation,
   validate,
   authCtrl.login
@@ -204,8 +203,7 @@ router.post(
 
 router.post(
   '/registro',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // authLimiter,
+  authLimiter,
   registerValidation,
   validate,
   authCtrl.register
@@ -237,8 +235,7 @@ router.post(
  */
 router.get(
   '/existe-correo',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // disponibilidadLimiter,
+  disponibilidadLimiter,
   authCtrl.existeCorreo
 );
 
@@ -264,8 +261,7 @@ router.get(
  */
 router.get(
   '/existe-numero',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // disponibilidadLimiter,
+  disponibilidadLimiter,
   authCtrl.existeNumero
 );
 
@@ -297,8 +293,7 @@ router.get(
  */
 router.get(
   '/existe-documento',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // disponibilidadLimiter,
+  disponibilidadLimiter,
   authCtrl.existeDocumento
 );
 
@@ -357,8 +352,7 @@ router.get(
 
 router.post(
   '/refresh-token',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // authLimiter,
+  authLimiter,
   refreshValidation,
   validate,
   authCtrl.refreshToken
@@ -419,8 +413,7 @@ router.post(
  */
 router.post(
   '/recuperar-password',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // authLimiter,
+  authLimiter,
   authCtrl.recuperarPassword
 );
 
@@ -455,8 +448,7 @@ router.post(
  */
 router.post(
   '/restablecer-password',
-  // TEMPORAL: limiter desactivado para pruebas.
-  // authLimiter,
+  authLimiter,
   authCtrl.restablecerPassword
 );
 
