@@ -13,7 +13,7 @@ const celdaRepo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const registroAccesoRepo = require('../repositories/entradaSalida.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
-const { runWithUsuario } = require('../utils/dbContext.util');
+const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const TIPOS_PERMITIDOS = ['DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'];
 const PRIORIDADES_PERMITIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -143,12 +143,16 @@ const update = async (id, data, usuarioId) => {
 /**
  * Elimina una novedad.
  * @param {number} id
- * @throws {Object} 404 si no existe.
+ * @throws {Object} 404 si no existe; 409 si tiene evidencias adjuntas.
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
   await getById(id);
-  return repo.remove(id);
+  try {
+    return await repo.remove(id);
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 module.exports = {

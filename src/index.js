@@ -174,6 +174,9 @@ app.use('/api/equipamiento', require('./routes/equipamientoParqueadero.routes'))
 // Ocupación de celdas (quién ocupa cada celda ahora e histórico; solo lectura)
 app.use('/api/ocupaciones', require('./routes/ocupacionCelda.routes'));
 
+// Monitoreo en vivo del parqueadero (celdas + ocupación + vehículos fuera de horario)
+app.use('/api/monitoreo', require('./routes/monitoreo.routes'));
+
 // Notificaciones del usuario autenticado
 app.use('/api/notificaciones', require('./routes/notificacion.routes'));
 

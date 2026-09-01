@@ -5323,6 +5323,18 @@ CREATE UNIQUE INDEX uq_ocupacion_celda_activa ON public.ocupacion_celda USING bt
 
 
 --
+-- Name: uq_novedad_mal_estacionamiento_activa; Type: INDEX; Schema: public; Owner: -
+-- Añadido para el módulo de monitoreo (detección automática de vehículos fuera de horario,
+-- ver src/services/monitoreo.service.js): evita que dos llamadas concurrentes a
+-- POST /api/monitoreo/incidentes/fuera-horario generen dos novedades MAL_ESTACIONAMIENTO
+-- abiertas para el mismo ingreso. Mismo patrón que uq_ocupacion_celda_activa /
+-- uq_vehiculo_acceso_dentro: no restringe otros tipos de novedad sobre el mismo ingreso.
+--
+
+CREATE UNIQUE INDEX uq_novedad_mal_estacionamiento_activa ON public.novedad USING btree (registro_acceso_id) WHERE ((tipo_novedad = 'MAL_ESTACIONAMIENTO'::public.tipo_novedad_enum) AND (estado <> ALL (ARRAY['CERRADA'::public.estado_novedad_enum, 'RESUELTA'::public.estado_novedad_enum, 'CANCELADA'::public.estado_novedad_enum])) AND (registro_acceso_id IS NOT NULL));
+
+
+--
 -- Name: uq_propietario_principal; Type: INDEX; Schema: public; Owner: -
 --
 

@@ -14,7 +14,7 @@
 
 const repo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
-const { runWithUsuario } = require('../utils/dbContext.util');
+const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'];
@@ -179,12 +179,16 @@ const generarLote = async (parqueaderoId, cantidades, usuarioId) => {
  * Elimina una celda del sistema.
  * @param {number} id - ID de la celda.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
- * @throws {Object} 404 si no existe.
+ * @throws {Object} 404 si no existe; 409 si está referenciada por reservas, ingresos u ocupaciones.
  * @returns {Promise<boolean>}
  */
 const remove = async (id, usuarioId) => {
   await getById(id);
-  return runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 module.exports = {

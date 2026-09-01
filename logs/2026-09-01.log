@@ -8,3 +8,47 @@
 {"timestamp":"2026-09-01T02:33:08.233Z","level":"WARN","message":"DELETE /api/usuarios/29 401 - 1ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
 {"timestamp":"2026-09-01T02:33:18.676Z","level":"INFO","message":"POST /api/auth/login 200 - 251ms","data":{"ip":"::1","userAgent":"node"}}
 {"timestamp":"2026-09-01T02:33:19.143Z","level":"INFO","message":"DELETE /api/usuarios/29 204 - 456ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:09:44.207Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T20:09:53.089Z","level":"INFO","message":"POST /api/auth/login 200 - 374ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:09:53.584Z","level":"INFO","message":"GET /api/monitoreo/celdas 200 - 477ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:09:53.827Z","level":"INFO","message":"GET /api/monitoreo/fuera-horario 200 - 213ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:09:54.032Z","level":"INFO","message":"POST /api/monitoreo/incidentes/fuera-horario 200 - 201ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:26:29.712Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T20:28:06.795Z","level":"INFO","message":"POST /api/auth/login 200 - 1317ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:07.233Z","level":"INFO","message":"GET /api/celdas 200 - 425ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:07.574Z","level":"INFO","message":"GET /api/vehiculos 200 - 338ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:07.946Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 369ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:08.196Z","level":"INFO","message":"GET /api/conductores 200 - 247ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:08.335Z","level":"WARN","message":"POST /api/entradas-salidas/entrada 400 - 134ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:08.473Z","level":"WARN","message":"POST /api/entradas-salidas/entrada 400 - 135ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:08.750Z","level":"INFO","message":"GET /api/celdas/2 200 - 273ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:09.244Z","level":"WARN","message":"POST /api/entradas-salidas/salida 409 - 489ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:09.499Z","level":"INFO","message":"GET /api/celdas/2 200 - 252ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:09.761Z","level":"WARN","message":"DELETE /api/entradas-salidas/undefined 500 - 260ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:31.595Z","level":"INFO","message":"POST /api/auth/login 200 - 346ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:32.266Z","level":"INFO","message":"GET /api/celdas 200 - 660ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:32.571Z","level":"INFO","message":"GET /api/vehiculos 200 - 302ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:32.828Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 255ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:33.129Z","level":"INFO","message":"GET /api/conductores 200 - 298ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:34.030Z","level":"WARN","message":"POST /api/entradas-salidas/entrada 409 - 898ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:35.639Z","level":"INFO","message":"POST /api/entradas-salidas/entrada 201 - 1606ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:35.882Z","level":"INFO","message":"GET /api/celdas/2 200 - 240ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:36.343Z","level":"WARN","message":"POST /api/entradas-salidas/entrada 409 - 457ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:37.266Z","level":"INFO","message":"POST /api/entradas-salidas/salida 201 - 918ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:37.486Z","level":"INFO","message":"GET /api/celdas/2 200 - 217ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:28:38.360Z","level":"WARN","message":"DELETE /api/entradas-salidas/14 500 - 872ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:29:38.134Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T20:29:46.096Z","level":"INFO","message":"POST /api/auth/login 200 - 276ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:29:46.745Z","level":"WARN","message":"DELETE /api/entradas-salidas/14 409 - 639ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:30:02.610Z","level":"INFO","message":"POST /api/auth/login 200 - 257ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:30:03.428Z","level":"INFO","message":"POST /api/celdas 201 - 807ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:30:04.649Z","level":"INFO","message":"PUT /api/celdas/166 200 - 1218ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:30:05.994Z","level":"INFO","message":"PUT /api/celdas/166/disponibilidad 200 - 1341ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:30:06.798Z","level":"INFO","message":"DELETE /api/celdas/166 204 - 801ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:00.672Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T20:31:10.500Z","level":"WARN","message":"GET /api/monitoreo/celdas 401 - 289ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:10.744Z","level":"WARN","message":"GET /api/monitoreo/fuera-horario 401 - 231ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:11.066Z","level":"WARN","message":"POST /api/monitoreo/incidentes/fuera-horario 401 - 320ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:31.102Z","level":"WARN","message":"GET /api/monitoreo/celdas 403 - 101ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:31.215Z","level":"WARN","message":"GET /api/monitoreo/fuera-horario 403 - 101ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T20:31:31.322Z","level":"WARN","message":"POST /api/monitoreo/incidentes/fuera-horario 403 - 104ms","data":{"ip":"::1","userAgent":"node"}}

@@ -45,10 +45,13 @@ const findAll = async () => {
 /**
  * Busca una celda por su identificador.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se llama
+ *   justo después de un create/update en la misma transacción: si no, esta lectura sale por
+ *   otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
-  const row = await Celda.findByPk(id, { include: [includeParqueadero] });
+const findById = async (id, { transaction } = {}) => {
+  const row = await Celda.findByPk(id, { include: [includeParqueadero], transaction });
   return mapCelda(row);
 };
 
@@ -122,7 +125,7 @@ const create = async ({ parqueadero, numero, tipo, usabilidad, estado = 'DISPONI
     { parqueadero, numero, tipo, usabilidad, estado, observaciones, posicion_x, posicion_y, ancho, alto },
     { transaction }
   );
-  return findById(nueva.id);
+  return findById(nueva.id, { transaction });
 };
 
 /**
@@ -140,11 +143,11 @@ const update = async (id, data, { transaction } = {}) => {
   }
 
   if (Object.keys(cambios).length === 0) {
-    return findById(id);
+    return findById(id, { transaction });
   }
 
   await Celda.update(cambios, { where: { id }, transaction });
-  return findById(id);
+  return findById(id, { transaction });
 };
 
 /**
@@ -157,7 +160,7 @@ const update = async (id, data, { transaction } = {}) => {
  */
 const cambiarEstado = async (id, estado, { transaction } = {}) => {
   await Celda.update({ estado }, { where: { id }, transaction });
-  return findById(id);
+  return findById(id, { transaction });
 };
 
 /**

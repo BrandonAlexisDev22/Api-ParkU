@@ -12,9 +12,13 @@ const { RegistroAcceso, Vehiculo, Conductor, Parqueadero, Celda } = require('../
 
 const includeContexto = [
   { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa', 'tipo'] },
-  { model: Conductor, as: 'conductor', attributes: ['id', 'nombre_apellidos'] },
+  {
+    model: Conductor,
+    as: 'conductor',
+    attributes: ['id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo', 'numero_telefonico'],
+  },
   { model: Parqueadero, as: 'parqueadero', attributes: ['id', 'nombre'] },
-  { model: Celda, as: 'celda', attributes: ['id', 'numero'] },
+  { model: Celda, as: 'celda', attributes: ['id', 'numero', 'tipo'] },
 ];
 
 /**
@@ -29,10 +33,13 @@ const findAll = async () => {
 /**
  * Obtiene un registro de movimiento específico.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se llama
+ *   justo después de un create/update en la misma transacción: si no, esta lectura sale por
+ *   otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
-  const row = await RegistroAcceso.findByPk(id, { include: includeContexto });
+const findById = async (id, { transaction } = {}) => {
+  const row = await RegistroAcceso.findByPk(id, { include: includeContexto, transaction });
   return row ? row.toJSON() : null;
 };
 
@@ -61,6 +68,24 @@ const findIngresoAbierto = async (vehiculoId) => {
     include: includeContexto,
   });
   return row ? row.toJSON() : null;
+};
+
+/**
+ * Ingresos actualmente activos (sin salida registrada) -- base del monitoreo en vivo del
+ * parqueadero. Opcionalmente filtrado por parqueadero.
+ * @param {number} [parqueaderoId]
+ * @returns {Promise<Array>}
+ */
+const findActivos = async (parqueaderoId) => {
+  const where = { fecha_hora_salida: null };
+  if (parqueaderoId) where.parqueadero_id = parqueaderoId;
+
+  const rows = await RegistroAcceso.findAll({
+    where,
+    include: includeContexto,
+    order: [['fecha_hora_ingreso', 'ASC']],
+  });
+  return rows.map((r) => r.toJSON());
 };
 
 /**
@@ -101,7 +126,7 @@ const registrarIngreso = async (data, { transaction } = {}) => {
     },
     { transaction }
   );
-  return findById(nuevo.id);
+  return findById(nuevo.id, { transaction });
 };
 
 /**
@@ -122,7 +147,7 @@ const registrarSalida = async (id, { usuario_salida_id, descripcion_salida, fech
     },
     { where: { id }, transaction }
   );
-  return findById(id);
+  return findById(id, { transaction });
 };
 
 /**
@@ -141,6 +166,7 @@ module.exports = {
   findById,
   findByVehiculo,
   findIngresoAbierto,
+  findActivos,
   findByFecha,
   registrarIngreso,
   registrarSalida,

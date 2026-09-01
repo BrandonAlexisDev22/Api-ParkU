@@ -11,6 +11,7 @@
 const repo = require('../repositories/conductor.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
+const { traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
@@ -182,12 +183,16 @@ const update = async (id, data) => {
 /**
  * Elimina un conductor (borrado físico).
  * @param {number} id
- * @throws {Object} 404 si no existe.
+ * @throws {Object} 404 si no existe; 409 si tiene vehículos, reservas o ingresos asociados.
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
   await getById(id);
-  return repo.remove(id);
+  try {
+    return await repo.remove(id);
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 module.exports = {

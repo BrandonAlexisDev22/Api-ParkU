@@ -6,6 +6,7 @@
 
 const bcrypt = require('bcryptjs');
 const repo = require('../repositories/usuario.repository');
+const { traducirErrorTrigger } = require('../utils/dbContext.util');
 
 /**
  * Obtiene todos los usuarios (sin contraseñas).
@@ -125,13 +126,18 @@ const cambiarContrasena = async (id, { actual, nueva }) => {
 
 /**
  * Elimina un usuario.
- * @param {number} id 
- * @throws {Object} 404 si no existe.
+ * @param {number} id
+ * @throws {Object} 404 si no existe; 409 si tiene conductor, reservas, ingresos, novedades u
+ * otros registros asociados (borrarlo rompería ese histórico).
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
   await getById(id);
-  return repo.remove(id);
+  try {
+    return await repo.remove(id);
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 // El login vive solo en AuthController/auth.routes.js (POST /api/auth/login): es el

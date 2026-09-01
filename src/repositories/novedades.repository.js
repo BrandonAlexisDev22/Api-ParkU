@@ -27,10 +27,14 @@ const findAll = async () => {
 /**
  * Busca una novedad por su ID.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Si se llama desde dentro
+ *   de una transacción abierta (p. ej. justo después de create/update en la misma), hay que
+ *   pasarla: si no, esta lectura sale por otra conexión del pool y no ve la fila todavía sin
+ *   confirmar (queda en null aunque la escritura sí haya funcionado).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
-  const row = await Novedad.findByPk(id, { include: includeContexto });
+const findById = async (id, { transaction } = {}) => {
+  const row = await Novedad.findByPk(id, { include: includeContexto, transaction });
   return row ? row.toJSON() : null;
 };
 
@@ -100,7 +104,7 @@ const create = async (data, { transaction } = {}) => {
     },
     { transaction }
   );
-  return findById(nueva.id);
+  return findById(nueva.id, { transaction });
 };
 
 /**
@@ -121,10 +125,10 @@ const update = async (id, data, { transaction } = {}) => {
     if (data[field] !== undefined) cambios[field] = data[field];
   }
   if (Object.keys(cambios).length === 0) {
-    return findById(id);
+    return findById(id, { transaction });
   }
   await Novedad.update(cambios, { where: { id }, transaction });
-  return findById(id);
+  return findById(id, { transaction });
 };
 
 /**

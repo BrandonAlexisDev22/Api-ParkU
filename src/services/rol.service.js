@@ -5,6 +5,7 @@
 
 const repo = require('../repositories/rol.repository');
 const permisoRepo = require('../repositories/permiso.repository');
+const { traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const getAll = () => repo.findAll();
 
@@ -29,7 +30,11 @@ const update = async (id, data) => {
 
 const remove = async (id) => {
   await getById(id);
-  return repo.remove(id);
+  try {
+    return await repo.remove(id);
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**

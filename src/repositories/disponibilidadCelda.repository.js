@@ -12,12 +12,16 @@ const { DisponibilidadCelda, HistorialDisponibilidadCelda, Celda, Usuario } = re
 /**
  * Estado de disponibilidad vigente de una celda (si alguna vez tuvo un cambio manual).
  * @param {number} celdaId
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se llama
+ *   justo después de un create/update en la misma transacción: si no, esta lectura sale por
+ *   otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findByCelda = async (celdaId) => {
+const findByCelda = async (celdaId, { transaction } = {}) => {
   const row = await DisponibilidadCelda.findOne({
     where: { celda_id: celdaId },
     include: [{ model: Usuario, as: 'usuario', attributes: ['id', 'nombre'] }],
+    transaction,
   });
   return row ? row.toJSON() : null;
 };
@@ -41,7 +45,7 @@ const upsert = async (celdaId, { estado, motivo, observacion, usuario_id }, { tr
     );
   }
 
-  return findByCelda(celdaId);
+  return findByCelda(celdaId, { transaction });
 };
 
 /**

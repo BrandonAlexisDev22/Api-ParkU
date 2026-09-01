@@ -16,6 +16,7 @@ const repo = require('../repositories/entradaSalida.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
+const conductorRepo = require('../repositories/conductor.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
 
@@ -58,13 +59,15 @@ const getByFecha = (desde, hasta) => {
 
 /**
  * Registra el ingreso de un vehículo. La BD valida (vía trigger) el estado de la celda,
- * el tipo de vehículo y las reglas de celdas preferenciales; aquí solo se resuelven los 404
- * y el 409 de "vehículo ya adentro".
+ * el tipo de vehículo y las reglas de celdas preferenciales; aquí se resuelven los 404, que
+ * el vehículo esté habilitado, que el conductor (si viene) sea dueño del vehículo, y el 409
+ * de "vehículo ya adentro".
  * @param {Object} data
  * @param {number} usuarioId - Vigilante/administrador autenticado que registra el ingreso.
  * @throws {Object} 400 si faltan campos obligatorios.
- * @throws {Object} 404 si vehículo, parqueadero o celda no existen.
- * @throws {Object} 409 si el vehículo ya tiene un ingreso abierto, o la BD rechaza la ocupación.
+ * @throws {Object} 404 si vehículo, parqueadero, celda o conductor no existen.
+ * @throws {Object} 409 si el vehículo está deshabilitado, el conductor no es propietario del
+ * vehículo, el vehículo ya tiene un ingreso abierto, o la BD rechaza la ocupación.
  * @returns {Promise<Object>} Registro de ingreso creado.
  */
 const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, descripcion_ingreso, fecha_hora_ingreso }, usuarioId) => {
@@ -75,6 +78,9 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
 
   const vehExiste = await vehRepo.findById(vehiculo_id);
   if (!vehExiste) throw { status: 404, message: 'Vehículo no encontrado' };
+  if (!vehExiste.estado) {
+    throw { status: 409, message: 'El vehículo está deshabilitado y no puede ingresar' };
+  }
 
   const parqExiste = await parqRepo.findById(parqueadero_id);
   if (!parqExiste) throw { status: 404, message: 'Parqueadero no encontrado' };
@@ -82,6 +88,17 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
   if (celda_id) {
     const celdaExiste = await celdaRepo.findById(celda_id);
     if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+  }
+
+  if (conductor_id) {
+    const conductorExiste = await conductorRepo.findById(conductor_id);
+    if (!conductorExiste) throw { status: 404, message: 'Conductor no encontrado' };
+    // El conductor que ingresa debe ser (co)propietario del vehículo -- evita que un
+    // vehículo quede asociado en el ingreso a una persona que no es dueña de él.
+    const esPropietario = await vehRepo.findPropietario(vehiculo_id, conductor_id);
+    if (!esPropietario) {
+      throw { status: 409, message: 'El conductor indicado no es propietario de este vehículo' };
+    }
   }
 
   const ingresoAbierto = await repo.findIngresoAbierto(vehiculo_id);
@@ -137,15 +154,22 @@ const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_sal
 };
 
 /**
- * Elimina un registro del historial (uso administrativo).
+ * Elimina un registro del historial (uso administrativo). No se puede borrar un ingreso que
+ * ya generó ocupación de celda (o novedades/capturas de placa asociadas) -- es la barrera de
+ * integridad referencial de la BD para no perder histórico; aquí solo se traduce a un 409
+ * legible en vez de un 500 genérico.
  * @param {number} id
  * @param {number} usuarioId - Administrador autenticado que hace la operación (auditoría).
- * @throws {Object} 404 si no existe.
+ * @throws {Object} 404 si no existe, 409 si está referenciado por otros registros.
  * @returns {Promise<boolean>}
  */
 const remove = async (id, usuarioId) => {
   await getById(id);
-  return runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
+  try {
+    return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 module.exports = {
