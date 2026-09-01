@@ -267,7 +267,7 @@ const getByCelda = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newReserva = await svc.create(req.body, req.usuario?.id);
+    const newReserva = await svc.create(req.body, req.usuario?.id, req.usuario?.rol);
     res.status(201).json(newReserva);
   } catch (e) {
     handleError(res, e);

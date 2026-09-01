@@ -1,0 +1,10 @@
+{"timestamp":"2026-09-01T02:32:06.591Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T02:32:30.707Z","level":"INFO","message":"POST /api/auth/login 200 - 307ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:32:31.252Z","level":"WARN","message":"POST /api/auth/login 401 - 393ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:32:31.292Z","level":"WARN","message":"Ruta no encontrada","data":{"method":"POST","url":"/api/usuarios/login","ip":"::1"}}
+{"timestamp":"2026-09-01T02:32:31.293Z","level":"WARN","message":"POST /api/usuarios/login 404 - 1ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:32:31.953Z","level":"INFO","message":"POST /api/usuarios 201 - 621ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:33:08.123Z","level":"INFO","message":"POST /api/auth/login 200 - 1266ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:33:08.233Z","level":"WARN","message":"DELETE /api/usuarios/29 401 - 1ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}
+{"timestamp":"2026-09-01T02:33:18.676Z","level":"INFO","message":"POST /api/auth/login 200 - 251ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T02:33:19.143Z","level":"INFO","message":"DELETE /api/usuarios/29 204 - 456ms","data":{"ip":"::1","userAgent":"node"}}

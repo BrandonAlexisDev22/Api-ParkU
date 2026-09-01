@@ -46,16 +46,6 @@ const cambiarContrasena = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
-  try {
-    const { correo, contrasena } = req.body;
-    const usuario = await svc.login(correo, contrasena);
-    res.json({ message: 'Login exitoso', usuario });
-  } catch (e) {
-    handleError(res, e);
-  }
-};
-
 const remove = async (req, res) => {
   try {
     await svc.remove(req.params.id);
@@ -71,6 +61,5 @@ module.exports = {
   create,
   update,
   cambiarContrasena,
-  login,
   remove,
 };

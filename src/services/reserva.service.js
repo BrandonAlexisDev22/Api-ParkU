@@ -15,8 +15,10 @@
 const repo = require('../repositories/reserva.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
+const conductorRepo = require('../repositories/conductor.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
+const { ROLES } = require('../config/roles');
 
 const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
 
@@ -80,14 +82,46 @@ const _validarEntidades = async (celdaId, vehiculoId) => {
 };
 
 /**
+ * Si quien crea la reserva es un Conductor (no Admin/Vigilante), verifica que el
+ * conductor_id/vehiculo_id indicados sean los suyos -- de lo contrario, cualquier
+ * usuario autenticado podría reservar en nombre de otra persona o con el vehículo
+ * de otra persona. Admin/Vigilante sí pueden registrar reservas para terceros
+ * (es su función: atienden a conductores en el mostrador).
+ * @private
+ * @param {number} usuarioRol
+ * @param {number} usuarioId
+ * @param {number} [conductorId]
+ * @param {number} [vehiculoId]
+ * @throws {Object} 403 si el conductor/vehículo no le pertenecen al usuario autenticado.
+ */
+const _validarPropiedad = async (usuarioRol, usuarioId, conductorId, vehiculoId) => {
+  if (usuarioRol === ROLES.ADMIN || usuarioRol === ROLES.VIGILANTE) return;
+
+  const propioConductor = await conductorRepo.findByUsuarioId(usuarioId);
+  if (!propioConductor) {
+    throw { status: 403, message: 'Tu cuenta no tiene un perfil de conductor asociado' };
+  }
+  if (conductorId !== undefined && conductorId !== null && conductorId !== propioConductor.id) {
+    throw { status: 403, message: 'No puedes crear una reserva a nombre de otro conductor' };
+  }
+  if (vehiculoId) {
+    const esPropio = await vehRepo.findPropietario(vehiculoId, propioConductor.id);
+    if (!esPropio) {
+      throw { status: 403, message: 'El vehículo indicado no te pertenece' };
+    }
+  }
+};
+
+/**
  * Crea una reserva verificando disponibilidad horaria (la BD hace una segunda
  * validación de solapamiento y de celdas preferenciales).
  * @param {Object} data - { tipo_reserva, celda_id, conductor_id?, vehiculo_id?, motivo?, fecha_hora_inicio, fecha_hora_fin }
- * @param {number} usuarioId - Vigilante/administrador autenticado que registra la reserva.
- * @throws {Object} 400 datos faltantes/fechas inválidas, 404 entidades no encontradas, 409 conflicto de horario o regla de negocio.
+ * @param {number} usuarioId - Usuario autenticado que registra la reserva.
+ * @param {number} usuarioRol - Rol del usuario autenticado (ver src/config/roles.js).
+ * @throws {Object} 400 datos faltantes/fechas inválidas, 403 si intenta reservar para otro sin ser Admin/Vigilante, 404 entidades no encontradas, 409 conflicto de horario o regla de negocio.
  * @returns {Promise<Object>}
  */
-const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin }, usuarioId) => {
+const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin }, usuarioId, usuarioRol) => {
   if (!tipo_reserva || !celda_id || !fecha_hora_inicio || !fecha_hora_fin) {
     throw { status: 400, message: 'tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos' };
   }
@@ -95,6 +129,7 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
   validarHorarioOperacion();
   _validarFechas(fecha_hora_inicio, fecha_hora_fin);
   await _validarEntidades(celda_id, vehiculo_id);
+  await _validarPropiedad(usuarioRol, usuarioId, conductor_id, vehiculo_id);
 
   const conflictos = await repo.findConflictos(celda_id, fecha_hora_inicio, fecha_hora_fin);
   if (conflictos.length) {
@@ -167,21 +202,33 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   }
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, { transaction }));
+    // Se pasa el motivo de rechazo como `app.motivo` para que fn_historial_reserva lo
+    // registre en historial_reserva.motivo (antes se perdía: quedaba solo en
+    // reserva.motivo_rechazo y nunca llegaba al historial).
+    return await runWithUsuario(
+      usuarioId,
+      (transaction) => repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, { transaction }),
+      { motivo: motivoRechazo },
+    );
   } catch (error) {
     traducirErrorTrigger(error);
   }
 };
 
 /**
- * Elimina una reserva.
+ * Elimina una reserva. Solo se permite mientras sigue PENDIENTE (nunca gestionada);
+ * una reserva ya aceptada/rechazada/cancelada/terminada es histórico y no debe poder
+ * borrarse físicamente.
  * @param {number} id
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
- * @throws {Object} 404 si no existe, 409 si no se puede eliminar (por integridad referencial).
+ * @throws {Object} 404 si no existe, 409 si ya fue gestionada o no se puede eliminar (integridad referencial).
  * @returns {Promise<boolean>}
  */
 const remove = async (id, usuarioId) => {
-  await getById(id);
+  const reserva = await getById(id);
+  if (reserva.estado !== 'PENDIENTE') {
+    throw { status: 409, message: 'Solo se pueden eliminar reservas en estado PENDIENTE; las reservas ya gestionadas forman parte del histórico' };
+  }
   try {
     return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
   } catch (error) {

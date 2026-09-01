@@ -73,6 +73,16 @@ const findByCorreo = async (correo) => {
 };
 
 /**
+ * Busca el conductor asociado a una cuenta de usuario (1:1).
+ * @param {number} usuarioId
+ * @returns {Promise<Object|null>}
+ */
+const findByUsuarioId = async (usuarioId) => {
+  const row = await Conductor.findOne({ where: { usuario_id: usuarioId }, include: includeCatalogos });
+  return mapConductor(row);
+};
+
+/**
  * Obtiene conductores activos (estado = true).
  * @returns {Promise<Array>}
  */
@@ -155,6 +165,7 @@ module.exports = {
   findById,
   findByDocumento,
   findByCorreo,
+  findByUsuarioId,
   findActivos,
   create,
   update,

@@ -33,13 +33,9 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *           type: integer
  *           description: ID del rol asignado.
  *         estado:
- *           type: boolean
- *           default: true
- *           description: true = Activo, false = Inactivo.
- *         refresh_token:
  *           type: string
- *           nullable: true
- *           description: Token de renovación de sesión.
+ *           enum: [ACTIVO, INACTIVO, BLOQUEADO]
+ *           default: ACTIVO
  *     UsuarioCreate:
  *       type: object
  *       required:
@@ -63,50 +59,12 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *         rol:
  *           type: integer
  *         estado:
- *           type: boolean
+ *           type: string
+ *           enum: [ACTIVO, INACTIVO, BLOQUEADO]
  */
 
-/**
- * @swagger
- * /api/usuarios/login:
- *   post:
- *     summary: Iniciar sesión en el sistema
- *     tags: [Usuarios]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - correo
- *               - contrasena
- *             properties:
- *               correo:
- *                 type: string
- *                 format: email
- *               contrasena:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login exitoso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 usuario:
- *                   $ref: '#/components/schemas/Usuario'
- *       400:
- *         description: Faltan credenciales
- *       401:
- *         description: Credenciales inválidas
- */
-router.post('/login',
-  ctrl.login
-);
+// El login vive únicamente en POST /api/auth/login (auth.routes.js): es el único que
+// aplica rate limiting, valida `estado` y emite JWT. No duplicar aquí.
 
 /**
  * @swagger

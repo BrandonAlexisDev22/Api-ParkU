@@ -1,0 +1,2 @@
+{"timestamp":"2026-08-26T19:34:09.382Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-08-26T19:34:09.745Z","level":"INFO","message":"POST /api/auth/login 200 - 3193ms","data":{"ip":"::1","userAgent":"curl/8.14.1"}}

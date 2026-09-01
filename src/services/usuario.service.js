@@ -53,7 +53,7 @@ const create = async (data) => {
     correo,
     contrasena: hash,
     rol_id: rol || 3,
-    estado: estado !== undefined ? estado : true,
+    estado: estado !== undefined ? estado : 'ACTIVO',
     numero_telefonico: numero_telefonico || null,
   });
 };
@@ -134,27 +134,8 @@ const remove = async (id) => {
   return repo.remove(id);
 };
 
-/**
- * Valida credenciales de acceso (login).
- * @param {string} correo 
- * @param {string} contrasena 
- * @returns {Promise<Object>} Datos del usuario (sin contraseña).
- * @throws {Object} 400 si faltan campos, 401 si credenciales inválidas.
- */
-const login = async (correo, contrasena) => {
-  if (!correo || !contrasena) {
-    throw { status: 400, message: 'correo y contrasena son requeridos' };
-  }
+// El login vive solo en AuthController/auth.routes.js (POST /api/auth/login): es el
+// único que aplica rate limiting, chequea `estado` (ACTIVO/INACTIVO/BLOQUEADO) y emite
+// JWT. Este service no debe tener una segunda implementación de login.
 
-  const usuario = await repo.findByCorreo(correo);
-  if (!usuario) throw { status: 401, message: 'Credenciales inválidas' };
-
-  const ok = await bcrypt.compare(contrasena, usuario.contrasena);
-  if (!ok) throw { status: 401, message: 'Credenciales inválidas' };
-
-  // Eliminar la contraseña del objeto devuelto
-  const { contrasena: _, ...datos } = usuario;
-  return datos;
-};
-
-module.exports = { getAll, getById, create, update, cambiarContrasena, remove, login };
+module.exports = { getAll, getById, create, update, cambiarContrasena, remove };

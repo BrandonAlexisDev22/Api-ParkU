@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
+const usuarioRepo = require('../repositories/usuario.repository');
 
 // Debe coincidir con el ENUM real de conductor.tipo_documento (conductores.models.js).
 // Comparar contra un valor fuera de este set haría que Postgres rechace la
@@ -194,11 +195,17 @@ class AuthController {
       // Verificar contraseña
       const isPasswordValid = await PasswordUtil.compare(contrasena, user.contrasena);
       if (!isPasswordValid) {
+        // Cuenta el intento fallido y bloquea la cuenta tras 5 intentos (ver
+        // usuario.repository.js). Sin esto, el estado BLOQUEADO nunca se alcanza.
+        await usuarioRepo.registrarLoginFallido(user.id);
         return res.status(401).json({
           success: false,
           message: 'Credenciales inválidas'
         });
       }
+
+      // Login correcto: limpia el contador de intentos fallidos y marca el acceso.
+      await usuarioRepo.registrarLoginExitoso(user.id);
 
       // Generar tokens
       const payload = {
