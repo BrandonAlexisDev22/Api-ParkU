@@ -52,3 +52,21 @@
 {"timestamp":"2026-09-01T20:31:31.102Z","level":"WARN","message":"GET /api/monitoreo/celdas 403 - 101ms","data":{"ip":"::1","userAgent":"node"}}
 {"timestamp":"2026-09-01T20:31:31.215Z","level":"WARN","message":"GET /api/monitoreo/fuera-horario 403 - 101ms","data":{"ip":"::1","userAgent":"node"}}
 {"timestamp":"2026-09-01T20:31:31.322Z","level":"WARN","message":"POST /api/monitoreo/incidentes/fuera-horario 403 - 104ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:05:26.164Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-01T21:48:22.482Z","level":"INFO","message":"POST /api/auth/login 200 - 2299ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:23.291Z","level":"INFO","message":"POST /api/parqueaderos 201 - 788ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:24.238Z","level":"INFO","message":"POST /api/vehiculos 201 - 928ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:25.158Z","level":"INFO","message":"POST /api/celdas/parqueadero/18/generar-lote 201 - 915ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:25.612Z","level":"WARN","message":"POST /api/reservas 500 - 447ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:26.279Z","level":"INFO","message":"DELETE /api/celdas/167 204 - 661ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:26.877Z","level":"INFO","message":"DELETE /api/parqueaderos/18 204 - 595ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:48:27.462Z","level":"INFO","message":"DELETE /api/vehiculos/15 204 - 582ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:01.644Z","level":"INFO","message":"POST /api/auth/login 200 - 1013ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:03.074Z","level":"INFO","message":"POST /api/parqueaderos 201 - 1411ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:04.488Z","level":"INFO","message":"POST /api/celdas/parqueadero/19/generar-lote 201 - 1409ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:04.848Z","level":"INFO","message":"GET /api/reservas 200 - 355ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:05.677Z","level":"INFO","message":"POST /api/reservas 201 - 823ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:06.529Z","level":"INFO","message":"PATCH /api/reservas/24/estado 200 - 846ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:06.770Z","level":"INFO","message":"GET /api/reservas/24/historial 200 - 234ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:07.017Z","level":"WARN","message":"DELETE /api/reservas/24 409 - 242ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-01T21:50:07.685Z","level":"WARN","message":"DELETE /api/celdas/168 409 - 665ms","data":{"ip":"::1","userAgent":"node"}}

@@ -45,10 +45,13 @@ const findAll = async () => {
 /**
  * Busca un vehículo por su ID interno.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se llama
+ *   justo después de un create/update en la misma transacción: si no, esta lectura sale por
+ *   otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
-  const row = await Vehiculo.findByPk(id, { include: [includeConductores] });
+const findById = async (id, { transaction } = {}) => {
+  const row = await Vehiculo.findByPk(id, { include: [includeConductores], transaction });
   return mapVehiculo(row);
 };
 
@@ -91,7 +94,7 @@ const create = async ({ conductor_id, ...data }, { transaction } = {}) => {
     );
   }
 
-  return findById(nuevo.id);
+  return findById(nuevo.id, { transaction });
 };
 
 /**
@@ -112,10 +115,10 @@ const update = async (id, data, { transaction } = {}) => {
     if (data[field] !== undefined) cambios[field] = data[field];
   }
   if (Object.keys(cambios).length === 0) {
-    return findById(id);
+    return findById(id, { transaction });
   }
   await Vehiculo.update(cambios, { where: { id }, transaction });
-  return findById(id);
+  return findById(id, { transaction });
 };
 
 /**
@@ -151,7 +154,7 @@ const agregarPropietario = async (vehiculoId, conductorId, { transaction } = {})
     { conductor_id: conductorId, vehiculo_id: vehiculoId, es_principal: false },
     { transaction }
   );
-  return findById(vehiculoId);
+  return findById(vehiculoId, { transaction });
 };
 
 /**
@@ -164,7 +167,7 @@ const agregarPropietario = async (vehiculoId, conductorId, { transaction } = {})
  */
 const quitarPropietario = async (vehiculoId, conductorId, { transaction } = {}) => {
   await DetallePropiedad.destroy({ where: { vehiculo_id: vehiculoId, conductor_id: conductorId }, transaction });
-  return findById(vehiculoId);
+  return findById(vehiculoId, { transaction });
 };
 
 module.exports = {
