@@ -31,7 +31,10 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *           description: Contraseña encriptada (no visible en respuestas).
  *         rol:
  *           type: integer
- *           description: ID del rol asignado.
+ *           description: ID del rol asignado (rol_id en la base de datos).
+ *         numero_telefonico:
+ *           type: string
+ *           nullable: true
  *         estado:
  *           type: string
  *           enum: [ACTIVO, INACTIVO, BLOQUEADO]
@@ -39,25 +42,42 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *     UsuarioCreate:
  *       type: object
  *       required:
+ *         - nombre
  *         - correo
  *         - contrasena
  *       properties:
+ *         nombre:
+ *           type: string
  *         correo:
  *           type: string
  *           format: email
  *         contrasena:
  *           type: string
+ *         numero_telefonico:
+ *           type: string
+ *           nullable: true
+ *           description: Validado en backend (7-15 dígitos, '+' opcional). Único por cuenta.
  *         rol:
  *           type: integer
  *           default: 3
+ *           description: >
+ *             ID del rol (1=Administrador, 2=Vigilante, 3=Conductor) o su nombre
+ *             ("Administrador"/"Vigilante"/"Conductor", sin distinguir mayúsculas).
+ *             También se acepta como `rol_id`. Si se omite, queda en Conductor.
  *     UsuarioUpdate:
  *       type: object
  *       properties:
+ *         nombre:
+ *           type: string
  *         correo:
  *           type: string
  *           format: email
+ *         numero_telefonico:
+ *           type: string
+ *           nullable: true
  *         rol:
  *           type: integer
+ *           description: Mismo formato que en UsuarioCreate (id, nombre, o `rol_id`).
  *         estado:
  *           type: string
  *           enum: [ACTIVO, INACTIVO, BLOQUEADO]

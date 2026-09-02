@@ -82,6 +82,12 @@ const getCeldas = async (parqueaderoId) => {
       tipo: celda.tipo,
       usabilidad: celda.usabilidad,
       estado: celda.estado,
+      // Coordenadas/tamaño para que el frontend dibuje el plano -- misma fuente (celda)
+      // que usa el listado simple de /api/celdas, así plano y lista nunca se desincronizan.
+      posicion_x: celda.posicion_x,
+      posicion_y: celda.posicion_y,
+      ancho: celda.ancho,
+      alto: celda.alto,
       ocupacion: ocupacion ? {
         registro_acceso_id: ocupacion.registro_acceso_id,
         fecha_hora_ingreso: ocupacion.fecha_hora_ingreso,

@@ -361,6 +361,59 @@ const generarLote = async (req, res) => {
 
 /**
  * @swagger
+ * /celdas/parqueadero/{parqueaderoId}/ajustar-cantidades:
+ *   put:
+ *     summary: Ajusta las cantidades de celdas de un parqueadero a los valores indicados
+ *     description: >
+ *       Si una cantidad sube, crea solo la diferencia. Si baja, desactiva (nunca borra)
+ *       celdas que estén DISPONIBLE en ese momento; si no hay suficientes libres, desactiva
+ *       las que puede y reporta cuántas quedaron pendientes por estar ocupadas/reservadas.
+ *     tags: [Celdas]
+ *     parameters:
+ *       - in: path
+ *         name: parqueaderoId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cantidadCarro:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMoto:
+ *                 type: integer
+ *                 minimum: 0
+ *               cantidadMovilidadReducida:
+ *                 type: integer
+ *                 minimum: 0
+ *     responses:
+ *       200:
+ *         description: Resumen por grupo (actual, deseada, creadas, desactivadas, pendientesPorOcupacion)
+ *       400:
+ *         description: Cantidades inválidas o ninguna indicada
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       403:
+ *         description: Prohibido - No tienes permisos
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+const ajustarCantidades = async (req, res) => {
+  try {
+    const resumen = await svc.ajustarCantidades(req.params.parqueaderoId, req.body, req.usuario?.id);
+    res.status(200).json(resumen);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /celdas/{id}:
  *   put:
  *     summary: Actualizar una celda (parcialmente o completa)
@@ -437,5 +490,6 @@ module.exports = {
   create,
   update,
   generarLote,
+  ajustarCantidades,
   remove,
 };

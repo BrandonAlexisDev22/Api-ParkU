@@ -360,6 +360,12 @@ router.post('/parqueadero/:parqueaderoId/generar-lote',
   ctrl.generarLote
 );
 
+router.put('/parqueadero/:parqueaderoId/ajustar-cantidades',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.ajustarCantidades
+);
+
 /**
  * @swagger
  * /api/celdas/{id}:

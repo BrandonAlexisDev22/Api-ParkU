@@ -102,7 +102,20 @@ const create = async (data, usuarioId) => {
     placa = _validarPlaca(placa);
     data = { ...data, placa };
     const placaExiste = await repo.findByPlaca(placa);
-    if (placaExiste) throw { status: 409, message: 'La placa ya está registrada' };
+    if (placaExiste) {
+      // El frontend necesita saber a quién pertenece ya el vehículo, no solo que existe.
+      throw {
+        status: 409,
+        message: 'La placa ya está registrada',
+        data: {
+          vehiculo_id: placaExiste.id,
+          placa: placaExiste.placa,
+          tipo: placaExiste.tipo,
+          conductor_principal_id: placaExiste.conductor_principal_id,
+          conductor_principal_nombre: placaExiste.conductor_principal_nombre,
+        },
+      };
+    }
   }
 
   try {
@@ -135,7 +148,17 @@ const update = async (id, data, usuarioId) => {
   if (data.placa && data.placa !== vehiculo.placa) {
     const dup = await repo.findByPlaca(data.placa);
     if (dup && dup.id !== Number(id)) {
-      throw { status: 409, message: 'La placa ya está registrada' };
+      throw {
+        status: 409,
+        message: 'La placa ya está registrada',
+        data: {
+          vehiculo_id: dup.id,
+          placa: dup.placa,
+          tipo: dup.tipo,
+          conductor_principal_id: dup.conductor_principal_id,
+          conductor_principal_nombre: dup.conductor_principal_nombre,
+        },
+      };
     }
   }
 

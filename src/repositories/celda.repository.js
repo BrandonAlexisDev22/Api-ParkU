@@ -223,6 +223,38 @@ const generarLote = async (parqueaderoId, grupos, { transaction } = {}) => {
 };
 
 /**
+ * Cuenta cuántas celdas de un tipo+usabilidad existen ya en un parqueadero (sin importar
+ * su estado). Base para saber cuánto crear o desactivar al ajustar cantidades.
+ * @param {number} parqueaderoId
+ * @param {string} tipo
+ * @param {string} usabilidad
+ * @returns {Promise<number>}
+ */
+const contarPorGrupoTipo = (parqueaderoId, tipo, usabilidad) =>
+  Celda.count({ where: { parqueadero: parqueaderoId, tipo, usabilidad } });
+
+/**
+ * Celdas DISPONIBLES (nunca ocupadas/reservadas/ya inactivas) de un tipo+usabilidad en un
+ * parqueadero, las de número más alto primero -- candidatas seguras para desactivar cuando
+ * se reduce la cantidad deseada, priorizando las añadidas más recientemente.
+ * @param {number} parqueaderoId
+ * @param {string} tipo
+ * @param {string} usabilidad
+ * @param {number} limite - Máximo de celdas a devolver.
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<Array>}
+ */
+const findDesactivables = async (parqueaderoId, tipo, usabilidad, limite, { transaction } = {}) => {
+  const rows = await Celda.findAll({
+    where: { parqueadero: parqueaderoId, tipo, usabilidad, estado: 'DISPONIBLE' },
+    order: [['numero', 'DESC']],
+    limit: limite,
+    transaction,
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
  * Elimina una celda de la base de datos.
  * @param {number} id
  * @param {import('sequelize').Transaction} [opciones.transaction]
@@ -245,5 +277,7 @@ module.exports = {
   update,
   cambiarEstado,
   generarLote,
+  contarPorGrupoTipo,
+  findDesactivables,
   remove,
 };

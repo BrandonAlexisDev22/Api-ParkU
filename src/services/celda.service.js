@@ -14,7 +14,10 @@
 
 const repo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
+const disponibilidadRepo = require('../repositories/disponibilidadCelda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+
+const MOTIVO_AJUSTE_CANTIDADES = 'AJUSTE_OPERATIVO';
 
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'];
@@ -176,6 +179,97 @@ const generarLote = async (parqueaderoId, cantidades, usuarioId) => {
 };
 
 /**
+ * Ajusta las cantidades de celdas de un parqueadero ya existente a los valores deseados
+ * por grupo (carro/moto/movilidad reducida) -- pensado para el formulario de edición de
+ * parqueadero, que igual que el de creación solo pide cantidades por tipo.
+ *
+ * Si la cantidad deseada de un grupo es mayor a la actual, crea solo la diferencia
+ * (misma numeración automática que generarLote). Si es menor, desactiva (nunca borra)
+ * únicamente celdas que estén DISPONIBLE en ese momento -- nunca toca una celda
+ * OCUPADA, RESERVADA o ya en MANTENIMIENTO/INACTIVA, y el histórico de esas celdas
+ * (ocupaciones, ingresos, reservas, auditoría) queda intacto porque no se eliminan filas,
+ * solo cambia su estado vía disponibilidad_celda. Si no hay suficientes celdas libres
+ * para llegar exactamente a la cantidad pedida, desactiva las que sí puede y reporta
+ * cuántas quedaron pendientes por estar en uso.
+ * @param {number} parqueaderoId
+ * @param {Object} cantidades - { cantidadCarro?, cantidadMoto?, cantidadMovilidadReducida? }
+ * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría + motivo).
+ * @throws {Object} 400 si las cantidades son inválidas o no se indicó ninguna; 404 si el parqueadero no existe.
+ * @returns {Promise<Array<Object>>} Un resumen por grupo: { campo, actual, deseada, creadas, desactivadas, pendientesPorOcupacion }.
+ */
+const ajustarCantidades = async (parqueaderoId, cantidades, usuarioId) => {
+  const existeParq = await parqRepo.findById(parqueaderoId);
+  if (!existeParq) throw { status: 404, message: 'Parqueadero no encontrado' };
+
+  const plan = [];
+  for (const [campo, { prefijo, tipo, usabilidad }] of Object.entries(GRUPOS_LOTE)) {
+    const deseada = cantidades?.[campo];
+    if (deseada === undefined || deseada === null) continue;
+    if (!Number.isInteger(deseada) || deseada < 0) {
+      throw { status: 400, message: `${campo} debe ser un entero mayor o igual a 0` };
+    }
+    const actual = await repo.contarPorGrupoTipo(parqueaderoId, tipo, usabilidad);
+    plan.push({ campo, prefijo, tipo, usabilidad, actual, deseada });
+  }
+
+  if (!plan.length) {
+    throw { status: 400, message: 'Debes indicar al menos una cantidad (cantidadCarro, cantidadMoto o cantidadMovilidadReducida)' };
+  }
+
+  try {
+    return await runWithUsuario(
+      usuarioId,
+      async (transaction) => {
+        const resumen = [];
+        for (const { campo, prefijo, tipo, usabilidad, actual, deseada } of plan) {
+          if (deseada === actual) {
+            resumen.push({ campo, actual, deseada, creadas: 0, desactivadas: 0, pendientesPorOcupacion: 0 });
+            continue;
+          }
+
+          if (deseada > actual) {
+            const creadas = await repo.generarLote(
+              parqueaderoId,
+              [{ prefijo, tipo, usabilidad, cantidad: deseada - actual }],
+              { transaction },
+            );
+            resumen.push({ campo, actual, deseada, creadas: creadas.length, desactivadas: 0, pendientesPorOcupacion: 0 });
+            continue;
+          }
+
+          const porQuitar = actual - deseada;
+          const candidatas = await repo.findDesactivables(parqueaderoId, tipo, usabilidad, porQuitar, { transaction });
+          for (const celda of candidatas) {
+            await disponibilidadRepo.upsert(
+              celda.id,
+              {
+                estado: 'INACTIVA',
+                motivo: MOTIVO_AJUSTE_CANTIDADES,
+                observacion: 'Reducción de cantidades del parqueadero',
+                usuario_id: usuarioId,
+              },
+              { transaction },
+            );
+          }
+          resumen.push({
+            campo,
+            actual,
+            deseada,
+            creadas: 0,
+            desactivadas: candidatas.length,
+            pendientesPorOcupacion: porQuitar - candidatas.length,
+          });
+        }
+        return resumen;
+      },
+      { motivoDisponibilidad: MOTIVO_AJUSTE_CANTIDADES },
+    );
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+};
+
+/**
  * Elimina una celda del sistema.
  * @param {number} id - ID de la celda.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
@@ -201,5 +295,6 @@ module.exports = {
   create,
   update,
   generarLote,
+  ajustarCantidades,
   remove,
 };

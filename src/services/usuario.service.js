@@ -7,6 +7,33 @@
 const bcrypt = require('bcryptjs');
 const repo = require('../repositories/usuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
+const { resolverRolId } = require('../config/roles');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Formato permisivo (con o sin '+', 7-15 dígitos) -- el mismo criterio que ya se usaba en
+// el registro público (isMobilePhone('any')), pero validado aquí en el service para que
+// también aplique al alta/edición hecha por un administrador vía /api/usuarios.
+const TELEFONO_REGEX = /^\+?[0-9]{7,15}$/;
+
+/**
+ * @private
+ * @throws {Object} 400 si el correo no tiene formato válido.
+ */
+const _validarCorreo = (correo) => {
+  if (!EMAIL_REGEX.test(correo)) {
+    throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
+  }
+};
+
+/**
+ * @private
+ * @throws {Object} 400 si el teléfono (cuando viene) no tiene un formato válido.
+ */
+const _validarTelefono = (numero) => {
+  if (numero && !TELEFONO_REGEX.test(String(numero).replace(/[\s-]/g, ''))) {
+    throw { status: 400, message: 'El número de teléfono no tiene un formato válido' };
+  }
+};
 
 /**
  * Obtiene todos los usuarios (sin contraseñas).
@@ -28,16 +55,25 @@ const getById = async (id) => {
 
 /**
  * Registra un nuevo usuario con contraseña cifrada.
- * @param {Object} data - Datos del usuario (todos los campos)
- * @throws {Object} 400 si faltan campos obligatorios, 409 si correo duplicado.
+ * @param {Object} data - Datos del usuario. Acepta el rol como `rol` o `rol_id` (número o
+ *   nombre: "Administrador"/"Vigilante"/"Conductor"); si no viene, queda en Conductor.
+ * @throws {Object} 400 si faltan campos obligatorios o el correo/teléfono/rol no son válidos;
+ *   409 si el correo o el teléfono ya están registrados.
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { nombre, correo, contrasena, rol, estado, numero_telefonico } = data;
+  const { nombre, correo, contrasena, estado, numero_telefonico } = data;
+  // El cliente puede enviar el rol como `rol` o como `rol_id` -- antes solo se leía `rol`,
+  // así que un cliente que mandara `rol_id` (el nombre real de la columna) terminaba
+  // siempre en el default (Conductor) sin que nada lo avisara.
+  const rolEnviado = data.rol !== undefined ? data.rol : data.rol_id;
 
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
   }
+  _validarCorreo(correo);
+  _validarTelefono(numero_telefonico);
+  const rol_id = resolverRolId(rolEnviado) ?? 3;
 
   const existe = await repo.findByCorreo(correo);
   if (existe) throw { status: 409, message: 'El correo ya está registrado' };
@@ -49,14 +85,18 @@ const create = async (data) => {
 
   const hash = await bcrypt.hash(contrasena, 10);
 
-  return repo.create({
-    nombre,
-    correo,
-    contrasena: hash,
-    rol_id: rol || 3,
-    estado: estado !== undefined ? estado : 'ACTIVO',
-    numero_telefonico: numero_telefonico || null,
-  });
+  try {
+    return await repo.create({
+      nombre,
+      correo,
+      contrasena: hash,
+      rol_id,
+      estado: estado !== undefined ? estado : 'ACTIVO',
+      numero_telefonico: numero_telefonico || null,
+    });
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
@@ -69,8 +109,9 @@ const create = async (data) => {
 const update = async (id, data) => {
   const usuario = await getById(id);
 
-  // Si se actualiza el correo, verificar que no esté en uso por otro usuario
+  // Si se actualiza el correo, verificar formato y que no esté en uso por otro usuario
   if (data.correo && data.correo !== usuario.correo) {
+    _validarCorreo(data.correo);
     const duplicado = await repo.findByCorreo(data.correo);
     if (duplicado && duplicado.id !== id) {
       throw { status: 409, message: 'El correo ya está registrado por otro usuario' };
@@ -79,6 +120,7 @@ const update = async (id, data) => {
 
   // Igual chequeo para el teléfono de la cuenta
   if (data.numero_telefonico && data.numero_telefonico !== usuario.numero_telefonico) {
+    _validarTelefono(data.numero_telefonico);
     const duplicado = await repo.findByTelefono(data.numero_telefonico);
     if (duplicado && duplicado.id !== id) {
       throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
@@ -90,14 +132,18 @@ const update = async (id, data) => {
     throw { status: 400, message: 'Para cambiar la contraseña use el endpoint específico' };
   }
 
-  // ✅ CORREGIDO: Mapear 'rol' a 'rol_id' si viene en los datos
+  // El rol puede venir como `rol` o como `rol_id`, número o nombre (ver resolverRolId).
   const updateData = { ...data };
-  if (updateData.rol !== undefined) {
-    updateData.rol_id = updateData.rol;
-    delete updateData.rol;
-  }
+  const rolEnviado = updateData.rol !== undefined ? updateData.rol : updateData.rol_id;
+  delete updateData.rol;
+  const rolResuelto = resolverRolId(rolEnviado);
+  if (rolResuelto !== undefined) updateData.rol_id = rolResuelto;
 
-  return repo.update(id, updateData);
+  try {
+    return await repo.update(id, updateData);
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**
