@@ -67,6 +67,13 @@ const RegistroAcceso = sequelize.define('RegistroAcceso', {
     allowNull: false,
     defaultValue: 'DENTRO',
   },
+  es_oficial_sena: {
+    // Ingreso oficial SENA (vehículo institucional/en comisión): exento de la revisión
+    // por estadía prolongada (> 16h) -- ver monitoreo.service.js.
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   tableName: 'registro_acceso',
   timestamps: false,

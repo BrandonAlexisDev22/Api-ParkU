@@ -1,5 +1,6 @@
 const svc = require('../services/evidenciaNovedad.service');
 const { handleError } = require('../helpers/errorHandler');
+const { rutaPublica } = require('../middlewares/upload.middleware');
 
 /**
  * @swagger
@@ -103,7 +104,14 @@ const getByNovedad = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const nueva = await svc.create(req.params.id, req.body);
+    // Retrocompatible: si viene multipart con archivo (campo "archivo"), su URL pública
+    // reemplaza cualquier `url` de texto que hubiera llegado en el cuerpo. Si no viene
+    // archivo (JSON normal), se comporta exactamente igual que antes.
+    const datos = { ...req.body };
+    if (req.file) {
+      datos.url = rutaPublica('evidencias', req.file.filename);
+    }
+    const nueva = await svc.create(req.params.id, datos);
     res.status(201).json(nueva);
   } catch (e) {
     handleError(res, e);

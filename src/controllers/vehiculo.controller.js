@@ -281,6 +281,35 @@ const getByConductor = async (req, res) => {
 
 /**
  * @swagger
+ * /api/vehiculos/buscar:
+ *   get:
+ *     summary: Busca vehículos por prefijo de placa (autocompletar mientras se escribe)
+ *     tags: [Vehículos]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: placa
+ *         schema:
+ *           type: string
+ *         description: Prefijo de la placa. Si se omite o viene vacío, no se consulta la BD y se devuelve [].
+ *     responses:
+ *       200:
+ *         description: Coincidencias (máximo 20), ordenadas por placa
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+const buscarPorPlaca = async (req, res) => {
+  try {
+    const data = await svc.buscarPorPlaca(req.query.placa);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /vehiculos:
  *   post:
  *     summary: Crear un nuevo vehículo
@@ -476,6 +505,7 @@ module.exports = {
   getAll,
   getById,
   getByConductor,
+  buscarPorPlaca,
   create,
   update,
   remove,

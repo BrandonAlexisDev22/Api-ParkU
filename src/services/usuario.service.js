@@ -5,9 +5,12 @@
  */
 
 const bcrypt = require('bcryptjs');
+const { sequelize } = require('../config/database');
 const repo = require('../repositories/usuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { resolverRolId } = require('../config/roles');
+const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
+const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Formato permisivo (con o sin '+', 7-15 dígitos) -- el mismo criterio que ya se usaba en
@@ -54,11 +57,14 @@ const getById = async (id) => {
 };
 
 /**
- * Registra un nuevo usuario con contraseña cifrada.
+ * Registra un nuevo usuario con contraseña cifrada. Si se envía tipo_documento +
+ * numero_documento (o sus alias tipoDocumento/numeroDocumento), crea además un Conductor
+ * vinculado (usuario_id) en la MISMA transacción -- ver conductorVinculado.util.js. Si el
+ * documento ya está en uso, toda la transacción se revierte y no se crea el usuario.
  * @param {Object} data - Datos del usuario. Acepta el rol como `rol` o `rol_id` (número o
  *   nombre: "Administrador"/"Vigilante"/"Conductor"); si no viene, queda en Conductor.
- * @throws {Object} 400 si faltan campos obligatorios o el correo/teléfono/rol no son válidos;
- *   409 si el correo o el teléfono ya están registrados.
+ * @throws {Object} 400 si faltan campos obligatorios o el correo/teléfono/rol/documento no
+ *   son válidos; 409 si el correo, el teléfono o el documento ya están registrados.
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
@@ -67,9 +73,14 @@ const create = async (data) => {
   // así que un cliente que mandara `rol_id` (el nombre real de la columna) terminaba
   // siempre en el default (Conductor) sin que nada lo avisara.
   const rolEnviado = data.rol !== undefined ? data.rol : data.rol_id;
+  const tipoDocumento = data.tipo_documento ?? data.tipoDocumento;
+  const numeroDocumento = data.numero_documento ?? data.numeroDocumento;
 
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
+  }
+  if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
+    throw { status: 400, message: 'tipo_documento y numero_documento deben enviarse juntos' };
   }
   _validarCorreo(correo);
   _validarTelefono(numero_telefonico);
@@ -86,13 +97,29 @@ const create = async (data) => {
   const hash = await bcrypt.hash(contrasena, 10);
 
   try {
-    return await repo.create({
-      nombre,
-      correo,
-      contrasena: hash,
-      rol_id,
-      estado: estado !== undefined ? estado : 'ACTIVO',
-      numero_telefonico: numero_telefonico || null,
+    return await sequelize.transaction(async (transaction) => {
+      const nuevo = await repo.create({
+        nombre,
+        correo,
+        contrasena: hash,
+        rol_id,
+        estado: estado !== undefined ? estado : 'ACTIVO',
+        numero_telefonico: numero_telefonico || null,
+      }, { transaction });
+
+      if (tipoDocumento && numeroDocumento) {
+        await crearConductorVinculado({
+          usuario_id: nuevo.id,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
+          nombre_apellidos: nombre,
+          correo,
+          numero_telefonico,
+          transaction,
+        });
+      }
+
+      return nuevo;
     });
   } catch (error) {
     traducirErrorTrigger(error);
@@ -171,6 +198,20 @@ const cambiarContrasena = async (id, { actual, nueva }) => {
 };
 
 /**
+ * Actualiza la foto de perfil del propio usuario autenticado. Reemplaza (y borra del
+ * disco, best-effort) la foto anterior si existía.
+ * @param {number} id
+ * @param {string} nuevaRutaPublica - p. ej. '/uploads/perfiles/<uuid>.jpg'.
+ * @throws {Object} 404 si el usuario no existe.
+ * @returns {Promise<Object>}
+ */
+const actualizarFoto = async (id, nuevaRutaPublica) => {
+  const usuario = await getById(id);
+  eliminarArchivoSiExiste(usuario.foto_perfil_url);
+  return repo.update(id, { foto_perfil_url: nuevaRutaPublica });
+};
+
+/**
  * Elimina un usuario.
  * @param {number} id
  * @throws {Object} 404 si no existe; 409 si tiene conductor, reservas, ingresos, novedades u
@@ -190,4 +231,4 @@ const remove = async (id) => {
 // único que aplica rate limiting, chequea `estado` (ACTIVO/INACTIVO/BLOQUEADO) y emite
 // JWT. Este service no debe tener una segunda implementación de login.
 
-module.exports = { getAll, getById, create, update, cambiarContrasena, remove };
+module.exports = { getAll, getById, create, update, cambiarContrasena, actualizarFoto, remove };

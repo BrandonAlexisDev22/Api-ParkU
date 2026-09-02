@@ -190,13 +190,23 @@ router.post(
  *                 type: integer
  *                 example: 3
  *                 description: "1=Administrador, 2=Vigilante, 3=Conductor (el registro público ignora este campo; siempre queda en 3=Conductor)"
+ *               tipo_documento:
+ *                 type: string
+ *                 enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *                 description: >
+ *                   Opcional (también acepta tipoDocumento). Si se envía junto con
+ *                   numero_documento, crea un Conductor vinculado a la cuenta nueva en la
+ *                   misma transacción (409 si el documento ya está registrado).
+ *               numero_documento:
+ *                 type: string
+ *                 description: Opcional (también acepta numeroDocumento). Debe enviarse junto con tipo_documento.
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
  *       400:
- *         description: Validación fallida
+ *         description: Validación fallida, o tipo_documento/numero_documento incompletos/inválidos
  *       409:
- *         description: Correo ya registrado
+ *         description: Correo, teléfono o documento ya registrados
  *       429:
  *         description: Demasiadas solicitudes
  */

@@ -51,6 +51,10 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  foto_perfil_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
 }, {
   tableName: 'usuario',
   timestamps: true,

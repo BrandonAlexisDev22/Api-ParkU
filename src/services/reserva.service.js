@@ -16,6 +16,7 @@ const repo = require('../repositories/reserva.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
+const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
 const { ROLES } = require('../config/roles');
@@ -67,18 +68,23 @@ const _validarFechas = (inicio, fin) => {
 };
 
 /**
- * Valida que la celda y (si viene) el vehículo existan.
+ * Valida que la celda y (si viene) el vehículo existan. Devuelve la celda ya cargada
+ * para que el llamador pueda reutilizarla (p. ej. para resolver su parqueadero) sin
+ * repetir la consulta.
  * @private
+ * @returns {Promise<{celda: Object|null}>}
  */
 const _validarEntidades = async (celdaId, vehiculoId) => {
+  let celda = null;
   if (celdaId !== undefined) {
-    const celda = await celdaRepo.findById(celdaId);
+    celda = await celdaRepo.findById(celdaId);
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
   }
   if (vehiculoId) {
     const vehiculo = await vehRepo.findById(vehiculoId);
     if (!vehiculo) throw { status: 404, message: 'Vehículo no encontrado' };
   }
+  return { celda };
 };
 
 /**
@@ -128,7 +134,11 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
 
   validarHorarioOperacion();
   _validarFechas(fecha_hora_inicio, fecha_hora_fin);
-  await _validarEntidades(celda_id, vehiculo_id);
+  const { celda } = await _validarEntidades(celda_id, vehiculo_id);
+  const parq = await parqRepo.findById(celda.parqueadero);
+  if (parq && !parq.estado) {
+    throw { status: 409, message: 'El parqueadero se encuentra inactivo y no permite operaciones de estacionamiento.' };
+  }
   await _validarPropiedad(usuarioRol, usuarioId, conductor_id, vehiculo_id);
 
   const conflictos = await repo.findConflictos(celda_id, fecha_hora_inicio, fecha_hora_fin);

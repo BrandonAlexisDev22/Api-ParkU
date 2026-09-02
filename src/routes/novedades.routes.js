@@ -3,6 +3,17 @@ const ctrl = require('../controllers/novedades.controller');
 const historialCtrl = require('../controllers/historial.controller');
 const evidenciaCtrl = require('../controllers/evidenciaNovedad.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { crearUploadMiddleware } = require('../middlewares/upload.middleware');
+
+// Solo actúa sobre requests multipart/form-data (campo "archivo"); un POST con
+// application/json y `url` de texto pasa de largo sin tocarlo -- ver
+// evidenciaNovedad.controller.js create().
+const uploadEvidencia = crearUploadMiddleware({
+  subcarpeta: 'evidencias',
+  extensionesPermitidas: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'pdf'],
+  limiteMB: 15,
+  campo: 'archivo',
+});
 
 /**
  * @swagger
@@ -377,6 +388,7 @@ router.get('/:id/evidencias',
  */
 router.post('/:id/evidencias',
   verificarToken,
+  uploadEvidencia,
   evidenciaCtrl.create
 );
 

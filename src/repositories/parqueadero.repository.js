@@ -45,6 +45,19 @@ const findById = async (id, { transaction } = {}) => {
 };
 
 /**
+ * Igual que findById, pero bloqueando la fila (SELECT ... FOR UPDATE) dentro de la
+ * transacción -- usado por cambiarEstado para serializar activaciones/desactivaciones
+ * concurrentes del mismo parqueadero (dos administradores desactivando a la vez).
+ * @param {number} id
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @returns {Promise<Object|null>}
+ */
+const findByIdConLock = async (id, { transaction }) => {
+  const row = await Parqueadero.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Crea un nuevo parqueadero.
  * @param {Object} data
  * @param {import('sequelize').Transaction} [opciones.transaction]
@@ -98,4 +111,4 @@ const remove = async (id, { transaction } = {}) => {
   return filasEliminadas > 0;
 };
 
-module.exports = { findAll, findById, findByNombre, create, update, cambiarEstado, remove };
+module.exports = { findAll, findById, findByIdConLock, findByNombre, create, update, cambiarEstado, remove };

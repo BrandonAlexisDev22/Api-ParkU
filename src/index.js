@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -52,6 +53,11 @@ app.use('/api', globalLimiter);
 // Parsear JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Archivos subidos (foto de perfil, evidencia de novedades) -- disco local, ver
+// src/middlewares/upload.middleware.js. El despliegue (deploy.sh) es git pull + pm2
+// restart sobre un VPS con disco persistente, no contenedores efímeros.
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Logging de requests HTTP (Logger personalizado)
 app.use((req, res, next) => {

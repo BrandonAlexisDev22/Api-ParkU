@@ -1,6 +1,14 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/usuario.controller');
 const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { crearUploadMiddleware } = require('../middlewares/upload.middleware');
+
+const uploadFoto = crearUploadMiddleware({
+  subcarpeta: 'perfiles',
+  extensionesPermitidas: ['jpg', 'jpeg', 'png', 'webp'],
+  limiteMB: 5,
+  campo: 'foto',
+});
 
 /**
  * @swagger
@@ -64,6 +72,16 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  *             ID del rol (1=Administrador, 2=Vigilante, 3=Conductor) o su nombre
  *             ("Administrador"/"Vigilante"/"Conductor", sin distinguir mayúsculas).
  *             También se acepta como `rol_id`. Si se omite, queda en Conductor.
+ *         tipo_documento:
+ *           type: string
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *           description: >
+ *             Opcional (también acepta `tipoDocumento`). Si se envía junto con
+ *             numero_documento, crea un Conductor vinculado a este usuario en la misma
+ *             transacción (409 si el documento ya existe).
+ *         numero_documento:
+ *           type: string
+ *           description: Opcional (también acepta `numeroDocumento`). Debe enviarse junto con tipo_documento.
  *     UsuarioUpdate:
  *       type: object
  *       properties:
@@ -182,6 +200,43 @@ router.post('/',
   verificarToken,
   verificarRol([1]), // Solo Admin (1)
   ctrl.create
+);
+
+/**
+ * @swagger
+ * /api/usuarios/foto:
+ *   put:
+ *     summary: Actualizar la foto de perfil del usuario autenticado
+ *     description: >
+ *       Self-service: siempre actúa sobre el propio usuario del token, cualquier rol.
+ *       multipart/form-data con el archivo en el campo "foto". Reemplaza y borra del
+ *       disco la foto anterior si existía. Persiste en BD (foto_perfil_url), no es
+ *       almacenamiento temporal.
+ *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               foto:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Usuario con la nueva foto_perfil_url
+ *       400:
+ *         description: Falta el archivo, extensión no permitida o excede el tamaño máximo (5MB)
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.put('/foto',
+  verificarToken,
+  uploadFoto,
+  ctrl.actualizarFoto
 );
 
 /**

@@ -68,6 +68,29 @@ const findByCelda = async (celdaId) => {
 };
 
 /**
+ * Reservas PENDIENTE/ACEPTADA (no gestionadas o vigentes) de un parqueadero, vía su celda
+ * -- reserva no tiene parqueadero_id propio. Usada por la cascada de desactivación de
+ * parqueadero (parqueadero.service.js) para cancelarlas todas dentro de la misma
+ * transacción.
+ * @param {number} parqueaderoId
+ * @param {import('sequelize').Transaction} opciones.transaction
+ * @param {boolean} [opciones.lock]
+ * @returns {Promise<Array>}
+ */
+const findActivasPorParqueadero = async (parqueaderoId, { transaction, lock } = {}) => {
+  const rows = await Reserva.findAll({
+    where: { estado: { [Op.in]: ['PENDIENTE', 'ACEPTADA'] } },
+    include: [{ model: Celda, as: 'celda', attributes: [], where: { parqueadero: parqueaderoId }, required: true }],
+    transaction,
+    // Lock solo sobre 'reserva' (of: Reserva): el JOIN con celda es solo para filtrar por
+    // parqueadero (attributes: [] -- no trae columnas de celda), así que no hay lado
+    // nullable de outer join que bloquear.
+    lock: lock && transaction ? { level: transaction.LOCK.UPDATE, of: Reserva } : undefined,
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
  * Detecta conflictos de horario para una celda (solo reservas PENDIENTE/ACEPTADA).
  * @param {number} celdaId
  * @param {string|Date} inicio
@@ -160,6 +183,7 @@ module.exports = {
   findById,
   findByVehiculo,
   findByCelda,
+  findActivasPorParqueadero,
   findConflictos,
   create,
   update,

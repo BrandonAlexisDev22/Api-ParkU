@@ -28,7 +28,7 @@ const mapUsuario = (instancia) => {
   };
 };
 
-const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'ultimo_acceso', 'fecha_creacion'];
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'ultimo_acceso', 'fecha_creacion'];
 
 /**
  * Recupera todos los usuarios con el nombre de su rol.
@@ -46,13 +46,17 @@ const findAll = async () => {
 /**
  * Busca un usuario por su ID.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se
+ *   llama justo después de un create en la misma transacción: si no, esta lectura sale
+ *   por otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
+const findById = async (id, { transaction } = {}) => {
   const row = await Usuario.findOne({
     where: { id },
     attributes: ATRIBUTOS_PUBLICOS,
     include: [includeRol],
+    transaction,
   });
   return mapUsuario(row);
 };
@@ -80,12 +84,13 @@ const findByTelefono = async (numeroTelefonico) => {
 /**
  * Crea un nuevo usuario.
  * @param {Object} data - { correo, nombre, contrasena, rol_id, estado?, numero_telefonico? }
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>}
  */
-const create = async (data) => {
+const create = async (data, { transaction } = {}) => {
   const { correo, nombre, contrasena, rol_id, estado = 'ACTIVO', numero_telefonico = null } = data;
-  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, numero_telefonico });
-  return findById(nuevo.id);
+  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, numero_telefonico }, { transaction });
+  return findById(nuevo.id, { transaction });
 };
 
 /**
@@ -95,7 +100,7 @@ const create = async (data) => {
  * @returns {Promise<Object>}
  */
 const update = async (id, data) => {
-  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico'];
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico', 'foto_perfil_url'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];
@@ -156,6 +161,14 @@ const remove = async (id) => {
   return filasEliminadas > 0;
 };
 
+/**
+ * Cuenta cuántos usuarios tienen asignado un rol -- usado para bloquear el borrado
+ * de un rol que todavía tiene usuarios asociados.
+ * @param {number} rolId
+ * @returns {Promise<number>}
+ */
+const contarPorRol = (rolId) => Usuario.count({ where: { rol_id: rolId } });
+
 module.exports = {
   findAll,
   findById,
@@ -167,4 +180,5 @@ module.exports = {
   registrarLoginFallido,
   registrarLoginExitoso,
   remove,
+  contarPorRol,
 };

@@ -9,16 +9,42 @@
  */
 
 const repo = require('../repositories/parqueadero.repository');
+const entradaSalidaRepo = require('../repositories/entradaSalida.repository');
+const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const ACCESOS_PERMITIDOS = ['REGIONAL', 'AVENIDA_BOYACA'];
 const TIPOS_PERMITIDOS = ['GENERAL', 'DOCENTES', 'ADMINISTRATIVOS', 'APRENDICES', 'VISITANTES', 'MOTOS', 'VEHICULO_SENA'];
 
 /**
+ * Agrega un campo derivado 'estado_texto' (ACTIVO/INACTIVO) sin reemplazar 'estado'
+ * (boolean), que es el que ya consume el frontend -- aditivo, no rompe el contrato.
+ * @private
+ */
+const _conEstadoTexto = (item) => (item ? { ...item, estado_texto: item.estado ? 'ACTIVO' : 'INACTIVO' } : item);
+const _conEstadoTextoLista = (items) => items.map(_conEstadoTexto);
+
+/**
+ * Acepta boolean (true/false) o las strings 'ACTIVO'/'INACTIVO' (sin distinguir
+ * mayúsculas) y devuelve siempre un boolean. No acepta ningún otro valor.
+ * @private
+ * @throws {Object} 400 si el valor no es reconocible.
+ */
+const _normalizarEstado = (valor) => {
+  if (typeof valor === 'boolean') return valor;
+  if (typeof valor === 'string') {
+    const normalizado = valor.trim().toUpperCase();
+    if (normalizado === 'ACTIVO') return true;
+    if (normalizado === 'INACTIVO') return false;
+  }
+  throw { status: 400, message: 'Estado inválido. Permitidos: ACTIVO, INACTIVO' };
+};
+
+/**
  * Obtiene todas las sedes registradas.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async () => _conEstadoTextoLista(await repo.findAll());
 
 /**
  * Busca una sede por su ID.
@@ -29,7 +55,7 @@ const getAll = () => repo.findAll();
 const getById = async (id) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Parqueadero no encontrado' };
-  return item;
+  return _conEstadoTexto(item);
 };
 
 /**
@@ -56,7 +82,8 @@ const create = async (data, usuarioId) => {
   if (existe) throw { status: 409, message: 'Ya existe un parqueadero con ese nombre' };
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.create({ ...data, acceso, tipo }, { transaction }));
+    const creado = await runWithUsuario(usuarioId, (transaction) => repo.create({ ...data, acceso, tipo }, { transaction }));
+    return _conEstadoTexto(creado);
   } catch (error) {
     traducirErrorTrigger(error);
   }
@@ -89,7 +116,8 @@ const update = async (id, data, usuarioId) => {
   }
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+    const actualizado = await runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+    return _conEstadoTexto(actualizado);
   } catch (error) {
     traducirErrorTrigger(error);
   }
@@ -97,21 +125,64 @@ const update = async (id, data, usuarioId) => {
 
 /**
  * Activa o inactiva un parqueadero. La BD exige un motivo en la misma transacción
- * (HU 03.1.6.2).
+ * (HU 03.1.6.2). Acepta 'estado' como boolean o como string 'ACTIVO'/'INACTIVO'.
+ *
+ * Al DESACTIVAR (true -> false), ejecuta en la MISMA transacción una cascada que:
+ *   1. Cierra (registra salida de) todos los ingresos activos del parqueadero -- el
+ *      trigger de la BD libera la celda de cada uno solo, no se toca celda.estado a mano.
+ *   2. Cancela todas las reservas PENDIENTE/ACEPTADA del parqueadero (vía su celda),
+ *      registrando el mismo motivo, reutilizando reserva.repository.cambiarEstado tal
+ *      cual (ya escribe motivo_rechazo y deja que fn_historial_reserva registre el motivo
+ *      vía app.motivo, que este mismo runWithUsuario ya dejó seteado).
+ * Si cualquier paso falla, sequelize.transaction revierte todo -- no queda nada a medias.
+ * La fila del parqueadero se lee con lock (FOR UPDATE) para serializar dos
+ * activaciones/desactivaciones concurrentes del mismo parqueadero.
+ *
+ * REACTIVAR (false -> true) no dispara ninguna cascada: no hay nada que "reabrir"
+ * automáticamente (ingresos y reservas cerrados por la desactivación quedan como
+ * histórico, tal como pide la regla de no perder información histórica).
  * @param {number} id
- * @param {boolean} estado
+ * @param {boolean|string} estado - true/false, o 'ACTIVO'/'INACTIVO'.
  * @param {string} motivo - Obligatorio.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
- * @throws {Object} 404 si no existe, 400 si falta el motivo.
+ * @throws {Object} 404 si no existe, 400 si falta el motivo o el estado no es válido,
+ *   409 si ya se encuentra en ese estado.
  * @returns {Promise<Object>}
  */
 const cambiarEstado = async (id, estado, motivo, usuarioId) => {
-  await getById(id);
-  if (typeof estado !== 'boolean') throw { status: 400, message: 'estado debe ser true o false' };
+  const nuevoEstado = _normalizarEstado(estado);
   if (!motivo) throw { status: 400, message: 'El motivo es obligatorio para cambiar el estado de un parqueadero' };
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.cambiarEstado(id, estado, { transaction }), { motivo });
+    const resultado = await runWithUsuario(usuarioId, async (transaction) => {
+      const actual = await repo.findByIdConLock(id, { transaction });
+      if (!actual) throw { status: 404, message: 'Parqueadero no encontrado' };
+      if (actual.estado === nuevoEstado) {
+        throw { status: 409, message: `El parqueadero ya se encuentra ${nuevoEstado ? 'ACTIVO' : 'INACTIVO'}` };
+      }
+
+      const actualizado = await repo.cambiarEstado(id, nuevoEstado, { transaction });
+
+      if (nuevoEstado === false) {
+        const ingresosActivos = await entradaSalidaRepo.findActivos(id, { transaction, lock: true });
+        for (const ingreso of ingresosActivos) {
+          await entradaSalidaRepo.registrarSalida(
+            ingreso.id,
+            { usuario_salida_id: usuarioId, descripcion_salida: `Cierre automático: parqueadero desactivado (${motivo})` },
+            { transaction },
+          );
+        }
+
+        const reservasActivas = await reservaRepo.findActivasPorParqueadero(id, { transaction, lock: true });
+        for (const reserva of reservasActivas) {
+          await reservaRepo.cambiarEstado(reserva.id, 'CANCELADA', usuarioId, motivo, { transaction });
+        }
+      }
+
+      return actualizado;
+    }, { motivo });
+
+    return _conEstadoTexto(resultado);
   } catch (error) {
     traducirErrorTrigger(error);
   }

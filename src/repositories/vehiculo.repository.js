@@ -6,6 +6,7 @@
  * ver vehiculo.service.js y dbContext.util.js.
  */
 
+const { Op } = require('sequelize');
 const { Vehiculo, Conductor, DetallePropiedad } = require('../models');
 
 const includeConductores = {
@@ -63,6 +64,22 @@ const findById = async (id, { transaction } = {}) => {
 const findByPlaca = async (placa) => {
   const row = await Vehiculo.findOne({ where: { placa }, include: [includeConductores] });
   return mapVehiculo(row);
+};
+
+/**
+ * Busca vehículos cuya placa empiece por el prefijo dado (búsqueda "mientras se escribe").
+ * @param {string} prefijo - Ya normalizado (mayúsculas, sin espacios/guiones).
+ * @param {number} [limite=20]
+ * @returns {Promise<Array>}
+ */
+const findByPlacaPrefix = async (prefijo, limite = 20) => {
+  const rows = await Vehiculo.findAll({
+    where: { placa: { [Op.iLike]: `${prefijo}%` } },
+    include: [includeConductores],
+    order: [['placa', 'ASC']],
+    limit: limite,
+  });
+  return rows.map(mapVehiculo);
 };
 
 /**
@@ -171,6 +188,6 @@ const quitarPropietario = async (vehiculoId, conductorId, { transaction } = {}) 
 };
 
 module.exports = {
-  findAll, findById, findByPlaca, findByConductor, create, update, remove,
+  findAll, findById, findByPlaca, findByPlacaPrefix, findByConductor, create, update, remove,
   findPropietario, agregarPropietario, quitarPropietario,
 };

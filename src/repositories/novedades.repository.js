@@ -4,6 +4,7 @@
  * usuario_reporta_id reemplaza al viejo campo de texto libre 'encargado'.
  */
 
+const { Sequelize } = require('sequelize');
 const { Novedad, Vehiculo, Usuario, Celda, Parqueadero, RegistroAcceso } = require('../models');
 
 const includeContexto = [
@@ -15,12 +16,19 @@ const includeContexto = [
   { model: RegistroAcceso, as: 'registroAcceso', attributes: ['id'] },
 ];
 
+// CRITICA primero, BAJA al final -- el orden alfabético/de declaración del enum de
+// Postgres no coincide con este orden de negocio, por eso se ordena con un CASE
+// explícito en vez de solo `order: [['prioridad', ...]]`.
+const ORDEN_PRIORIDAD = "CASE prioridad WHEN 'CRITICA' THEN 1 WHEN 'ALTA' THEN 2 WHEN 'MEDIA' THEN 3 WHEN 'BAJA' THEN 4 END";
+const ORDEN_POR_PRIORIDAD_Y_FECHA = [[Sequelize.literal(ORDEN_PRIORIDAD), 'ASC'], ['fecha_hora', 'DESC']];
+
 /**
- * Obtiene todas las novedades, ordenadas por fecha descendente.
+ * Obtiene todas las novedades, con las de mayor prioridad primero (CRITICA > ALTA >
+ * MEDIA > BAJA) y, dentro de una misma prioridad, las más recientes primero.
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const rows = await Novedad.findAll({ include: includeContexto, order: [['fecha_hora', 'DESC']] });
+  const rows = await Novedad.findAll({ include: includeContexto, order: ORDEN_POR_PRIORIDAD_Y_FECHA });
   return rows.map((r) => r.toJSON());
 };
 
@@ -77,7 +85,7 @@ const findByFiltros = async ({ tipo_novedad, prioridad, estado }) => {
   if (prioridad) where.prioridad = prioridad;
   if (estado) where.estado = estado;
 
-  const rows = await Novedad.findAll({ where, include: includeContexto, order: [['fecha_hora', 'DESC']] });
+  const rows = await Novedad.findAll({ where, include: includeContexto, order: ORDEN_POR_PRIORIDAD_Y_FECHA });
   return rows.map((r) => r.toJSON());
 };
 

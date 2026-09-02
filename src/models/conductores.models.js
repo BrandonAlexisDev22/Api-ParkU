@@ -44,8 +44,13 @@ const Conductor = sequelize.define('Conductor', {
     allowNull: true,
   },
   tipo_usuario_id: {
+    // Nullable: un conductor creado automáticamente al capturar el documento en el
+    // registro público o en la creación admin de usuario (ver usuario.service.js /
+    // auth.controller.js) todavía no tiene este catálogo -- lo completa después un
+    // admin/vigilante vía PUT /api/conductores/:id. Sigue siendo obligatorio en el alta
+    // administrativa completa (POST /api/conductores, ver conductor.service.js).
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
   },
   // Datos de SOFIA Plus: texto libre, ya no son catálogos con FK propia.
   regional_formacion: {

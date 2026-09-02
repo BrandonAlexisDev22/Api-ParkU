@@ -2,7 +2,9 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
+const { sequelize } = require('../config/database');
 const usuarioRepo = require('../repositories/usuario.repository');
+const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
 
 // Debe coincidir con el ENUM real de conductor.tipo_documento (conductores.models.js).
 // Comparar contra un valor fuera de este set haría que Postgres rechace la
@@ -30,6 +32,21 @@ class AuthController {
       }
 
       const { correo, contrasena, nombre, numero } = req.body;
+      // Documento opcional: acepta tipo_documento/numero_documento (nombres reales de
+      // columna en conductor) o su alias tipoDocumento/numeroDocumento (mismo criterio que
+      // ya usa GET /api/auth/existe-documento). Si se envía, se crea un Conductor vinculado
+      // (usuario_id) en la MISMA transacción que el Usuario -- ver
+      // src/utils/conductorVinculado.util.js. Si el documento ya está en uso, toda la
+      // transacción se revierte y no queda un Usuario huérfano sin conductor.
+      const tipoDocumento = req.body.tipo_documento ?? req.body.tipoDocumento;
+      const numeroDocumento = req.body.numero_documento ?? req.body.numeroDocumento;
+      if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
+        return res.status(400).json({
+          success: false,
+          message: 'tipo_documento y numero_documento deben enviarse juntos',
+        });
+      }
+
       // 🔒 El rol NUNCA se toma del body. Todo registro público usa el rol_id
       // por defecto del modelo (3 = Conductor). Si necesitas crear cuentas de
       // Admin (2) o Vigilante (1), hazlo desde un endpoint protegido
@@ -58,12 +75,28 @@ class AuthController {
       // Encriptar contraseña
       const hashedPassword = await PasswordUtil.hash(contrasena);
 
-      const nuevo = await Usuario.create({
-        correo,
-        contrasena: hashedPassword,
-        nombre,
-        numero_telefonico: numero || null,
-        estado: 'ACTIVO',
+      const nuevo = await sequelize.transaction(async (transaction) => {
+        const usuario = await Usuario.create({
+          correo,
+          contrasena: hashedPassword,
+          nombre,
+          numero_telefonico: numero || null,
+          estado: 'ACTIVO',
+        }, { transaction });
+
+        if (tipoDocumento && numeroDocumento) {
+          await crearConductorVinculado({
+            usuario_id: usuario.id,
+            tipo_documento: tipoDocumento,
+            numero_documento: numeroDocumento,
+            nombre_apellidos: nombre,
+            correo,
+            numero_telefonico: numero,
+            transaction,
+          });
+        }
+
+        return usuario;
       });
 
       return res.status(201).json({
@@ -76,14 +109,11 @@ class AuthController {
           numero: nuevo.numero_telefonico,
           rol: nuevo.rol_id,
           estado: nuevo.estado,
+          foto_perfil_url: nuevo.foto_perfil_url,
         }
       });
     } catch (error) {
-      console.error('Error en register:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor'
-      });
+      handleError(res, error);
     }
   }
 
@@ -232,6 +262,7 @@ class AuthController {
             numero: user.numero_telefonico,
             rol: user.rol_id,
             estado: user.estado,
+            foto_perfil_url: user.foto_perfil_url,
           },
           token,
           refreshToken,

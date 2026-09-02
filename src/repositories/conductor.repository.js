@@ -41,10 +41,13 @@ const findAll = async () => {
 /**
  * Busca un conductor por su ID.
  * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla cuando se
+ *   llama justo después de un create en la misma transacción: si no, esta lectura sale
+ *   por otra conexión del pool y no ve la fila todavía sin confirmar (queda en null).
  * @returns {Promise<Object|null>}
  */
-const findById = async (id) => {
-  const row = await Conductor.findByPk(id, { include: includeCatalogos });
+const findById = async (id, { transaction } = {}) => {
+  const row = await Conductor.findByPk(id, { include: includeCatalogos, transaction });
   return mapConductor(row);
 };
 
@@ -94,9 +97,10 @@ const findActivos = async () => {
 /**
  * Crea un nuevo conductor.
  * @param {Object} data
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>} Conductor creado con catálogos.
  */
-const create = async (data) => {
+const create = async (data, { transaction } = {}) => {
   const {
     usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
     direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
@@ -112,7 +116,7 @@ const create = async (data) => {
     correo: correo || null,
     direccion: direccion || null,
     numero_telefonico: numero_telefonico || null,
-    tipo_usuario_id,
+    tipo_usuario_id: tipo_usuario_id || null,
     regional_formacion: regional_formacion || null,
     centro_formacion: centro_formacion || null,
     programa_formacion: programa_formacion || null,
@@ -120,8 +124,8 @@ const create = async (data) => {
     movilidad_reducida,
     tipo_discapacidad: tipo_discapacidad || null,
     estado,
-  });
-  return findById(nuevo.id);
+  }, { transaction });
+  return findById(nuevo.id, { transaction });
 };
 
 /**

@@ -70,7 +70,7 @@ const getByFecha = (desde, hasta) => {
  * vehículo, el vehículo ya tiene un ingreso abierto, o la BD rechaza la ocupación.
  * @returns {Promise<Object>} Registro de ingreso creado.
  */
-const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, descripcion_ingreso, fecha_hora_ingreso }, usuarioId) => {
+const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, descripcion_ingreso, fecha_hora_ingreso, es_oficial_sena }, usuarioId) => {
   if (!vehiculo_id) throw { status: 400, message: 'El vehículo es requerido' };
   if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
 
@@ -84,6 +84,9 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
 
   const parqExiste = await parqRepo.findById(parqueadero_id);
   if (!parqExiste) throw { status: 404, message: 'Parqueadero no encontrado' };
+  if (!parqExiste.estado) {
+    throw { status: 409, message: 'El parqueadero se encuentra inactivo y no permite operaciones de estacionamiento.' };
+  }
 
   if (celda_id) {
     const celdaExiste = await celdaRepo.findById(celda_id);
@@ -108,7 +111,7 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
 
   try {
     return await runWithUsuario(usuarioId, (transaction) => repo.registrarIngreso(
-      { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id: usuarioId, descripcion_ingreso, fecha_hora_ingreso },
+      { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id: usuarioId, descripcion_ingreso, fecha_hora_ingreso, es_oficial_sena },
       { transaction },
     ));
   } catch (error) {

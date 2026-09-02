@@ -37,6 +37,19 @@ const update = async (req, res) => {
   }
 };
 
+const actualizarFoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'El archivo de la foto es requerido (campo "foto")' });
+    }
+    const rutaPublica = `/uploads/perfiles/${req.file.filename}`;
+    const usuario = await svc.actualizarFoto(req.usuario.id, rutaPublica);
+    res.json(usuario);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 const cambiarContrasena = async (req, res) => {
   try {
     await svc.cambiarContrasena(req.params.id, req.body);
@@ -60,6 +73,7 @@ module.exports = {
   getById,
   create,
   update,
+  actualizarFoto,
   cambiarContrasena,
   remove,
 };

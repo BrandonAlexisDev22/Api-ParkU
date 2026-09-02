@@ -14,6 +14,7 @@ const parqRepo = require('../repositories/parqueadero.repository');
 const registroAccesoRepo = require('../repositories/entradaSalida.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { ROLES } = require('../config/roles');
 
 const TIPOS_PERMITIDOS = ['DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'];
 const PRIORIDADES_PERMITIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -52,11 +53,26 @@ const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
 const getByRegistroAcceso = (registroAccesoId) => repo.findByRegistroAcceso(registroAccesoId);
 
 /**
- * Filtra novedades por tipo, prioridad y/o estado.
+ * Filtra novedades por tipo, prioridad y/o estado. Valida los valores antes de tocar la
+ * BD -- un valor fuera del enum antes caía crudo a Postgres (500 "invalid input value
+ * for enum") en vez de un 400 legible.
  * @param {Object} filtros
+ * @throws {Object} 400 si algún filtro trae un valor fuera del enum correspondiente.
  * @returns {Promise<Array>}
  */
-const getByFiltros = (filtros) => repo.findByFiltros(filtros);
+const getByFiltros = (filtros) => {
+  const { tipo_novedad, prioridad, estado } = filtros;
+  if (tipo_novedad && !TIPOS_PERMITIDOS.includes(tipo_novedad)) {
+    throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  }
+  if (prioridad && !PRIORIDADES_PERMITIDAS.includes(prioridad)) {
+    throw { status: 400, message: `Prioridad inválida. Permitidas: ${PRIORIDADES_PERMITIDAS.join(', ')}` };
+  }
+  if (estado && !ESTADOS_PERMITIDOS.includes(estado)) {
+    throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
+  }
+  return repo.findByFiltros(filtros);
+};
 
 /**
  * Valida que las entidades relacionadas (si vienen) existan.
@@ -82,6 +98,9 @@ const _validarReferencias = async ({ vehiculo_id, celda_id, parqueadero_id, regi
   if (usuario_asignado_id) {
     const user = await usuarioRepo.findById(usuario_asignado_id);
     if (!user) throw { status: 404, message: 'Usuario asignado no encontrado' };
+    if (user.rol_id !== ROLES.VIGILANTE) {
+      throw { status: 400, message: 'El usuario asignado debe tener rol Vigilante' };
+    }
   }
 };
 
@@ -99,6 +118,8 @@ const create = async (data, usuarioId) => {
   } = data;
 
   if (!descripcion) throw { status: 400, message: 'La descripción es requerida' };
+  if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
+  if (!usuario_asignado_id) throw { status: 400, message: 'El responsable asignado es requerido' };
   if (!TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }

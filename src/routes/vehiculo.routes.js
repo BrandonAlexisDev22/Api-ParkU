@@ -71,6 +71,13 @@ router.get('/conductor/:conductorId',
   ctrl.getByConductor
 );
 
+// IMPORTANTE: debe ir antes de GET /:id -- si no, Express tomaría "buscar" como el
+// parámetro :id.
+router.get('/buscar',
+  verificarToken,
+  ctrl.buscarPorPlaca
+);
+
 /**
  * @swagger
  * /api/vehiculos/{id}:

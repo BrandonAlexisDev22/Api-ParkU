@@ -74,6 +74,20 @@ const getById = async (id) => {
 const getByConductor = (conductorId) => repo.findByConductor(conductorId);
 
 /**
+ * Busca vehículos por prefijo de placa, para autocompletar mientras el usuario escribe.
+ * Si no viene texto, no consulta la BD (evita una búsqueda innecesaria/costosa).
+ * @param {string} placa
+ * @returns {Promise<Array>}
+ */
+const buscarPorPlaca = (placa) => {
+  const texto = (placa || '').toString().trim();
+  if (!texto) return [];
+  const normalizado = texto.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!normalizado) return [];
+  return repo.findByPlacaPrefix(normalizado, 20);
+};
+
+/**
  * Registra un nuevo vehículo. La placa es obligatoria salvo para bicicletas.
  * @param {Object} data - Datos del vehículo; conductor_id opcional (propietario principal).
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
@@ -238,4 +252,4 @@ const quitarPropietario = async (vehiculoId, conductorId, usuarioId) => {
   }
 };
 
-module.exports = { getAll, getById, getByConductor, create, update, remove, agregarPropietario, quitarPropietario };
+module.exports = { getAll, getById, getByConductor, buscarPorPlaca, create, update, remove, agregarPropietario, quitarPropietario };

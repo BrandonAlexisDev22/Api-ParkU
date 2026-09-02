@@ -74,9 +74,14 @@ const findIngresoAbierto = async (vehiculoId) => {
  * Ingresos actualmente activos (sin salida registrada) -- base del monitoreo en vivo del
  * parqueadero. Opcionalmente filtrado por parqueadero.
  * @param {number} [parqueaderoId]
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Pasarla junto con
+ *   `lock: true` para leer y bloquear estas filas dentro de una transacción (p. ej. la
+ *   cascada de desactivación de parqueadero en parqueadero.service.js), evitando que un
+ *   registrarSalida/registrarIngreso concurrente pise la operación a medio camino.
+ * @param {boolean} [opciones.lock]
  * @returns {Promise<Array>}
  */
-const findActivos = async (parqueaderoId) => {
+const findActivos = async (parqueaderoId, { transaction, lock } = {}) => {
   const where = { fecha_hora_salida: null };
   if (parqueaderoId) where.parqueadero_id = parqueaderoId;
 
@@ -84,6 +89,11 @@ const findActivos = async (parqueaderoId) => {
     where,
     include: includeContexto,
     order: [['fecha_hora_ingreso', 'ASC']],
+    transaction,
+    // { level, of: RegistroAcceso } bloquea solo la tabla principal -- un lock plano con
+    // los LEFT JOIN de includeContexto (conductor/celda son nullable) falla en Postgres
+    // ("FOR UPDATE cannot be applied to the nullable side of an outer join").
+    lock: lock && transaction ? { level: transaction.LOCK.UPDATE, of: RegistroAcceso } : undefined,
   });
   return rows.map((r) => r.toJSON());
 };
@@ -111,7 +121,10 @@ const findByFecha = async (desde, hasta) => {
  * @returns {Promise<Object>}
  */
 const registrarIngreso = async (data, { transaction } = {}) => {
-  const { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id, descripcion_ingreso, fecha_hora_ingreso } = data;
+  const {
+    vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id,
+    descripcion_ingreso, fecha_hora_ingreso, es_oficial_sena,
+  } = data;
   const nuevo = await RegistroAcceso.create(
     {
       vehiculo_id,
@@ -123,6 +136,7 @@ const registrarIngreso = async (data, { transaction } = {}) => {
       descripcion_ingreso: descripcion_ingreso || null,
       fecha_hora_ingreso: fecha_hora_ingreso || undefined,
       estado: 'DENTRO',
+      es_oficial_sena: !!es_oficial_sena,
     },
     { transaction }
   );

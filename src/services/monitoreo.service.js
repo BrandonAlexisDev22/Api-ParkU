@@ -18,6 +18,12 @@ const { estaDentroDeHorarioOperacion, minutosFueraDeHorario } = require('../conf
 // abierto a efectos de evitar duplicados.
 const ESTADOS_NOVEDAD_CERRADOS = ['RESUELTA', 'CERRADA', 'CANCELADA'];
 
+// Umbral de estadía continua que amerita revisión -- concepto DISTINTO de
+// fuera_de_horario/minutos_excedidos (que se calculan contra la hora de cierre fija
+// 05:00-21:00, ver horarioOperacion.js). Este es un conteo simple desde el ingreso,
+// sin importar la hora del día, y con un vehículo marcado como Oficial SENA queda exento.
+const LIMITE_ESTADIA_MINUTOS = 16 * 60;
+
 const _minutosDesde = (fecha) => Math.max(0, Math.round((Date.now() - new Date(fecha).getTime()) / 60000));
 
 /**
@@ -29,13 +35,18 @@ const _minutosDesde = (fecha) => Math.max(0, Math.round((Date.now() - new Date(f
  */
 const _detalleOcupacion = (activo) => {
   const ahora = new Date();
+  const tiempoPermanenciaMinutos = _minutosDesde(activo.fecha_hora_ingreso);
   return {
     registro_acceso_id: activo.id,
     fecha_hora_ingreso: activo.fecha_hora_ingreso,
     hora_actual: ahora,
-    tiempo_permanencia_minutos: _minutosDesde(activo.fecha_hora_ingreso),
+    tiempo_permanencia_minutos: tiempoPermanenciaMinutos,
     fuera_de_horario: !estaDentroDeHorarioOperacion(ahora),
     minutos_excedidos: minutosFueraDeHorario(ahora),
+    es_oficial_sena: !!activo.es_oficial_sena,
+    // Estadía > 16h sin ser un ingreso Oficial SENA: no crea ningún incidente por sí
+    // sola, solo señaliza que amerita revisión (el frontend decide si genera un reporte).
+    requiere_revision_estadia: tiempoPermanenciaMinutos > LIMITE_ESTADIA_MINUTOS && !activo.es_oficial_sena,
     vehiculo: activo.vehiculo ? {
       id: activo.vehiculo.id,
       placa: activo.vehiculo.placa,
@@ -93,6 +104,8 @@ const getCeldas = async (parqueaderoId) => {
         fecha_hora_ingreso: ocupacion.fecha_hora_ingreso,
         tiempo_permanencia_minutos: ocupacion.tiempo_permanencia_minutos,
         fuera_de_horario: ocupacion.fuera_de_horario,
+        es_oficial_sena: ocupacion.es_oficial_sena,
+        requiere_revision_estadia: ocupacion.requiere_revision_estadia,
         vehiculo: ocupacion.vehiculo,
         conductor: ocupacion.conductor,
       } : null,
