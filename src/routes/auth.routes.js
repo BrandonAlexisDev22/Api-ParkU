@@ -441,6 +441,46 @@ router.get(
 
 /**
  * @swagger
+ * /api/auth/verificar-codigo:
+ *   post:
+ *     summary: Confirma el código de 6 dígitos enviado por correo y marca la cuenta como verificada
+ *     description: >
+ *       Alternativa al enlace, para apps donde el usuario escribe el código.
+ *       Ambos salen de la misma solicitud: usar uno invalida el otro.
+ *       Tras 5 intentos fallidos el código se quema y hay que pedir uno nuevo
+ *       en /api/auth/reenviar-verificacion.
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - correo
+ *               - codigo
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *                 example: usuario@correo.com
+ *               codigo:
+ *                 type: string
+ *                 description: 6 dígitos. Se ignoran espacios y guiones.
+ *                 example: "482917"
+ *     responses:
+ *       200:
+ *         description: Correo verificado correctamente
+ *       400:
+ *         description: Código inválido, expirado, o intentos agotados
+ */
+router.post(
+  '/verificar-codigo',
+  authCtrl.verificarCodigo
+);
+
+/**
+ * @swagger
  * /api/auth/reenviar-verificacion:
  *   post:
  *     summary: Reenvía el correo de verificación (invalida cualquier enlace anterior sin usar)

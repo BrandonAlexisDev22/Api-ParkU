@@ -56,7 +56,12 @@ const main = async () => {
 
   console.log(`\n=== Enviando correo de prueba a ${destino} ===`);
   const link = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verificar-correo?token=TOKEN_DE_PRUEBA`;
-  const envio = await enviarCorreoVerificacion(destino, 'Prueba ParkU', link);
+  // Código de muestra: el correo de prueba se ve igual que el real, para revisar cómo
+  // queda el bloque del código en el cliente de correo antes de mandárselo a nadie.
+  const envio = await enviarCorreoVerificacion(destino, 'Prueba ParkU', link, {
+    codigo: '482917',
+    minutos: parseInt(process.env.VERIFICACION_CODIGO_TTL_MINUTOS, 10) || 60,
+  });
   if (envio.enviado) {
     console.log('  ✅ Correo enviado. Revisa la bandeja de entrada (y la carpeta de spam).\n');
   } else {

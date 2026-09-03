@@ -2,7 +2,9 @@
  * @module VerificacionCorreoModel
  * @description Modelo Sequelize para 'verificacion_correo'. Guarda el HASH (SHA-256) del
  * token de verificación de correo, nunca el token en claro -- ver
- * verificacionCorreo.service.js. Mismo patrón que 'recuperacion_password': no lleva
+ * verificacionCorreo.service.js. El código de 6 dígitos no ocupa columna propia: se
+ * deriva de token_hash, así que enlace y código salen de esta misma fila y usar cualquiera
+ * de los dos la marca como usada. Mismo patrón que 'recuperacion_password': no lleva
  * trigger de auditoría a propósito (debe poder usarse recién creada la cuenta, antes de
  * cualquier sesión).
  */

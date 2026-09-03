@@ -22,6 +22,20 @@ const marcarUsado = async (id) => {
 };
 
 /**
+ * Última solicitud sin usar de un usuario, que es la única con código válido:
+ * `solicitar` invalida las anteriores antes de crear la nueva.
+ * @param {number} usuarioId
+ * @returns {Promise<Object|null>}
+ */
+const findPendientePorUsuario = async (usuarioId) => {
+  const row = await VerificacionCorreo.findOne({
+    where: { usuario_id: usuarioId, usado: false },
+    order: [['id', 'DESC']],
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Invalida (marca usado) cualquier token pendiente y no expirado de un usuario, para que
  * un reenvío no deje dos tokens simultáneamente válidos.
  * @param {number} usuarioId
@@ -33,4 +47,10 @@ const invalidarPendientes = async (usuarioId) => {
   );
 };
 
-module.exports = { create, findByTokenHash, marcarUsado, invalidarPendientes };
+module.exports = {
+  create,
+  findByTokenHash,
+  marcarUsado,
+  invalidarPendientes,
+  findPendientePorUsuario,
+};

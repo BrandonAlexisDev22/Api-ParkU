@@ -470,7 +470,21 @@ class AuthController {
   }
 
   /**
-   * POST /api/auth/reenviar-verificacion - Genera y envía un nuevo enlace de verificación
+   * POST /api/auth/verificar-codigo - Consume el código de 6 dígitos y marca el correo
+   * como verificado. Alternativa al enlace; ambos salen de la misma solicitud.
+   */
+  static async verificarCodigo(req, res) {
+    try {
+      const { correo, codigo } = req.body;
+      await verificacionCorreoSvc.confirmarCodigo(correo, codigo);
+      return res.status(200).json({ success: true, message: 'Correo verificado correctamente' });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+
+  /**
+   * POST /api/auth/reenviar-verificacion - Genera y envía un nuevo enlace y código de verificación
    */
   static async reenviarVerificacion(req, res) {
     try {

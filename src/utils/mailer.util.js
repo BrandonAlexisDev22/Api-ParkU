@@ -200,21 +200,54 @@ const _plantillaBase = (titulo, cuerpoHtml) => `
 const _firmaTexto = '\n\nParkU · Sistema de gestión de parqueaderos SENA';
 
 /**
+ * Bloque destacado con el código de 6 dígitos. Va con estilos en línea y sin imágenes
+ * porque los clientes de correo ignoran las hojas de estilo externas, y separado por
+ * espacios para que se lea de un vistazo al teclearlo desde el móvil.
+ * @private
+ */
+const _bloqueCodigo = (codigo, minutos) => `
+  <p style="margin-bottom:8px;">Escribe este código en la aplicación:</p>
+  <p style="font-family:'Courier New',monospace; font-size:32px; font-weight:bold;
+            letter-spacing:8px; background:#f4f4f4; border-radius:6px;
+            padding:16px; text-align:center; margin:0;">${codigo.split('').join(' ')}</p>
+  <p style="color:#888; font-size:13px;">El código expira en ${minutos} minutos.</p>
+`;
+
+/**
  * @param {string} destino
  * @param {string} nombre
  * @param {string} link
+ * @param {Object} [opciones]
+ * @param {string} [opciones.codigo] - Código de 6 dígitos. Si falta, el correo va solo
+ *   con el enlace (los llamados antiguos siguen funcionando igual).
+ * @param {number} [opciones.minutos] - Minutos que dura el código, para avisarlo en el texto.
  */
-const enviarCorreoVerificacion = (destino, nombre, link) => enviarCorreo({
-  destino,
-  asunto: 'Verifica tu correo — ParkU',
-  html: _plantillaBase('Verifica tu correo', `
-    <p>Hola ${nombre || ''},</p>
-    <p>Confirma tu correo electrónico para activar todas las funciones de tu cuenta ParkU:</p>
-    <p><a href="${link}" target="_blank">Verificar mi correo</a></p>
-    <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
-  `),
-  texto: `Hola ${nombre || ''},\n\nConfirma tu correo electrónico para activar tu cuenta ParkU:\n${link}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.${_firmaTexto}`,
-});
+const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
+  const { codigo, minutos = 60 } = opciones;
+
+  const htmlCodigo = codigo ? _bloqueCodigo(codigo, minutos) : '';
+  const htmlEnlace = codigo
+    ? `<p style="color:#666; font-size:14px;">O si prefieres, verifica con un clic:
+         <a href="${link}" target="_blank">Verificar mi correo</a></p>`
+    : `<p><a href="${link}" target="_blank">Verificar mi correo</a></p>`;
+
+  const textoCodigo = codigo
+    ? `Tu código de verificación es: ${codigo}\nExpira en ${minutos} minutos.\n\nO verifica con este enlace:\n${link}`
+    : `Confirma tu correo electrónico para activar tu cuenta ParkU:\n${link}`;
+
+  return enviarCorreo({
+    destino,
+    asunto: codigo ? `${codigo} es tu código de verificación — ParkU` : 'Verifica tu correo — ParkU',
+    html: _plantillaBase('Verifica tu correo', `
+      <p>Hola ${nombre || ''},</p>
+      <p>Confirma tu correo electrónico para activar todas las funciones de tu cuenta ParkU.</p>
+      ${htmlCodigo}
+      ${htmlEnlace}
+      <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
+    `),
+    texto: `Hola ${nombre || ''},\n\n${textoCodigo}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.${_firmaTexto}`,
+  });
+};
 
 /**
  * @param {string} destino
