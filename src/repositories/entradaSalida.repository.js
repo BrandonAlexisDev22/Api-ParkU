@@ -7,8 +7,14 @@
  * entradaSalida.service.js y dbContext.util.js.
  */
 
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { RegistroAcceso, Vehiculo, Conductor, Parqueadero, Celda } = require('../models');
+
+// Historial ordenado por fecha/hora de SALIDA, más reciente primero (explícito, no
+// accidental). Los registros sin salida (vehículo todavía adentro) no tienen
+// fecha_hora_salida: se muestran primero -- Postgres ya coloca NULL primero en DESC por
+// defecto, pero se declara así para no depender de ese comportamiento implícito.
+const ORDEN_POR_SALIDA = [Sequelize.literal('fecha_hora_salida DESC NULLS FIRST')];
 
 const includeContexto = [
   { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa', 'tipo'] },
@@ -26,7 +32,7 @@ const includeContexto = [
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const rows = await RegistroAcceso.findAll({ include: includeContexto, order: [['fecha_hora_ingreso', 'DESC']] });
+  const rows = await RegistroAcceso.findAll({ include: includeContexto, order: ORDEN_POR_SALIDA });
   return rows.map((r) => r.toJSON());
 };
 
@@ -52,7 +58,7 @@ const findByVehiculo = async (vehiculoId) => {
   const rows = await RegistroAcceso.findAll({
     where: { vehiculo_id: vehiculoId },
     include: includeContexto,
-    order: [['fecha_hora_ingreso', 'DESC']],
+    order: ORDEN_POR_SALIDA,
   });
   return rows.map((r) => r.toJSON());
 };
@@ -122,7 +128,7 @@ const findByFecha = async (desde, hasta) => {
   const rows = await RegistroAcceso.findAll({
     where: { fecha_hora_ingreso: { [Op.between]: [desde, hasta] } },
     include: includeContexto,
-    order: [['fecha_hora_ingreso', 'DESC']],
+    order: ORDEN_POR_SALIDA,
   });
   return rows.map((r) => r.toJSON());
 };

@@ -13,6 +13,7 @@ const celdaRepo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const registroAccesoRepo = require('../repositories/entradaSalida.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
+const conductorRepo = require('../repositories/conductor.repository');
 const evidenciaRepo = require('../repositories/evidenciaNovedad.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES } = require('../config/roles');
@@ -37,8 +38,18 @@ const getAll = () => repo.findAll();
 const getById = async (id) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Novedad no encontrada' };
-  const evidencias = await evidenciaRepo.findByNovedad(id);
-  return { ..._enriquecerContexto(item), evidencias };
+  const [evidencias, reportante] = await Promise.all([
+    evidenciaRepo.findByNovedad(id),
+    conductorRepo.findByUsuarioId(item.usuario_reporta_id),
+  ]);
+  return {
+    ..._enriquecerContexto(item),
+    evidencias,
+    // Documento/nombre/correo de quien reportó -- constancia histórica pedida para
+    // reportes de Comunidad SENA (usuario_reporta_id es un FK inmutable a `usuario`,
+    // el documento en sí vive en su Conductor vinculado, si tiene uno).
+    reportante_documento: reportante ? `${reportante.tipo_documento} ${reportante.numero_documento}` : null,
+  };
 };
 
 /**
@@ -154,6 +165,13 @@ const _enriquecerContexto = (novedad) => {
 /**
  * Crea una nueva novedad. El reportante es siempre el usuario autenticado.
  *
+ * Distingue Comunidad SENA (ROLES.CONDUCTOR) de personal autorizado (Admin/Vigilante):
+ * Comunidad SENA NO puede elegir a quién se asigna ni la prioridad -- si intenta
+ * enviarlos, se rechaza explícitamente (400) en vez de ignorarlos en silencio; su
+ * reporte siempre nace PENDIENTE, sin asignar, con prioridad MEDIA por defecto. La
+ * asignación real ocurre después, cuando personal autorizado lo acepta (ver `aceptar`).
+ * El personal autorizado sigue pudiendo asignar/priorizar de una vez si quiere.
+ *
  * Contexto automático desde celda_id (para no obligar a re-buscar manualmente datos ya
  * disponibles al reportar "desde una celda"): si se envía celda_id,
  *   - parqueadero_id se completa solo a partir de la celda, si no vino explícito.
@@ -161,15 +179,24 @@ const _enriquecerContexto = (novedad) => {
  *     celda (si hay uno), salvo que el caller ya los haya mandado explícitos.
  * @param {Object} data
  * @param {number} usuarioId - Usuario autenticado que reporta la novedad.
- * @throws {Object} 400 si faltan datos o son inválidos; 404 si alguna referencia no existe.
+ * @param {number} usuarioRol - Rol del usuario autenticado (ver src/config/roles.js).
+ * @throws {Object} 400 si faltan datos o son inválidos, o si Comunidad SENA intenta asignar/priorizar; 404 si alguna referencia no existe.
  * @returns {Promise<Object>}
  */
-const create = async (data, usuarioId) => {
-  const { tipo_novedad = 'OTRO', prioridad = 'MEDIA', descripcion, usuario_asignado_id, celda_id, registro_acceso_id } = data;
-  let { vehiculo_id, parqueadero_id } = data;
+const create = async (data, usuarioId, usuarioRol) => {
+  const { tipo_novedad = 'OTRO', descripcion, celda_id, registro_acceso_id } = data;
+  let { vehiculo_id, parqueadero_id, usuario_asignado_id, prioridad } = data;
+
+  const esComunidadSena = usuarioRol === ROLES.CONDUCTOR;
+  if (esComunidadSena) {
+    if (usuario_asignado_id !== undefined || prioridad !== undefined) {
+      throw { status: 400, message: 'Comunidad SENA no puede seleccionar prioridad ni usuario asignado; eso lo define el personal autorizado al aceptar el reporte' };
+    }
+    usuario_asignado_id = null;
+  }
+  prioridad = prioridad ?? 'MEDIA';
 
   if (!descripcion) throw { status: 400, message: 'La descripción es requerida' };
-  if (!usuario_asignado_id) throw { status: 400, message: 'El responsable asignado es requerido' };
   if (!TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
@@ -232,6 +259,48 @@ const update = async (id, data, usuarioId) => {
 };
 
 /**
+ * Acepta un reporte pendiente: personal autorizado asigna vigilante y prioridad, y el
+ * reporte pasa a EN_PROCESO. Reutiliza `_validarReferencias` (ya exige que el asignado
+ * tenga rol Vigilante) y la validación de prioridad ya existente.
+ * @param {number} id
+ * @param {Object} datos - { usuario_asignado_id, prioridad } (ambos obligatorios).
+ * @param {number} usuarioId - Usuario autenticado (Admin/Vigilante) que acepta.
+ * @throws {Object} 400 si falta usuario_asignado_id/prioridad o son inválidos; 404 si no existe.
+ * @returns {Promise<Object>}
+ */
+const aceptar = async (id, { usuario_asignado_id, prioridad }, usuarioId) => {
+  await getById(id);
+
+  if (!usuario_asignado_id) throw { status: 400, message: 'El vigilante asignado es requerido para aceptar el reporte' };
+  if (!prioridad) throw { status: 400, message: 'La prioridad es requerida para aceptar el reporte' };
+  if (!PRIORIDADES_PERMITIDAS.includes(prioridad)) {
+    throw { status: 400, message: `Prioridad inválida. Permitidas: ${PRIORIDADES_PERMITIDAS.join(', ')}` };
+  }
+  await _validarReferencias({ usuario_asignado_id });
+
+  const data = { usuario_asignado_id, prioridad, estado: 'EN_PROCESO' };
+  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+};
+
+/**
+ * Rechaza un reporte pendiente. No se elimina físicamente -- queda como CANCELADA (se
+ * reutiliza este estado del ENUM existente en vez de agregar uno nuevo) con el motivo en
+ * `justificacion_cierre`, conservando reportante, fecha/hora, descripción y evidencias.
+ * @param {number} id
+ * @param {Object} datos - { motivo } (obligatorio).
+ * @param {number} usuarioId - Usuario autenticado (Admin/Vigilante) que rechaza.
+ * @throws {Object} 400 si falta el motivo; 404 si no existe.
+ * @returns {Promise<Object>}
+ */
+const rechazar = async (id, { motivo }, usuarioId) => {
+  await getById(id);
+  if (!motivo?.trim()) throw { status: 400, message: 'El motivo de rechazo es requerido' };
+
+  const data = { estado: 'CANCELADA', justificacion_cierre: motivo, fecha_hora_cierre: new Date() };
+  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+};
+
+/**
  * Elimina una novedad.
  * @param {number} id
  * @throws {Object} 404 si no existe; 409 si tiene evidencias adjuntas.
@@ -254,5 +323,7 @@ module.exports = {
   getByFiltros,
   create,
   update,
+  aceptar,
+  rechazar,
   remove,
 };

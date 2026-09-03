@@ -235,6 +235,16 @@ class AuthController {
         });
       }
 
+      // Cuentas creadas antes de este campo quedaron verificadas por migración
+      // (grandfathering); solo afecta a cuentas nuevas que no abrieron el enlace de
+      // verificación enviado al registrarse.
+      if (!user.correo_verificado) {
+        return res.status(403).json({
+          success: false,
+          message: 'Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada o solicita un nuevo enlace en /api/auth/reenviar-verificacion.'
+        });
+      }
+
       // Verificar contraseña
       const isPasswordValid = await PasswordUtil.compare(contrasena, user.contrasena);
       if (!isPasswordValid) {

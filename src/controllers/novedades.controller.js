@@ -314,7 +314,7 @@ const getByFiltros = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newItem = await svc.create(req.body, req.usuario?.id);
+    const newItem = await svc.create(req.body, req.usuario?.id, req.usuario?.rol);
     res.status(201).json(newItem);
   } catch (e) {
     handleError(res, e);
@@ -363,6 +363,92 @@ const update = async (req, res) => {
 
 /**
  * @swagger
+ * /novedades/{id}/aceptar:
+ *   patch:
+ *     summary: Acepta un reporte pendiente, asignando vigilante y prioridad (personal autorizado)
+ *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [usuario_asignado_id, prioridad]
+ *             properties:
+ *               usuario_asignado_id:
+ *                 type: integer
+ *                 description: Debe corresponder a un usuario con rol Vigilante.
+ *               prioridad:
+ *                 type: string
+ *                 enum: [BAJA, MEDIA, ALTA, CRITICA]
+ *     responses:
+ *       200:
+ *         description: Reporte aceptado (pasa a EN_PROCESO)
+ *       400:
+ *         description: Faltan datos o el asignado no es Vigilante
+ *       404:
+ *         description: Novedad no encontrada
+ */
+const aceptar = async (req, res) => {
+  try {
+    const actualizado = await svc.aceptar(req.params.id, req.body, req.usuario?.id);
+    res.json(actualizado);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /novedades/{id}/rechazar:
+ *   patch:
+ *     summary: Rechaza un reporte pendiente (personal autorizado). No se elimina, queda como CANCELADA.
+ *     tags: [Novedades]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [motivo]
+ *             properties:
+ *               motivo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Reporte rechazado (queda CANCELADA con el motivo en justificacion_cierre)
+ *       400:
+ *         description: Falta el motivo
+ *       404:
+ *         description: Novedad no encontrada
+ */
+const rechazar = async (req, res) => {
+  try {
+    const actualizado = await svc.rechazar(req.params.id, req.body, req.usuario?.id);
+    res.json(actualizado);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /novedades/{id}:
  *   delete:
  *     summary: Eliminar una novedad por ID
@@ -397,5 +483,7 @@ module.exports = {
   getByFiltros,
   create,
   update,
+  aceptar,
+  rechazar,
   remove,
 };

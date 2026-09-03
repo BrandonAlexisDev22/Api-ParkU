@@ -87,6 +87,15 @@ const { handleError } = require('../helpers/errorHandler');
  *         usuario_id:
  *           type: integer
  *           nullable: true
+ *           description: >
+ *             Opcional. Si se omite y se envía `correo`, se reutiliza el Usuario con ese
+ *             correo si ya existe, o se crea uno nuevo (requiere `contrasena`) en la misma
+ *             transacción que el conductor -- si el conductor falla, el usuario nuevo
+ *             también se revierte.
+ *         contrasena:
+ *           type: string
+ *           nullable: true
+ *           description: Solo requerida si hay que crear un Usuario nuevo (no se envía usuario_id ni existe uno con ese correo).
  *         tipo_documento:
  *           type: string
  *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]

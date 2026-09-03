@@ -234,6 +234,17 @@ const contarPorGrupoTipo = (parqueaderoId, tipo, usabilidad) =>
   Celda.count({ where: { parqueadero: parqueaderoId, tipo, usabilidad } });
 
 /**
+ * Cuenta TODAS las celdas de un parqueadero sin importar tipo/usabilidad/estado -- el
+ * total que se compara contra parqueadero.capacidad_maxima (a diferencia de
+ * contarPorGrupoTipo, que cuenta solo un grupo).
+ * @param {number} parqueaderoId
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<number>}
+ */
+const contarTotalPorParqueadero = (parqueaderoId, { transaction } = {}) =>
+  Celda.count({ where: { parqueadero: parqueaderoId }, transaction });
+
+/**
  * Celdas DISPONIBLES (nunca ocupadas/reservadas/ya inactivas) de un tipo+usabilidad en un
  * parqueadero, las de número más alto primero -- candidatas seguras para desactivar cuando
  * se reduce la cantidad deseada, priorizando las añadidas más recientemente.
@@ -278,6 +289,7 @@ module.exports = {
   cambiarEstado,
   generarLote,
   contarPorGrupoTipo,
+  contarTotalPorParqueadero,
   findDesactivables,
   remove,
 };

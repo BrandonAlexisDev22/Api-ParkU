@@ -48,6 +48,17 @@ const cambiar = async (celdaId, { estado, motivo, observacion }, usuarioId) => {
   const celda = await celdaRepo.findById(celdaId);
   if (!celda) throw { status: 404, message: 'Celda no encontrada' };
 
+  // celda.estado es la única fuente de verdad (ver celda.service.js): si hay un vehículo
+  // parqueado o una reserva activa bloqueándola, no se puede tocar manualmente aunque el
+  // request llegue directo por HTTP sin pasar por el Frontend -- debe liberarse primero
+  // (registrar salida, o que la reserva termine/se cancele).
+  if (['OCUPADA', 'RESERVADA'].includes(celda.estado)) {
+    throw {
+      status: 409,
+      message: `No se puede modificar manualmente una celda ${celda.estado.toLowerCase()}; debe liberarse primero (registrar la salida del vehículo o esperar a que termine la reserva)`,
+    };
+  }
+
   if (!estado || !ESTADOS_PERMITIDOS.includes(estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
   }

@@ -8,10 +8,13 @@
  * vigencia, movilidad_reducida, tipo_discapacidad, estado.
  */
 
+const bcrypt = require('bcryptjs');
+const { sequelize } = require('../config/database');
 const repo = require('../repositories/conductor.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
+const { ROLES } = require('../config/roles');
 
 const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
@@ -107,8 +110,15 @@ const getByUsuarioId = async (usuarioId) => {
 };
 
 /**
- * Crea un nuevo conductor.
+ * Crea un nuevo conductor. Si no se envía usuario_id:
+ *   - Si `correo` corresponde a un Usuario ya existente, se reutiliza (se vincula a él).
+ *   - Si no existe ningún Usuario con ese correo, se crea uno nuevo (requiere
+ *     `contrasena`) dentro de la MISMA transacción que el conductor -- si la creación
+ *     del conductor falla después (p. ej. documento duplicado), el rollback deshace
+ *     también el usuario recién creado: nunca queda un usuario huérfano.
  * @param {Object} data
+ * @param {string} [data.correo] - Para vincular/crear el usuario cuando no se envía usuario_id.
+ * @param {string} [data.contrasena] - Requerida solo si hay que crear un usuario nuevo.
  * @throws {Object} 400 si faltan campos o son inválidos.
  * @throws {Object} 404 si alguna referencia (usuario/catálogo) no existe.
  * @throws {Object} 409 si el documento o correo ya están registrados.
@@ -116,11 +126,12 @@ const getByUsuarioId = async (usuarioId) => {
  */
 const create = async (data) => {
   const {
-    usuario_id, tipo_documento = 'CC', numero_documento, nombre_apellidos, correo,
+    tipo_documento = 'CC', numero_documento, nombre_apellidos, correo,
     direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
     centro_formacion, programa_formacion, vigencia,
-    movilidad_reducida = false, tipo_discapacidad, estado = true,
+    movilidad_reducida = false, tipo_discapacidad, estado = true, contrasena,
   } = data;
+  let { usuario_id } = data;
 
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
@@ -144,14 +155,41 @@ const create = async (data) => {
     }
   }
 
-  await validarReferencias({ usuario_id, tipo_usuario_id });
+  if (usuario_id) {
+    await validarReferencias({ usuario_id, tipo_usuario_id });
+  } else {
+    await validarReferencias({ tipo_usuario_id });
+  }
 
-  return repo.create({
-    usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
-    direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
-    centro_formacion, programa_formacion, vigencia,
-    movilidad_reducida, tipo_discapacidad, estado,
-  });
+  try {
+    return await sequelize.transaction(async (transaction) => {
+      if (!usuario_id && correo) {
+        const usuarioExistente = await usuarioRepo.findByCorreo(correo);
+        if (usuarioExistente) {
+          usuario_id = usuarioExistente.id;
+        } else {
+          if (!contrasena) {
+            throw { status: 400, message: 'contrasena es requerida para crear la cuenta de usuario de este conductor' };
+          }
+          const hash = await bcrypt.hash(contrasena, 10);
+          const nuevoUsuario = await usuarioRepo.create(
+            { nombre: nombre_apellidos, correo, contrasena: hash, rol_id: ROLES.CONDUCTOR, numero_telefonico },
+            { transaction },
+          );
+          usuario_id = nuevoUsuario.id;
+        }
+      }
+
+      return repo.create({
+        usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
+        direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+        centro_formacion, programa_formacion, vigencia,
+        movilidad_reducida, tipo_discapacidad, estado,
+      }, { transaction });
+    });
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
 };
 
 /**

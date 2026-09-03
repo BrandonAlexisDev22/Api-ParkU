@@ -14,6 +14,17 @@ const crypto = require('crypto');
 
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 
+// La extensión del nombre de archivo la controla el cliente y se puede falsear con
+// facilidad; comparar también el Content-Type que el navegador/cliente reporta para el
+// archivo es una segunda barrera barata (no infalible -- ambos vienen del cliente -- pero
+// descarta el caso trivial de un archivo que ni siquiera dice ser una imagen).
+const MIME_POR_EXTENSION = {
+  jpg: ['image/jpeg'],
+  jpeg: ['image/jpeg'],
+  png: ['image/png'],
+  webp: ['image/webp'],
+};
+
 /**
  * Crea un middleware Express que recibe un único archivo (multipart/form-data), lo valida
  * por extensión/tamaño y lo guarda en uploads/<subcarpeta>/<uuid>.<ext>.
@@ -40,6 +51,11 @@ const crearUploadMiddleware = ({ subcarpeta, extensionesPermitidas, limiteMB = 5
     const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
     if (!extensionesPermitidas.includes(ext)) {
       const error = new Error(`Extensión no permitida. Permitidas: ${extensionesPermitidas.join(', ')}`);
+      return cb(error);
+    }
+    const mimesEsperados = MIME_POR_EXTENSION[ext];
+    if (mimesEsperados && !mimesEsperados.includes(file.mimetype)) {
+      const error = new Error('El tipo de archivo no coincide con su extensión');
       return cb(error);
     }
     cb(null, true);

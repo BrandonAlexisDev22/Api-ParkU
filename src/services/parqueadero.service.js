@@ -11,6 +11,7 @@
 const repo = require('../repositories/parqueadero.repository');
 const entradaSalidaRepo = require('../repositories/entradaSalida.repository');
 const reservaRepo = require('../repositories/reserva.repository');
+const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const ACCESOS_PERMITIDOS = ['REGIONAL', 'AVENIDA_BOYACA'];
@@ -60,14 +61,16 @@ const getById = async (id) => {
 
 /**
  * Crea una nueva sede validando que el nombre sea único.
+ * El estado inicial SIEMPRE es ACTIVO -- se ignora cualquier `estado` que venga en
+ * `data` en vez de confiar en lo que mande el cliente.
  * @param {Object} data - Datos del parqueadero.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
- * @throws {Object} 400 si faltan datos o son inválidos.
+ * @throws {Object} 400 si faltan datos o son inválidos (incluida capacidad_maxima).
  * @throws {Object} 409 si el nombre ya está en uso.
  * @returns {Promise<Object>} Parqueadero creado.
  */
 const create = async (data, usuarioId) => {
-  const { nombre, ubicacion, acceso = 'REGIONAL', tipo = 'GENERAL' } = data;
+  const { nombre, ubicacion, acceso = 'REGIONAL', tipo = 'GENERAL', capacidad_maxima } = data;
 
   if (!nombre) throw { status: 400, message: 'El nombre es requerido' };
   if (!ubicacion) throw { status: 400, message: 'La ubicación es requerida' };
@@ -77,12 +80,21 @@ const create = async (data, usuarioId) => {
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
+  if (!Number.isInteger(capacidad_maxima) || capacidad_maxima <= 0) {
+    throw { status: 400, message: 'capacidad_maxima es requerida y debe ser un entero mayor que 0' };
+  }
 
   const existe = await repo.findByNombre(nombre);
   if (existe) throw { status: 409, message: 'Ya existe un parqueadero con ese nombre' };
 
+  const datosLimpios = { ...data };
+  delete datosLimpios.estado; // el estado inicial lo decide el backend, nunca el cliente
+
   try {
-    const creado = await runWithUsuario(usuarioId, (transaction) => repo.create({ ...data, acceso, tipo }, { transaction }));
+    const creado = await runWithUsuario(
+      usuarioId,
+      (transaction) => repo.create({ ...datosLimpios, acceso, tipo, capacidad_maxima, estado: true }, { transaction }),
+    );
     return _conEstadoTexto(creado);
   } catch (error) {
     traducirErrorTrigger(error);
@@ -112,6 +124,18 @@ const update = async (id, data, usuarioId) => {
     const dup = await repo.findByNombre(data.nombre);
     if (dup && dup.id !== Number(id)) {
       throw { status: 409, message: 'Ya existe un parqueadero con ese nombre' };
+    }
+  }
+  if (data.capacidad_maxima !== undefined) {
+    if (!Number.isInteger(data.capacidad_maxima) || data.capacidad_maxima <= 0) {
+      throw { status: 400, message: 'capacidad_maxima debe ser un entero mayor que 0' };
+    }
+    const celdasExistentes = await celdaRepo.contarTotalPorParqueadero(id);
+    if (data.capacidad_maxima < celdasExistentes) {
+      throw {
+        status: 409,
+        message: `No se puede fijar capacidad_maxima en ${data.capacidad_maxima}: el parqueadero ya tiene ${celdasExistentes} celdas. Reduce primero la cantidad de celdas (ajustar-cantidades) antes de bajar la capacidad.`,
+      };
     }
   }
 

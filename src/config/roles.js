@@ -12,10 +12,14 @@ const ROLES = {
   CONDUCTOR: 3,
 };
 
+// NOTA: en la tabla real `rol`, el id 3 se llama "Comunidad sena" (no "Conductor" -- ese
+// era solo el nombre histórico de esta constante). Es el mismo id/rol; ROLES.CONDUCTOR se
+// mantiene como nombre de la constante para no romper todas las referencias existentes en
+// el código, pero el nombre de exhibición real es "Comunidad SENA".
 const NOMBRES_ROL = {
   [ROLES.ADMIN]: 'Administrador',
   [ROLES.VIGILANTE]: 'Vigilante',
-  [ROLES.CONDUCTOR]: 'Conductor',
+  [ROLES.CONDUCTOR]: 'Comunidad SENA',
 };
 
 // Alias en texto (sin acentos, insensible a mayúsculas) por si el cliente envía el nombre
@@ -25,6 +29,8 @@ const ALIAS_ROL = {
   admin: ROLES.ADMIN,
   vigilante: ROLES.VIGILANTE,
   conductor: ROLES.CONDUCTOR,
+  'comunidad sena': ROLES.CONDUCTOR,
+  'comunidad_sena': ROLES.CONDUCTOR,
 };
 
 /**

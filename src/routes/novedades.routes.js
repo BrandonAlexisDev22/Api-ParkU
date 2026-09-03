@@ -274,6 +274,20 @@ router.put('/:id',
   ctrl.update
 );
 
+// Aceptar/rechazar: solo personal autorizado -- Comunidad SENA no puede aprobar sus
+// propios reportes ni los de otros.
+router.patch('/:id/aceptar',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.aceptar
+);
+
+router.patch('/:id/rechazar',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.rechazar
+);
+
 /**
  * @swagger
  * /api/novedades/{id}:

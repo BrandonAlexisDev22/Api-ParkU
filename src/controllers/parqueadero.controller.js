@@ -61,6 +61,7 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - nombre
  *         - ubicacion
+ *         - capacidad_maxima
  *       properties:
  *         nombre:
  *           type: string
@@ -76,7 +77,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           default: GENERAL
  *         capacidad_maxima:
  *           type: integer
- *           default: 0
+ *           description: Obligatoria, entero mayor que 0. No se puede crear más celdas que este total.
  *         hora_apertura:
  *           type: string
  *           nullable: true

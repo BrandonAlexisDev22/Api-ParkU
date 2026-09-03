@@ -175,6 +175,15 @@ const generarLote = async (parqueaderoId, cantidades, usuarioId) => {
     throw { status: 400, message: 'Debes indicar al menos una cantidad mayor a 0 (cantidadCarro, cantidadMoto o cantidadMovilidadReducida)' };
   }
 
+  const nuevasTotal = grupos.reduce((acc, g) => acc + g.cantidad, 0);
+  const actualTotal = await repo.contarTotalPorParqueadero(parqueaderoId);
+  if (actualTotal + nuevasTotal > existeParq.capacidad_maxima) {
+    throw {
+      status: 409,
+      message: `La capacidad máxima del parqueadero es ${existeParq.capacidad_maxima}; ya tiene ${actualTotal} celdas y se intentaron crear ${nuevasTotal} más`,
+    };
+  }
+
   return runWithUsuario(usuarioId, (transaction) => repo.generarLote(parqueaderoId, grupos, { transaction }));
 };
 
@@ -214,6 +223,15 @@ const ajustarCantidades = async (parqueaderoId, cantidades, usuarioId) => {
 
   if (!plan.length) {
     throw { status: 400, message: 'Debes indicar al menos una cantidad (cantidadCarro, cantidadMoto o cantidadMovilidadReducida)' };
+  }
+
+  const cambioNeto = plan.reduce((acc, { actual, deseada }) => acc + (deseada - actual), 0);
+  const actualTotalGlobal = await repo.contarTotalPorParqueadero(parqueaderoId);
+  if (actualTotalGlobal + cambioNeto > existeParq.capacidad_maxima) {
+    throw {
+      status: 409,
+      message: `La capacidad máxima del parqueadero es ${existeParq.capacidad_maxima}; el ajuste solicitado dejaría ${actualTotalGlobal + cambioNeto} celdas en total`,
+    };
   }
 
   try {
