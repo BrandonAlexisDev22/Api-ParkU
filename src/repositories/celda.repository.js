@@ -234,15 +234,29 @@ const contarPorGrupoTipo = (parqueaderoId, tipo, usabilidad) =>
   Celda.count({ where: { parqueadero: parqueaderoId, tipo, usabilidad } });
 
 /**
- * Cuenta TODAS las celdas de un parqueadero sin importar tipo/usabilidad/estado -- el
- * total que se compara contra parqueadero.capacidad_maxima (a diferencia de
- * contarPorGrupoTipo, que cuenta solo un grupo).
+ * Cuenta las celdas VIGENTES de un parqueadero (todos los tipos/usabilidades), es decir
+ * excluyendo las retiradas por una reducción (estado INACTIVA) -- es el total que se
+ * compara contra parqueadero.capacidad_maxima. Se excluyen las INACTIVA a propósito: una
+ * celda retirada no ocupa capacidad, y si contara, reducir celdas nunca liberaría cupo
+ * (las filas nunca se borran, para no perder su histórico).
  * @param {number} parqueaderoId
  * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<number>}
  */
 const contarTotalPorParqueadero = (parqueaderoId, { transaction } = {}) =>
-  Celda.count({ where: { parqueadero: parqueaderoId }, transaction });
+  Celda.count({ where: { parqueadero: parqueaderoId, estado: { [Op.ne]: 'INACTIVA' } }, transaction });
+
+/**
+ * Igual que contarPorGrupoTipo pero excluyendo las celdas retiradas (INACTIVA), para que
+ * los conteos por grupo usados en la reducción equilibrada sean coherentes con
+ * contarTotalPorParqueadero.
+ * @param {number} parqueaderoId
+ * @param {string} tipo
+ * @param {string} usabilidad
+ * @returns {Promise<number>}
+ */
+const contarVigentesPorGrupoTipo = (parqueaderoId, tipo, usabilidad) =>
+  Celda.count({ where: { parqueadero: parqueaderoId, tipo, usabilidad, estado: { [Op.ne]: 'INACTIVA' } } });
 
 /**
  * Celdas DISPONIBLES (nunca ocupadas/reservadas/ya inactivas) de un tipo+usabilidad en un
@@ -289,6 +303,7 @@ module.exports = {
   cambiarEstado,
   generarLote,
   contarPorGrupoTipo,
+  contarVigentesPorGrupoTipo,
   contarTotalPorParqueadero,
   findDesactivables,
   remove,

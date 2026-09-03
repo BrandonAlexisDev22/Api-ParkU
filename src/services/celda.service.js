@@ -288,6 +288,102 @@ const ajustarCantidades = async (parqueaderoId, cantidades, usuarioId) => {
 };
 
 /**
+ * Reduce en `cantidad` las celdas de un parqueadero eligiendo el backend CUÁLES quitar,
+ * de forma equilibrada entre tipos: en cada paso retira una celda del grupo que quede
+ * más sobrerrepresentado (más celdas vigentes), de modo que la distribución final entre
+ * carro / moto / movilidad reducida quede lo más pareja posible en vez de vaciar un solo
+ * tipo. A diferencia de ajustarCantidades(), aquí el caller solo dice CUÁNTAS quitar.
+ *
+ * Solo son candidatas las celdas DISPONIBLE: nunca se toca una OCUPADA, RESERVADA ni una
+ * ya retirada (reutiliza repo.findDesactivables, que ya filtra por DISPONIBLE). "Retirar"
+ * es marcarla INACTIVA vía disponibilidad_celda, nunca un DELETE: así se conserva todo su
+ * histórico (ocupaciones, ingresos, reservas) y deja de contar para la capacidad.
+ * Todo ocurre en una sola transacción.
+ * @param {number} parqueaderoId
+ * @param {number} cantidad - Cuántas celdas se piden retirar (entero > 0).
+ * @param {number} usuarioId - Usuario autenticado (auditoría + motivo).
+ * @throws {Object} 400 si la cantidad es inválida; 404 si el parqueadero no existe.
+ * @returns {Promise<Object>} Resumen: solicitadas, eliminadas, conservadas, motivo,
+ *   cantidad_final, capacidad_maxima y el detalle por tipo.
+ */
+const reducirCeldas = async (parqueaderoId, cantidad, usuarioId) => {
+  const existeParq = await parqRepo.findById(parqueaderoId);
+  if (!existeParq) throw { status: 404, message: 'Parqueadero no encontrado' };
+  if (!Number.isInteger(cantidad) || cantidad <= 0) {
+    throw { status: 400, message: 'cantidad debe ser un entero mayor que 0' };
+  }
+
+  const totalVigenteInicial = await repo.contarTotalPorParqueadero(parqueaderoId);
+  if (cantidad > totalVigenteInicial) {
+    throw {
+      status: 400,
+      message: `No se pueden retirar ${cantidad} celdas: el parqueadero solo tiene ${totalVigenteInicial} vigentes`,
+    };
+  }
+
+  // Estado inicial por grupo: cuántas hay vigentes y cuáles están libres (candidatas).
+  const grupos = [];
+  for (const [campo, { tipo, usabilidad }] of Object.entries(GRUPOS_LOTE)) {
+    const vigentes = await repo.contarVigentesPorGrupoTipo(parqueaderoId, tipo, usabilidad);
+    const libres = vigentes > 0 ? await repo.findDesactivables(parqueaderoId, tipo, usabilidad, vigentes) : [];
+    grupos.push({ campo, tipo, usabilidad, vigentes, restantes: vigentes, cola: [...libres], retiradas: 0 });
+  }
+
+  // Selección equilibrada: siempre se quita del grupo con más celdas restantes que aún
+  // tenga alguna libre; así se recorta primero lo sobrerrepresentado.
+  const seleccionadas = [];
+  for (let i = 0; i < cantidad; i += 1) {
+    const candidatos = grupos.filter((g) => g.cola.length > 0);
+    if (!candidatos.length) break; // ya no quedan celdas libres que retirar
+    candidatos.sort((a, b) => b.restantes - a.restantes);
+    const grupo = candidatos[0];
+    seleccionadas.push(grupo.cola.shift());
+    grupo.restantes -= 1;
+    grupo.retiradas += 1;
+  }
+
+  try {
+    await runWithUsuario(
+      usuarioId,
+      async (transaction) => {
+        for (const celda of seleccionadas) {
+          await disponibilidadRepo.upsert(
+            celda.id,
+            {
+              estado: 'INACTIVA',
+              motivo: MOTIVO_AJUSTE_CANTIDADES,
+              observacion: 'Reducción equilibrada de celdas del parqueadero',
+              usuario_id: usuarioId,
+            },
+            { transaction },
+          );
+        }
+      },
+      { motivoDisponibilidad: MOTIVO_AJUSTE_CANTIDADES },
+    );
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+
+  const eliminadas = seleccionadas.length;
+  const conservadas = cantidad - eliminadas;
+  return {
+    solicitadas: cantidad,
+    eliminadas,
+    conservadas,
+    motivo: conservadas === 0
+      ? 'Se retiraron todas las celdas solicitadas.'
+      : `No se pudieron retirar ${conservadas} celda(s): las restantes están ocupadas o reservadas y no se tocan hasta que se registre la salida o termine la reserva.`,
+    cantidad_final: totalVigenteInicial - eliminadas,
+    capacidad_maxima: existeParq.capacidad_maxima,
+    detalle_por_tipo: grupos.map(({ campo, tipo, usabilidad, vigentes, retiradas, restantes }) => ({
+      campo, tipo, usabilidad, antes: vigentes, retiradas, quedan: restantes,
+    })),
+    celdas_retiradas: seleccionadas.map((c) => ({ id: c.id, numero: c.numero, tipo: c.tipo, usabilidad: c.usabilidad })),
+  };
+};
+
+/**
  * Elimina una celda del sistema.
  * @param {number} id - ID de la celda.
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
@@ -314,5 +410,6 @@ module.exports = {
   update,
   generarLote,
   ajustarCantidades,
+  reducirCeldas,
   remove,
 };

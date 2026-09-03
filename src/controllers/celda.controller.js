@@ -414,6 +414,50 @@ const ajustarCantidades = async (req, res) => {
 
 /**
  * @swagger
+ * /celdas/parqueadero/{parqueaderoId}/reducir:
+ *   put:
+ *     summary: Retira N celdas del parqueadero, eligiendo el backend cuáles de forma equilibrada entre tipos
+ *     tags: [Celdas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: parqueaderoId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [cantidad]
+ *             properties:
+ *               cantidad:
+ *                 type: integer
+ *                 description: Cuántas celdas retirar (entero mayor que 0).
+ *     responses:
+ *       200:
+ *         description: >
+ *           Resumen de la reducción: solicitadas, eliminadas, conservadas, motivo,
+ *           cantidad_final, capacidad_maxima, detalle_por_tipo y celdas_retiradas.
+ *       400:
+ *         description: Cantidad inválida o mayor al total de celdas vigentes
+ *       404:
+ *         description: Parqueadero no encontrado
+ */
+const reducirCeldas = async (req, res) => {
+  try {
+    const resumen = await svc.reducirCeldas(req.params.parqueaderoId, req.body?.cantidad, req.usuario?.id);
+    res.status(200).json(resumen);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /celdas/{id}:
  *   put:
  *     summary: Actualizar una celda (parcialmente o completa)
@@ -491,5 +535,6 @@ module.exports = {
   update,
   generarLote,
   ajustarCantidades,
+  reducirCeldas,
   remove,
 };

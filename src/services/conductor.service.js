@@ -136,6 +136,10 @@ const create = async (data) => {
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
   if (!tipo_usuario_id) throw { status: 400, message: 'El tipo de usuario es requerido' };
+  // El correo es la clave para resolver la cuenta de usuario (reutilizar la existente o
+  // crear una nueva), y el teléfono es dato de contacto obligatorio del conductor.
+  if (!correo) throw { status: 400, message: 'El correo es requerido' };
+  if (!numero_telefonico) throw { status: 400, message: 'El número telefónico es requerido' };
 
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };

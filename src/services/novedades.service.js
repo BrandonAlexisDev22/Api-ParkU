@@ -192,15 +192,17 @@ const create = async (data, usuarioId, usuarioRol) => {
     if (usuario_asignado_id !== undefined || prioridad !== undefined) {
       throw { status: 400, message: 'Comunidad SENA no puede seleccionar prioridad ni usuario asignado; eso lo define el personal autorizado al aceptar el reporte' };
     }
-    usuario_asignado_id = null;
   }
-  prioridad = prioridad ?? 'MEDIA';
+  // Ni la prioridad ni el asignado son obligatorios al crear: un reporte nace PENDIENTE
+  // con ambos en NULL y es al ACEPTARLO cuando se vuelven obligatorios (ver aceptar()).
+  usuario_asignado_id = usuario_asignado_id ?? null;
+  prioridad = prioridad ?? null;
 
   if (!descripcion) throw { status: 400, message: 'La descripción es requerida' };
   if (!TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
-  if (!PRIORIDADES_PERMITIDAS.includes(prioridad)) {
+  if (prioridad !== null && !PRIORIDADES_PERMITIDAS.includes(prioridad)) {
     throw { status: 400, message: `Prioridad inválida. Permitidas: ${PRIORIDADES_PERMITIDAS.join(', ')}` };
   }
 

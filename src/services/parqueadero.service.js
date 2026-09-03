@@ -9,8 +9,6 @@
  */
 
 const repo = require('../repositories/parqueadero.repository');
-const entradaSalidaRepo = require('../repositories/entradaSalida.repository');
-const reservaRepo = require('../repositories/reserva.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
@@ -151,20 +149,16 @@ const update = async (id, data, usuarioId) => {
  * Activa o inactiva un parqueadero. La BD exige un motivo en la misma transacción
  * (HU 03.1.6.2). Acepta 'estado' como boolean o como string 'ACTIVO'/'INACTIVO'.
  *
- * Al DESACTIVAR (true -> false), ejecuta en la MISMA transacción una cascada que:
- *   1. Cierra (registra salida de) todos los ingresos activos del parqueadero -- el
- *      trigger de la BD libera la celda de cada uno solo, no se toca celda.estado a mano.
- *   2. Cancela todas las reservas PENDIENTE/ACEPTADA del parqueadero (vía su celda),
- *      registrando el mismo motivo, reutilizando reserva.repository.cambiarEstado tal
- *      cual (ya escribe motivo_rechazo y deja que fn_historial_reserva registre el motivo
- *      vía app.motivo, que este mismo runWithUsuario ya dejó seteado).
- * Si cualquier paso falla, sequelize.transaction revierte todo -- no queda nada a medias.
+ * DESACTIVAR es una operación PURAMENTE ADMINISTRATIVA: cambia el estado y nada más.
+ * NO cierra parqueos, NO cancela reservas y NO libera celdas ocupadas -- los vehículos
+ * que ya estaban dentro siguen registrados como estacionados hasta que alguien registre
+ * su salida manualmente, para que la base de datos siga reflejando la realidad física
+ * del parqueadero. Lo que sí queda bloqueado mientras esté INACTIVO son las operaciones
+ * que ocuparían celdas nuevas: registrar ingreso (entradaSalida.service.js) y crear
+ * reserva (reserva.service.js). Registrar SALIDA sigue permitido a propósito.
+ *
  * La fila del parqueadero se lee con lock (FOR UPDATE) para serializar dos
  * activaciones/desactivaciones concurrentes del mismo parqueadero.
- *
- * REACTIVAR (false -> true) no dispara ninguna cascada: no hay nada que "reabrir"
- * automáticamente (ingresos y reservas cerrados por la desactivación quedan como
- * histórico, tal como pide la regla de no perder información histórica).
  * @param {number} id
  * @param {boolean|string} estado - true/false, o 'ACTIVO'/'INACTIVO'.
  * @param {string} motivo - Obligatorio.
@@ -185,25 +179,7 @@ const cambiarEstado = async (id, estado, motivo, usuarioId) => {
         throw { status: 409, message: `El parqueadero ya se encuentra ${nuevoEstado ? 'ACTIVO' : 'INACTIVO'}` };
       }
 
-      const actualizado = await repo.cambiarEstado(id, nuevoEstado, { transaction });
-
-      if (nuevoEstado === false) {
-        const ingresosActivos = await entradaSalidaRepo.findActivos(id, { transaction, lock: true });
-        for (const ingreso of ingresosActivos) {
-          await entradaSalidaRepo.registrarSalida(
-            ingreso.id,
-            { usuario_salida_id: usuarioId, descripcion_salida: `Cierre automático: parqueadero desactivado (${motivo})` },
-            { transaction },
-          );
-        }
-
-        const reservasActivas = await reservaRepo.findActivasPorParqueadero(id, { transaction, lock: true });
-        for (const reserva of reservasActivas) {
-          await reservaRepo.cambiarEstado(reserva.id, 'CANCELADA', usuarioId, motivo, { transaction });
-        }
-      }
-
-      return actualizado;
+      return repo.cambiarEstado(id, nuevoEstado, { transaction });
     }, { motivo });
 
     return _conEstadoTexto(resultado);

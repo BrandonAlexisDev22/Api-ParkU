@@ -366,6 +366,14 @@ router.put('/parqueadero/:parqueaderoId/ajustar-cantidades',
   ctrl.ajustarCantidades
 );
 
+// Reducción equilibrada: el caller solo dice CUÁNTAS celdas retirar y el backend elige
+// cuáles, repartiendo el recorte entre tipos y sin tocar ocupadas ni reservadas.
+router.put('/parqueadero/:parqueaderoId/reducir',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  ctrl.reducirCeldas
+);
+
 /**
  * @swagger
  * /api/celdas/{id}:

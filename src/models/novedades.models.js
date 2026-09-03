@@ -18,9 +18,10 @@ const Novedad = sequelize.define('Novedad', {
     allowNull: false,
   },
   prioridad: {
+    // NULL mientras el reporte sigue PENDIENTE: Comunidad SENA no elige prioridad, la
+    // define el personal autorizado al aceptarlo (ver novedades.service.js aceptar()).
     type: DataTypes.ENUM('BAJA', 'MEDIA', 'ALTA', 'CRITICA'),
-    allowNull: false,
-    defaultValue: 'MEDIA',
+    allowNull: true,
   },
   estado: {
     type: DataTypes.ENUM('PENDIENTE', 'EN_PROCESO', 'RESUELTA', 'CERRADA', 'CANCELADA'),
