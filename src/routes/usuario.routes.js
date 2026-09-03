@@ -130,7 +130,7 @@ const uploadFoto = crearUploadMiddleware({
  */
 
 // El login vive únicamente en POST /api/auth/login (auth.routes.js): es el único que
-// aplica rate limiting, valida `estado` y emite JWT. No duplicar aquí.
+// valida `estado` y emite JWT. No duplicar aquí.
 
 /**
  * @swagger

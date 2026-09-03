@@ -1,5 +1,4 @@
 const router = require('express').Router();
-const rateLimit = require('express-rate-limit');
 const { body } = require('express-validator');
 
 // =============================================
@@ -16,33 +15,6 @@ const { verificarToken } = require('../middlewares/auth.middleware');
 
 // Middleware de validación
 const { validate } = require('../middlewares/validators/auth.validator');
-
-// =============================================
-// RATE LIMITING
-// =============================================
-
-// Límite de intentos de login y registro
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // Máximo 10 peticiones por IP
-  message: {
-    status: 429,
-    message: 'Demasiadas solicitudes, intente más tarde',
-  },
-});
-
-// Límite para los chequeos de disponibilidad (existe-correo/existe-numero):
-// se llaman mientras el usuario escribe (con debounce en el frontend), así
-// que necesitan una ventana más laxa que authLimiter, pero igual acotada
-// para no habilitar enumeración masiva de cuentas.
-const disponibilidadLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: 30,
-  message: {
-    status: 429,
-    message: 'Demasiadas solicitudes, intente más tarde',
-  },
-});
 
 // =============================================
 // VALIDACIONES
@@ -138,14 +110,11 @@ const refreshValidation = [
  *         description: Login exitoso
  *       401:
  *         description: Credenciales inválidas
- *       429:
- *         description: Demasiadas solicitudes
  */
 
 
 router.post(
   '/login',
-  authLimiter,
   loginValidation,
   validate,
   authCtrl.login
@@ -207,13 +176,10 @@ router.post(
  *         description: Validación fallida, o tipo_documento/numero_documento incompletos/inválidos
  *       409:
  *         description: Correo, teléfono o documento ya registrados
- *       429:
- *         description: Demasiadas solicitudes
  */
 
 router.post(
   '/registro',
-  authLimiter,
   registerValidation,
   validate,
   authCtrl.register
@@ -240,12 +206,9 @@ router.post(
  *         description: "{ existe: boolean }"
  *       400:
  *         description: Falta el parámetro correo
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.get(
   '/existe-correo',
-  disponibilidadLimiter,
   authCtrl.existeCorreo
 );
 
@@ -266,12 +229,9 @@ router.get(
  *         description: "{ existe: boolean }"
  *       400:
  *         description: Falta el parámetro numero
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.get(
   '/existe-numero',
-  disponibilidadLimiter,
   authCtrl.existeNumero
 );
 
@@ -298,12 +258,9 @@ router.get(
  *         description: "{ existe: boolean }"
  *       400:
  *         description: Faltan parámetros
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.get(
   '/existe-documento',
-  disponibilidadLimiter,
   authCtrl.existeDocumento
 );
 
@@ -362,7 +319,6 @@ router.get(
 
 router.post(
   '/refresh-token',
-  authLimiter,
   refreshValidation,
   validate,
   authCtrl.refreshToken
@@ -418,12 +374,9 @@ router.post(
  *     responses:
  *       200:
  *         description: Si el correo existe, se generó un token (se envía por correo en producción)
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.post(
   '/recuperar-password',
-  authLimiter,
   authCtrl.recuperarPassword
 );
 
@@ -453,12 +406,9 @@ router.post(
  *         description: Contraseña actualizada correctamente
  *       400:
  *         description: Token inválido, ya usado, expirado, o contraseña muy corta
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.post(
   '/restablecer-password',
-  authLimiter,
   authCtrl.restablecerPassword
 );
 
@@ -510,12 +460,9 @@ router.get(
  *     responses:
  *       200:
  *         description: Si el correo existe y no está verificado, se envía un nuevo enlace
- *       429:
- *         description: Demasiadas solicitudes
  */
 router.post(
   '/reenviar-verificacion',
-  disponibilidadLimiter,
   authCtrl.reenviarVerificacion
 );
 

@@ -3,7 +3,6 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 
 const { swaggerDocs } = require('./config/swagger');
 const { testConnection, sequelize } = require('./config/database');
@@ -37,19 +36,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-// Rate Limit Global
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 peticiones por IP
-  message: {
-    status: 429,
-    message: 'Demasiadas solicitudes desde esta IP, intente más tarde'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api', globalLimiter);
 
 // Parsear JSON
 app.use(express.json({ limit: '10mb' }));

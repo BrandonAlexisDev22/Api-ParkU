@@ -132,8 +132,7 @@ class AuthController {
 
   /**
    * GET /api/auth/existe-correo - Chequeo de disponibilidad para el formulario
-   * de registro (validación en tiempo real, antes del submit). Público pero
-   * rate-limitado (ver disponibilidadLimiter en auth.routes.js) porque
+   * de registro (validación en tiempo real, antes del submit). Público:
    * revela si un correo está registrado.
    */
   static async existeCorreo(req, res) {

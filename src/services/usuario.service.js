@@ -296,7 +296,7 @@ const remove = async (id) => {
 };
 
 // El login vive solo en AuthController/auth.routes.js (POST /api/auth/login): es el
-// único que aplica rate limiting, chequea `estado` (ACTIVO/INACTIVO/BLOQUEADO) y emite
-// JWT. Este service no debe tener una segunda implementación de login.
+// único que chequea `estado` (ACTIVO/INACTIVO/BLOQUEADO) y emite JWT.
+// Este service no debe tener una segunda implementación de login.
 
 module.exports = { getAll, getById, create, update, cambiarContrasena, actualizarFoto, remove };

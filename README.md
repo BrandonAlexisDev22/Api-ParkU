@@ -52,7 +52,6 @@ El sistema proporciona funcionalidades para:
 | **bcrypt**             | Encriptación y protección de contraseñas            |
 | **Helmet**             | Protección mediante cabeceras HTTP                  |
 | **Morgan**             | Registro de peticiones HTTP                         |
-| **express-rate-limit** | Protección contra exceso de peticiones              |
 
 ---
 
