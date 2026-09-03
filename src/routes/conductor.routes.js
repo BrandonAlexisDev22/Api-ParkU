@@ -136,6 +136,13 @@ router.get('/correo/:correo',
   ctrl.getByCorreo
 );
 
+// IMPORTANTE: debe ir antes de GET /:id -- si no, Express tomaría "usuario" como el
+// parámetro :id.
+router.get('/usuario/:usuarioId',
+  verificarToken,
+  ctrl.getByUsuarioId
+);
+
 /**
  * @swagger
  * /api/conductores/{id}:

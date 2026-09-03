@@ -5,6 +5,8 @@ const { Usuario, Conductor } = require('../models');
 const { sequelize } = require('../config/database');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
+const verificacionCorreoSvc = require('../services/verificacionCorreo.service');
+const Logger = require('../utils/logger.util');
 
 // Debe coincidir con el ENUM real de conductor.tipo_documento (conductores.models.js).
 // Comparar contra un valor fuera de este set haría que Postgres rechace la
@@ -99,9 +101,19 @@ class AuthController {
         return usuario;
       });
 
+      // Fuera de la transacción y sin bloquear la respuesta: el registro ya quedó
+      // confirmado en BD; si el envío de correo falla, el usuario puede pedir un
+      // reenvío (POST /api/auth/reenviar-verificacion) en vez de perder la cuenta creada.
+      verificacionCorreoSvc.solicitar(nuevo).catch((error) => {
+        Logger.error('No se pudo generar/enviar la verificación de correo en el registro', {
+          usuario_id: nuevo.id,
+          error: error.message,
+        });
+      });
+
       return res.status(201).json({
         success: true,
-        message: 'Usuario registrado exitosamente',
+        message: 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.',
         data: {
           id: nuevo.id,
           correo: nuevo.correo,
@@ -110,6 +122,7 @@ class AuthController {
           rol: nuevo.rol_id,
           estado: nuevo.estado,
           foto_perfil_url: nuevo.foto_perfil_url,
+          correo_verificado: nuevo.correo_verificado,
         }
       });
     } catch (error) {
@@ -241,7 +254,8 @@ class AuthController {
       const payload = {
         id: user.id,
         correo: user.correo,
-        rol: user.rol_id
+        rol: user.rol_id,
+        fecha_cambio_contrasena: user.fecha_cambio_contrasena,
       };
 
       const token = generarToken(payload);
@@ -345,11 +359,25 @@ class AuthController {
         });
       }
 
+      // Mismo chequeo que verificarToken (auth.middleware.js): un refresh token emitido
+      // antes del último cambio de contraseña no debe poder canjearse por uno nuevo.
+      if (user.fecha_cambio_contrasena) {
+        const pwdTsToken = decoded.pwdTs || 0;
+        const pwdTsUsuario = new Date(user.fecha_cambio_contrasena).getTime();
+        if (pwdTsToken < pwdTsUsuario) {
+          return res.status(401).json({
+            success: false,
+            message: 'La contraseña fue cambiada recientemente. Inicia sesión nuevamente.'
+          });
+        }
+      }
+
       // Generar nuevo token
       const newToken = generarToken({
         id: user.id,
         correo: user.correo,
-        rol: user.rol_id
+        rol: user.rol_id,
+        fecha_cambio_contrasena: user.fecha_cambio_contrasena,
       });
 
       return res.status(200).json({
@@ -394,12 +422,12 @@ class AuthController {
   static async recuperarPassword(req, res) {
     try {
       const { correo } = req.body;
-      const { token } = await recuperacionPasswordSvc.solicitar(correo);
+      await recuperacionPasswordSvc.solicitar(correo);
+      // Respuesta genérica siempre: no revela si el correo existe o no (evita
+      // enumeración de cuentas). El token real solo viaja por el correo enviado.
       return res.status(200).json({
         success: true,
-        message: 'Si el correo está registrado, se generó un enlace de recuperación',
-        // Solo viaja fuera de producción; en producción debe enviarse por correo.
-        ...(token ? { token } : {}),
+        message: 'Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña',
       });
     } catch (error) {
       handleError(res, error);
@@ -414,6 +442,42 @@ class AuthController {
       const { token, nuevaContrasena } = req.body;
       await recuperacionPasswordSvc.restablecer(token, nuevaContrasena);
       return res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+
+  /**
+   * GET /api/auth/verificar-correo?token=... - Consume el token y marca el correo como verificado
+   */
+  static async verificarCorreo(req, res) {
+    try {
+      const { token } = req.query;
+      await verificacionCorreoSvc.confirmar(token);
+      return res.status(200).json({ success: true, message: 'Correo verificado correctamente' });
+    } catch (error) {
+      handleError(res, error);
+    }
+  }
+
+  /**
+   * POST /api/auth/reenviar-verificacion - Genera y envía un nuevo enlace de verificación
+   */
+  static async reenviarVerificacion(req, res) {
+    try {
+      const { correo } = req.body;
+      if (!correo) throw { status: 400, message: 'El correo es requerido' };
+
+      const usuario = await Usuario.findOne({ where: { correo } });
+      // Misma respuesta exista o no la cuenta, o ya esté verificada -- evita enumeración
+      // de cuentas y no revela el estado de verificación de un correo ajeno.
+      if (usuario) {
+        await verificacionCorreoSvc.solicitar(usuario);
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Si el correo está registrado y aún no ha sido verificado, recibirás un nuevo enlace',
+      });
     } catch (error) {
       handleError(res, error);
     }

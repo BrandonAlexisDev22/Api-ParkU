@@ -28,7 +28,7 @@ const mapUsuario = (instancia) => {
   };
 };
 
-const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'ultimo_acceso', 'fecha_creacion'];
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'correo_verificado', 'ultimo_acceso', 'fecha_creacion'];
 
 /**
  * Recupera todos los usuarios con el nombre de su rol.
@@ -97,31 +97,34 @@ const create = async (data, { transaction } = {}) => {
  * Actualiza parcialmente un usuario.
  * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales)
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
-  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico', 'foto_perfil_url'];
+const update = async (id, data, { transaction } = {}) => {
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico', 'foto_perfil_url', 'correo_verificado'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];
   }
 
   if (Object.keys(cambios).length === 0) {
-    return findById(id);
+    return findById(id, { transaction });
   }
 
-  await Usuario.update(cambios, { where: { id } });
-  return findById(id);
+  await Usuario.update(cambios, { where: { id }, transaction });
+  return findById(id, { transaction });
 };
 
 /**
- * Actualiza la contraseña de un usuario.
+ * Actualiza la contraseña de un usuario. También marca fecha_cambio_contrasena, que
+ * invalida cualquier JWT emitido antes de este momento -- ver
+ * auth.middleware.js verificarToken.
  * @param {number} id
  * @param {string} contrasena - Hash de la nueva contraseña
  * @returns {Promise<void>}
  */
 const updateContrasena = async (id, contrasena) => {
-  await Usuario.update({ contrasena }, { where: { id } });
+  await Usuario.update({ contrasena, fecha_cambio_contrasena: new Date() }, { where: { id } });
 };
 
 /**

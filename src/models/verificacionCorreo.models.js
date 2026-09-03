@@ -1,15 +1,16 @@
 /**
- * @module RecuperacionPasswordModel
- * @description Modelo Sequelize para 'recuperacion_password' (HU 02.2.3.2). Guarda el
- * HASH (SHA-256) del token de recuperación de contraseña, nunca el token en claro -- ver
- * recuperacionPassword.service.js. No lleva trigger de auditoría a propósito (debe
- * funcionar sin sesión previa).
+ * @module VerificacionCorreoModel
+ * @description Modelo Sequelize para 'verificacion_correo'. Guarda el HASH (SHA-256) del
+ * token de verificación de correo, nunca el token en claro -- ver
+ * verificacionCorreo.service.js. Mismo patrón que 'recuperacion_password': no lleva
+ * trigger de auditoría a propósito (debe poder usarse recién creada la cuenta, antes de
+ * cualquier sesión).
  */
 
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const RecuperacionPassword = sequelize.define('RecuperacionPassword', {
+const VerificacionCorreo = sequelize.define('VerificacionCorreo', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -39,8 +40,8 @@ const RecuperacionPassword = sequelize.define('RecuperacionPassword', {
     defaultValue: false,
   },
 }, {
-  tableName: 'recuperacion_password',
+  tableName: 'verificacion_correo',
   timestamps: false,
 });
 
-module.exports = RecuperacionPassword;
+module.exports = VerificacionCorreo;

@@ -13,16 +13,11 @@ const entradaSalidaRepo = require('../repositories/entradaSalida.repository');
 const novedadesRepo = require('../repositories/novedades.repository');
 const { runWithUsuario } = require('../utils/dbContext.util');
 const { estaDentroDeHorarioOperacion, minutosFueraDeHorario } = require('../config/horarioOperacion');
+const { LIMITE_ESTADIA_MINUTOS } = require('../config/estadia');
 
 // Una novedad en cualquiera de estos estados ya "se resolvió" -- no cuenta como incidente
 // abierto a efectos de evitar duplicados.
 const ESTADOS_NOVEDAD_CERRADOS = ['RESUELTA', 'CERRADA', 'CANCELADA'];
-
-// Umbral de estadía continua que amerita revisión -- concepto DISTINTO de
-// fuera_de_horario/minutos_excedidos (que se calculan contra la hora de cierre fija
-// 05:00-21:00, ver horarioOperacion.js). Este es un conteo simple desde el ingreso,
-// sin importar la hora del día, y con un vehículo marcado como Oficial SENA queda exento.
-const LIMITE_ESTADIA_MINUTOS = 16 * 60;
 
 const _minutosDesde = (fecha) => Math.max(0, Math.round((Date.now() - new Date(fecha).getTime()) / 60000));
 

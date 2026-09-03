@@ -91,6 +91,22 @@ const getByDocumento = async (tipoDocumento, numeroDocumento) => {
 const getByCorreo = (correo) => repo.findByCorreo(correo);
 
 /**
+ * Busca el conductor vinculado a una cuenta de usuario (1:1). Es lo único que permite a
+ * un frontend recuperar el documento de "el usuario logueado" sin ya conocer su
+ * conductor_id -- ver PUT /api/usuarios/foto para el mismo patrón de "usar el usuario
+ * autenticado", y usuario.service.js para el bug que esto corrige (el documento se
+ * perdía porque no había forma de leerlo de vuelta).
+ * @param {number} usuarioId
+ * @throws {Object} 404 si ese usuario no tiene un conductor vinculado.
+ * @returns {Promise<Object>}
+ */
+const getByUsuarioId = async (usuarioId) => {
+  const item = await repo.findByUsuarioId(usuarioId);
+  if (!item) throw { status: 404, message: 'Este usuario no tiene un conductor vinculado' };
+  return item;
+};
+
+/**
  * Crea un nuevo conductor.
  * @param {Object} data
  * @throws {Object} 400 si faltan campos o son inválidos.
@@ -201,6 +217,7 @@ module.exports = {
   getActivos,
   getByDocumento,
   getByCorreo,
+  getByUsuarioId,
   create,
   update,
   remove,

@@ -304,6 +304,39 @@ const getByCorreo = async (req, res) => {
 
 /**
  * @swagger
+ * /conductores/usuario/{usuarioId}:
+ *   get:
+ *     summary: Obtener el conductor vinculado a una cuenta de usuario (incluye su documento)
+ *     tags: [Conductores]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: usuarioId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Conductor vinculado a ese usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Conductor'
+ *       404:
+ *         description: Ese usuario no tiene un conductor vinculado
+ */
+const getByUsuarioId = async (req, res) => {
+  try {
+    const data = await svc.getByUsuarioId(req.params.usuarioId);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
  * /conductores/{id}:
  *   get:
  *     summary: Obtener un conductor por ID
@@ -445,6 +478,7 @@ module.exports = {
   getActivos,
   getByDocumento,
   getByCorreo,
+  getByUsuarioId,
   create,
   update,
   remove,

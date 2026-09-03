@@ -75,6 +75,8 @@ const traducirErrorTrigger = (error) => {
       throw { status: 409, message: 'La operación hace referencia a datos que no existen o está referenciada por otros registros' };
     case '23514': // check_violation
       throw { status: 400, message: pgError.message };
+    case '22001': // string_data_right_truncation (valor más largo que el límite de la columna)
+      throw { status: 400, message: 'Uno de los valores enviados excede la longitud máxima permitida' };
     default:
       throw error;
   }

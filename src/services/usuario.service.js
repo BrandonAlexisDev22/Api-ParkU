@@ -10,7 +10,8 @@ const repo = require('../repositories/usuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { resolverRolId } = require('../config/roles');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
-const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
+const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
+const conductorRepo = require('../repositories/conductor.repository');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Formato permisivo (con o sin '+', 7-15 dígitos) -- el mismo criterio que ya se usaba en
@@ -50,10 +51,25 @@ const getAll = () => repo.findAll();
  * @throws {Object} 404 si no existe.
  * @returns {Promise<Object>}
  */
+/**
+ * Busca un usuario por ID e incluye un resumen de su documento (tipo_documento/
+ * numero_documento) si tiene un Conductor vinculado -- sin esto, el frontend no tenía
+ * ninguna forma de recuperar el documento de "el usuario logueado" salvo adivinar su
+ * conductor_id (ver también GET /api/conductores/usuario/:usuarioId, que da el registro
+ * de Conductor completo).
+ * @param {number} id
+ * @throws {Object} 404 si no existe.
+ * @returns {Promise<Object>}
+ */
 const getById = async (id) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Usuario no encontrado' };
-  return item;
+  const conductorVinculado = await conductorRepo.findByUsuarioId(id);
+  return {
+    ...item,
+    tipo_documento: conductorVinculado?.tipo_documento ?? null,
+    numero_documento: conductorVinculado?.numero_documento ?? null,
+  };
 };
 
 /**
@@ -127,10 +143,15 @@ const create = async (data) => {
 };
 
 /**
- * Actualiza parcialmente un usuario.
- * @param {number} id 
+ * Actualiza parcialmente un usuario. Si se envía tipo_documento + numero_documento (o sus
+ * alias tipoDocumento/numeroDocumento), actualiza el documento del Conductor ya vinculado
+ * a este usuario, o crea uno nuevo si todavía no tenía -- ANTES este par de campos se
+ * ignoraba en silencio (ni error ni efecto), que era la causa real de "el documento no se
+ * actualiza"; ver conductorVinculado.util.js para el mismo patrón usado en create()/register().
+ * @param {number} id
  * @param {Object} data - Campos a actualizar
- * @throws {Object} 404 si no existe, 409 si correo duplicado.
+ * @throws {Object} 404 si no existe, 400 si el documento no es válido, 409 si correo/
+ *   teléfono/documento duplicado.
  * @returns {Promise<Object>}
  */
 const update = async (id, data) => {
@@ -159,15 +180,62 @@ const update = async (id, data) => {
     throw { status: 400, message: 'Para cambiar la contraseña use el endpoint específico' };
   }
 
+  const tipoDocumento = data.tipo_documento ?? data.tipoDocumento;
+  const numeroDocumento = data.numero_documento ?? data.numeroDocumento;
+  if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
+    throw { status: 400, message: 'tipo_documento y numero_documento deben enviarse juntos' };
+  }
+  let tipoDocumentoNormalizado;
+  if (tipoDocumento) {
+    tipoDocumentoNormalizado = tipoDocumento.toString().trim().toUpperCase();
+    if (!TIPOS_DOCUMENTO_VALIDOS.includes(tipoDocumentoNormalizado)) {
+      throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO_VALIDOS.join(', ')}` };
+    }
+  }
+
   // El rol puede venir como `rol` o como `rol_id`, número o nombre (ver resolverRolId).
   const updateData = { ...data };
+  delete updateData.tipo_documento;
+  delete updateData.tipoDocumento;
+  delete updateData.numero_documento;
+  delete updateData.numeroDocumento;
   const rolEnviado = updateData.rol !== undefined ? updateData.rol : updateData.rol_id;
   delete updateData.rol;
   const rolResuelto = resolverRolId(rolEnviado);
   if (rolResuelto !== undefined) updateData.rol_id = rolResuelto;
 
   try {
-    return await repo.update(id, updateData);
+    return await sequelize.transaction(async (transaction) => {
+      const actualizado = await repo.update(id, updateData, { transaction });
+
+      if (tipoDocumentoNormalizado && numeroDocumento) {
+        const conductorVinculado = await conductorRepo.findByUsuarioId(id, { transaction });
+        const otroConDocumento = await conductorRepo.findByDocumento(tipoDocumentoNormalizado, numeroDocumento);
+        if (otroConDocumento && (!conductorVinculado || otroConDocumento.id !== conductorVinculado.id)) {
+          throw { status: 409, message: 'Ya existe un conductor registrado con ese documento' };
+        }
+
+        if (conductorVinculado) {
+          await conductorRepo.update(
+            conductorVinculado.id,
+            { tipo_documento: tipoDocumentoNormalizado, numero_documento: numeroDocumento },
+            { transaction },
+          );
+        } else {
+          await crearConductorVinculado({
+            usuario_id: id,
+            tipo_documento: tipoDocumentoNormalizado,
+            numero_documento: numeroDocumento,
+            nombre_apellidos: updateData.nombre || usuario.nombre,
+            correo: updateData.correo || usuario.correo,
+            numero_telefonico: updateData.numero_telefonico || usuario.numero_telefonico,
+            transaction,
+          });
+        }
+      }
+
+      return actualizado;
+    });
   } catch (error) {
     traducirErrorTrigger(error);
   }

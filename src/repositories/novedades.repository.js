@@ -5,7 +5,7 @@
  */
 
 const { Sequelize } = require('sequelize');
-const { Novedad, Vehiculo, Usuario, Celda, Parqueadero, RegistroAcceso } = require('../models');
+const { Novedad, Vehiculo, Usuario, Celda, Parqueadero, RegistroAcceso, Conductor } = require('../models');
 
 const includeContexto = [
   { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa'] },
@@ -13,7 +13,19 @@ const includeContexto = [
   { model: Usuario, as: 'asignadoA', attributes: ['id', 'nombre'] },
   { model: Celda, as: 'celda', attributes: ['id', 'numero'] },
   { model: Parqueadero, as: 'parqueadero', attributes: ['id', 'nombre'] },
-  { model: RegistroAcceso, as: 'registroAcceso', attributes: ['id'] },
+  {
+    model: RegistroAcceso,
+    as: 'registroAcceso',
+    attributes: ['id', 'fecha_hora_ingreso', 'fecha_hora_salida', 'es_oficial_sena'],
+    include: [
+      { model: Vehiculo, as: 'vehiculo', attributes: ['id', 'placa', 'tipo'] },
+      {
+        model: Conductor,
+        as: 'conductor',
+        attributes: ['id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo', 'numero_telefonico'],
+      },
+    ],
+  },
 ];
 
 // CRITICA primero, BAJA al final -- el orden alfabético/de declaración del enum de

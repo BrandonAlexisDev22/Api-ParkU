@@ -78,10 +78,11 @@ const findByCorreo = async (correo) => {
 /**
  * Busca el conductor asociado a una cuenta de usuario (1:1).
  * @param {number} usuarioId
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object|null>}
  */
-const findByUsuarioId = async (usuarioId) => {
-  const row = await Conductor.findOne({ where: { usuario_id: usuarioId }, include: includeCatalogos });
+const findByUsuarioId = async (usuarioId, { transaction } = {}) => {
+  const row = await Conductor.findOne({ where: { usuario_id: usuarioId }, include: includeCatalogos, transaction });
   return mapConductor(row);
 };
 
@@ -132,9 +133,10 @@ const create = async (data, { transaction } = {}) => {
  * Actualiza parcialmente un conductor.
  * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
+ * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>} Conductor actualizado.
  */
-const update = async (id, data) => {
+const update = async (id, data, { transaction } = {}) => {
   const allowedFields = [
     'usuario_id', 'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo',
     'direccion', 'numero_telefonico', 'tipo_usuario_id', 'regional_formacion',
@@ -147,11 +149,11 @@ const update = async (id, data) => {
   }
 
   if (Object.keys(cambios).length === 0) {
-    return findById(id);
+    return findById(id, { transaction });
   }
 
-  await Conductor.update(cambios, { where: { id } });
-  return findById(id);
+  await Conductor.update(cambios, { where: { id }, transaction });
+  return findById(id, { transaction });
 };
 
 /**

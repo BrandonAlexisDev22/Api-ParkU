@@ -47,6 +47,23 @@ const uploadFoto = crearUploadMiddleware({
  *           type: string
  *           enum: [ACTIVO, INACTIVO, BLOQUEADO]
  *           default: ACTIVO
+ *         foto_perfil_url:
+ *           type: string
+ *           nullable: true
+ *           description: Ruta pública de la foto de perfil (ver PUT /api/usuarios/foto).
+ *         correo_verificado:
+ *           type: boolean
+ *           description: >
+ *             Distinto de "correo con formato válido": solo es true si el usuario abrió el
+ *             enlace de verificación enviado a su correo. No bloquea ninguna operación hoy.
+ *         tipo_documento:
+ *           type: string
+ *           nullable: true
+ *           description: Del Conductor vinculado a este usuario, si existe (GET /api/usuarios/:id).
+ *         numero_documento:
+ *           type: string
+ *           nullable: true
+ *           description: Del Conductor vinculado a este usuario, si existe (GET /api/usuarios/:id).
  *     UsuarioCreate:
  *       type: object
  *       required:
@@ -99,6 +116,17 @@ const uploadFoto = crearUploadMiddleware({
  *         estado:
  *           type: string
  *           enum: [ACTIVO, INACTIVO, BLOQUEADO]
+ *         tipo_documento:
+ *           type: string
+ *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *           description: >
+ *             Opcional (también acepta `tipoDocumento`). Si el usuario ya tiene un
+ *             Conductor vinculado, actualiza su documento; si no, crea uno nuevo. Debe
+ *             enviarse junto con numero_documento (409 si el documento ya pertenece a otro
+ *             conductor).
+ *         numero_documento:
+ *           type: string
+ *           description: Opcional (también acepta `numeroDocumento`). Debe enviarse junto con tipo_documento.
  */
 
 // El login vive únicamente en POST /api/auth/login (auth.routes.js): es el único que

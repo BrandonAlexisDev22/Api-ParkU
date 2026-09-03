@@ -463,6 +463,63 @@ router.post(
 );
 
 // =============================================
+// VERIFICACIÓN DE CORREO
+// =============================================
+
+/**
+ * @swagger
+ * /api/auth/verificar-correo:
+ *   get:
+ *     summary: Confirma el token enviado por correo y marca la cuenta como verificada
+ *     tags: [Autenticación]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Correo verificado correctamente
+ *       400:
+ *         description: Token inválido, ya usado, o expirado
+ */
+router.get(
+  '/verificar-correo',
+  authCtrl.verificarCorreo
+);
+
+/**
+ * @swagger
+ * /api/auth/reenviar-verificacion:
+ *   post:
+ *     summary: Reenvía el correo de verificación (invalida cualquier enlace anterior sin usar)
+ *     tags: [Autenticación]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - correo
+ *             properties:
+ *               correo:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Si el correo existe y no está verificado, se envía un nuevo enlace
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.post(
+  '/reenviar-verificacion',
+  disponibilidadLimiter,
+  authCtrl.reenviarVerificacion
+);
+
+// =============================================
 // EXPORTAR ROUTER
 // =============================================
 

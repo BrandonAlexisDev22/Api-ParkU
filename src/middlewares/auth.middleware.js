@@ -44,7 +44,7 @@ const verificarToken = async (req, res, next) => {
 
     const user = await Usuario.findOne({
       where: { id: decoded.id, estado: 'ACTIVO' },
-      attributes: ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url'],
+      attributes: ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'fecha_cambio_contrasena'],
     });
 
     if (!user) {
@@ -52,6 +52,21 @@ const verificarToken = async (req, res, next) => {
         status: 401,
         message: 'Usuario no encontrado o inactivo'
       });
+    }
+
+    // Invalida tokens emitidos ANTES del último cambio de contraseña (login normal,
+    // restablecer-password, o el endpoint de cambiar contraseña -- los tres pasan por
+    // usuarioRepo.updateContrasena, que fija fecha_cambio_contrasena). Retrocompatible: si
+    // el usuario nunca cambió su contraseña (columna NULL) no se rechaza nada.
+    if (user.fecha_cambio_contrasena) {
+      const pwdTsToken = decoded.pwdTs || 0;
+      const pwdTsUsuario = new Date(user.fecha_cambio_contrasena).getTime();
+      if (pwdTsToken < pwdTsUsuario) {
+        return res.status(401).json({
+          status: 401,
+          message: 'La contraseña fue cambiada recientemente. Inicia sesión nuevamente.'
+        });
+      }
     }
 
     req.usuario = {
@@ -189,7 +204,10 @@ const generarToken = (usuario) => {
     {
       id: usuario.id,
       correo: usuario.correo,
-      rol: usuario.rol
+      rol: usuario.rol,
+      // Marca de tiempo del último cambio de contraseña en el momento de emitir este
+      // token -- ver verificarToken. 0 si nunca la cambió.
+      pwdTs: usuario.fecha_cambio_contrasena ? new Date(usuario.fecha_cambio_contrasena).getTime() : 0,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -206,7 +224,8 @@ const generarRefreshToken = (usuario) => {
     {
       id: usuario.id,
       correo: usuario.correo,
-      rol: usuario.rol
+      rol: usuario.rol,
+      pwdTs: usuario.fecha_cambio_contrasena ? new Date(usuario.fecha_cambio_contrasena).getTime() : 0,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d' }

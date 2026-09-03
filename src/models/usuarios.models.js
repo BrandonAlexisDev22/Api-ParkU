@@ -55,6 +55,21 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.STRING(500),
     allowNull: true,
   },
+  correo_verificado: {
+    // Distinto de "formato de correo válido": esto significa que el usuario efectivamente
+    // recibió y abrió un enlace de verificación -- ver verificacionCorreo.service.js.
+    // Las cuentas que ya existían antes de esta columna se marcaron true por migración
+    // (grandfathering); solo las cuentas nuevas nacen en false.
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  fecha_cambio_contrasena: {
+    // NULL = nunca cambió su contraseña desde que existe esta columna. Se usa para
+    // invalidar JWT emitidos antes del último cambio -- ver auth.middleware.js.
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   tableName: 'usuario',
   timestamps: true,

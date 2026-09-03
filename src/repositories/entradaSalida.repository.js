@@ -99,6 +99,20 @@ const findActivos = async (parqueaderoId, { transaction, lock } = {}) => {
 };
 
 /**
+ * Ingreso actualmente activo (sin salida) de una celda puntual, si existe -- usado para
+ * autocompletar el contexto de un reporte hecho "desde la celda" (novedades.service.js).
+ * @param {number} celdaId
+ * @returns {Promise<Object|null>}
+ */
+const findActivoPorCelda = async (celdaId) => {
+  const row = await RegistroAcceso.findOne({
+    where: { celda_id: celdaId, fecha_hora_salida: null },
+    include: includeContexto,
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Busca registros dentro de un rango de tiempo específico.
  * @param {string|Date} desde
  * @param {string|Date} hasta
@@ -180,6 +194,7 @@ module.exports = {
   findById,
   findByVehiculo,
   findIngresoAbierto,
+  findActivoPorCelda,
   findActivos,
   findByFecha,
   registrarIngreso,

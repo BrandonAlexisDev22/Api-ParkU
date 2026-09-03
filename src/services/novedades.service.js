@@ -13,8 +13,10 @@ const celdaRepo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const registroAccesoRepo = require('../repositories/entradaSalida.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
+const evidenciaRepo = require('../repositories/evidenciaNovedad.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES } = require('../config/roles');
+const { LIMITE_ESTADIA_MINUTOS } = require('../config/estadia');
 
 const TIPOS_PERMITIDOS = ['DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'];
 const PRIORIDADES_PERMITIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -35,7 +37,8 @@ const getAll = () => repo.findAll();
 const getById = async (id) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Novedad no encontrada' };
-  return item;
+  const evidencias = await evidenciaRepo.findByNovedad(id);
+  return { ..._enriquecerContexto(item), evidencias };
 };
 
 /**
@@ -105,20 +108,67 @@ const _validarReferencias = async ({ vehiculo_id, celda_id, parqueadero_id, regi
 };
 
 /**
+ * Deriva el "contexto" de una novedad (documento, nombre y correo del conductor, placa y
+ * tipo del vehículo, hora de ingreso, tiempo de estadía) a partir de su
+ * registro_acceso_id -- que es un puntero históricamente estable: vehiculo_id/
+ * conductor_id de un registro_acceso quedan fijos desde el ingreso y nunca se
+ * sobreescriben (ver entradaSalida.repository.js registrarSalida), así que la relación
+ * sigue siendo correcta aunque después cambie la propiedad del vehículo. No se guarda
+ * ningún dato duplicado: todo se deriva en lectura de tablas ya existentes.
+ *
+ * tiempo_estadia_minutos se calcula contra novedad.fecha_hora (el momento del reporte,
+ * ya almacenado), no contra "ahora" -- así el valor de un reporte viejo no cambia cada
+ * vez que se vuelve a consultar.
+ * @private
+ * @param {Object} novedad - Tal como lo devuelve el repositorio (incluye registroAcceso).
+ * @returns {Object} La misma novedad con un campo `contexto` (null si no aplica).
+ */
+const _enriquecerContexto = (novedad) => {
+  const registroAcceso = novedad.registroAcceso;
+  if (!registroAcceso) return { ...novedad, contexto: null };
+
+  const tiempoEstadiaMinutos = Math.max(
+    0,
+    Math.round((new Date(novedad.fecha_hora).getTime() - new Date(registroAcceso.fecha_hora_ingreso).getTime()) / 60000),
+  );
+
+  return {
+    ...novedad,
+    contexto: {
+      fecha_hora_ingreso: registroAcceso.fecha_hora_ingreso,
+      fecha_hora_salida: registroAcceso.fecha_hora_salida,
+      es_oficial_sena: !!registroAcceso.es_oficial_sena,
+      tiempo_estadia_minutos: tiempoEstadiaMinutos,
+      requiere_revision_estadia: tiempoEstadiaMinutos > LIMITE_ESTADIA_MINUTOS && !registroAcceso.es_oficial_sena,
+      placa: registroAcceso.vehiculo?.placa ?? null,
+      tipo_vehiculo: registroAcceso.vehiculo?.tipo ?? null,
+      documento: registroAcceso.conductor
+        ? `${registroAcceso.conductor.tipo_documento} ${registroAcceso.conductor.numero_documento}`
+        : null,
+      conductor_nombre: registroAcceso.conductor?.nombre_apellidos ?? null,
+      conductor_email: registroAcceso.conductor?.correo ?? null,
+    },
+  };
+};
+
+/**
  * Crea una nueva novedad. El reportante es siempre el usuario autenticado.
+ *
+ * Contexto automático desde celda_id (para no obligar a re-buscar manualmente datos ya
+ * disponibles al reportar "desde una celda"): si se envía celda_id,
+ *   - parqueadero_id se completa solo a partir de la celda, si no vino explícito.
+ *   - vehiculo_id/registro_acceso_id se completan solos con el ingreso activo de esa
+ *     celda (si hay uno), salvo que el caller ya los haya mandado explícitos.
  * @param {Object} data
  * @param {number} usuarioId - Usuario autenticado que reporta la novedad.
  * @throws {Object} 400 si faltan datos o son inválidos; 404 si alguna referencia no existe.
  * @returns {Promise<Object>}
  */
 const create = async (data, usuarioId) => {
-  const {
-    tipo_novedad = 'OTRO', prioridad = 'MEDIA', descripcion,
-    usuario_asignado_id, vehiculo_id, celda_id, parqueadero_id, registro_acceso_id,
-  } = data;
+  const { tipo_novedad = 'OTRO', prioridad = 'MEDIA', descripcion, usuario_asignado_id, celda_id, registro_acceso_id } = data;
+  let { vehiculo_id, parqueadero_id } = data;
 
   if (!descripcion) throw { status: 400, message: 'La descripción es requerida' };
-  if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
   if (!usuario_asignado_id) throw { status: 400, message: 'El responsable asignado es requerido' };
   if (!TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
@@ -127,10 +177,30 @@ const create = async (data, usuarioId) => {
     throw { status: 400, message: `Prioridad inválida. Permitidas: ${PRIORIDADES_PERMITIDAS.join(', ')}` };
   }
 
-  await _validarReferencias({ vehiculo_id, celda_id, parqueadero_id, registro_acceso_id, usuario_asignado_id });
+  let registroAccesoId = registro_acceso_id;
+  if (celda_id) {
+    const celda = await celdaRepo.findById(celda_id);
+    if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    if (!parqueadero_id) parqueadero_id = celda.parqueadero;
+
+    if (!registroAccesoId && !vehiculo_id) {
+      const activo = await registroAccesoRepo.findActivoPorCelda(celda_id);
+      if (activo) {
+        registroAccesoId = activo.id;
+        vehiculo_id = activo.vehiculo_id;
+      }
+    }
+  }
+
+  if (!parqueadero_id) throw { status: 400, message: 'El parqueadero es requerido' };
+
+  await _validarReferencias({ vehiculo_id, celda_id, parqueadero_id, registro_acceso_id: registroAccesoId, usuario_asignado_id });
 
   return runWithUsuario(usuarioId, (transaction) => repo.create(
-    { tipo_novedad, prioridad, descripcion, usuario_reporta_id: usuarioId, usuario_asignado_id, vehiculo_id, celda_id, parqueadero_id, registro_acceso_id },
+    {
+      tipo_novedad, prioridad, descripcion, usuario_reporta_id: usuarioId, usuario_asignado_id,
+      vehiculo_id, celda_id, parqueadero_id, registro_acceso_id: registroAccesoId,
+    },
     { transaction },
   ));
 };

@@ -31,6 +31,7 @@ const Auditoria = require('./auditoria.models');
 const EquipamientoParqueadero = require('./equipamientoParqueadero.models');
 const EvidenciaNovedad = require('./evidenciaNovedad.models');
 const RecuperacionPassword = require('./recuperacionPassword.models');
+const VerificacionCorreo = require('./verificacionCorreo.models');
 const AsignacionVigilante = require('./asignacionVigilante.models');
 
 // ============================================
@@ -204,5 +205,6 @@ module.exports = {
   EquipamientoParqueadero,
   EvidenciaNovedad,
   RecuperacionPassword,
+  VerificacionCorreo,
   AsignacionVigilante,
 };
