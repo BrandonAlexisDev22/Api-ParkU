@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const repo = require('../repositories/verificacionCorreo.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { enviarCorreoVerificacion } = require('../utils/mailer.util');
+const Logger = require('../utils/logger.util');
 
 const TTL_MINUTOS = parseInt(process.env.VERIFICACION_CORREO_TTL_MINUTOS, 10) || 60 * 24; // 24h por defecto
 
@@ -33,7 +34,15 @@ const solicitar = async (usuario) => {
   await repo.create({ usuario_id: usuario.id, token_hash: _hash(token), fecha_expiracion });
 
   const link = `${process.env.FRONTEND_URL || ''}/verificar-correo?token=${token}`;
-  await enviarCorreoVerificacion(usuario.correo, usuario.nombre, link);
+  const { enviado } = await enviarCorreoVerificacion(usuario.correo, usuario.nombre, link);
+
+  // Fuera de producción, si el correo no salió (sin SMTP configurado, o el proveedor
+  // rechazó el envío) el enlace se registra en el log para poder probar el flujo completo
+  // sin bandeja de entrada. En producción NUNCA: el token en claro en un log es una
+  // credencial que permite verificar la cuenta de otro.
+  if (!enviado && process.env.NODE_ENV !== 'production') {
+    Logger.info(`[dev] Enlace de verificación para ${usuario.correo}: ${link}`);
+  }
 };
 
 /**

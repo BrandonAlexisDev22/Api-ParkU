@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "start": "nodemon src/index.js",
     "docs": "npx jsdoc src -r -d docs",
-    "seed": "node src/config/seed.js"
+    "seed": "node src/config/seed.js",
+    "mail:test": "node src/scripts/probarCorreo.js"
   },
   "keywords": [],
   "author": "",

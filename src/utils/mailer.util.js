@@ -2,21 +2,107 @@
  * @module MailerUtil
  * @description Envío de correo transaccional (verificación de cuenta, recuperación de
  * contraseña) vía SMTP. Todas las credenciales vienen de variables de entorno -- nunca
- * hardcodeadas. Si SMTP_HOST no está configurado (p. ej. en desarrollo local sin
- * credenciales reales), las funciones de envío quedan en no-op con un warning en el log
- * en vez de lanzar: el flujo de negocio (generar/guardar el token) nunca depende de que
- * el correo realmente salga.
+ * hardcodeadas.
+ *
+ * Soporta cualquiera de los servicios de correo que nodemailer ya conoce (Gmail,
+ * Outlook365/Hotmail, Yahoo, Zoho, iCloud, Brevo, SendGrid, Mailgun, Postmark, Resend,
+ * Mailtrap, SES por región, Yandex, GMX, QQ...): basta poner su nombre en MAIL_SERVICE y
+ * el host/puerto/TLS salen del catálogo de nodemailer, sin tener que recordarlos. Para un
+ * proveedor fuera de ese catálogo (SMTP corporativo, cPanel, un relay propio) se configura
+ * a mano con SMTP_HOST/SMTP_PORT/SMTP_SECURE. MAIL_SERVICE tiene prioridad sobre SMTP_HOST.
+ *
+ * Si no hay ni MAIL_SERVICE ni SMTP_HOST (p. ej. en desarrollo local sin credenciales
+ * reales), las funciones de envío quedan en no-op con un warning en el log en vez de
+ * lanzar: el flujo de negocio (generar/guardar el token) nunca depende de que el correo
+ * realmente salga.
  */
 
 const nodemailer = require('nodemailer');
+const buscarServicio = require('nodemailer/lib/well-known');
+const catalogoServicios = require('nodemailer/lib/well-known/services.json');
 const Logger = require('./logger.util');
 
 let transporter = null;
 let transporterInicializado = false;
+let configuracionEfectiva = null;
 
 /**
- * Crea (una sola vez, perezosamente) el transporte SMTP a partir de las variables de
- * entorno. Devuelve null si SMTP_HOST no está configurado.
+ * Nombres de servicio aceptados por MAIL_SERVICE, incluyendo alias (Brevo por
+ * SendinBlue, Google Mail por Gmail, etc.). Se usa para sugerir valores válidos cuando
+ * alguien escribe mal el nombre.
+ * @returns {string[]}
+ */
+const listarServicios = () => {
+  const nombres = new Set();
+  for (const [clave, datos] of Object.entries(catalogoServicios)) {
+    nombres.add(clave);
+    for (const alias of datos.aliases || []) nombres.add(alias);
+  }
+  return [...nombres].sort((a, b) => a.localeCompare(b));
+};
+
+const _esVerdadero = (valor) => /^(true|1|si|sí|yes)$/i.test((valor || '').trim());
+
+/**
+ * Traduce las variables de entorno a las opciones concretas de nodemailer. Resuelve el
+ * preset del servicio a host/puerto/TLS explícitos (en vez de pasar `service` tal cual)
+ * para poder registrar en el log exactamente contra qué servidor se está enviando.
+ * @private
+ * @returns {Object|null} Opciones de transporte, o null si no hay proveedor configurado.
+ */
+const _resolverConfig = () => {
+  const servicio = (process.env.MAIL_SERVICE || process.env.SMTP_SERVICE || '').trim();
+  let config;
+
+  if (servicio) {
+    const preset = buscarServicio(servicio);
+    if (!preset) {
+      Logger.error(`MAIL_SERVICE="${servicio}" no es un servicio de correo conocido -- no se enviarán correos.`, {
+        servicios_validos: listarServicios().join(', '),
+      });
+      return null;
+    }
+    config = {
+      servicio: preset.description || servicio,
+      host: preset.host,
+      port: preset.port,
+      secure: preset.secure === true,
+      ...(preset.authMethod && { authMethod: preset.authMethod }),
+    };
+  } else if (process.env.SMTP_HOST) {
+    config = {
+      servicio: null,
+      host: process.env.SMTP_HOST.trim(),
+      port: 587,
+      secure: false,
+    };
+  } else {
+    return null;
+  }
+
+  // SMTP_PORT/SMTP_SECURE, si vienen, mandan sobre el preset: el mismo proveedor suele
+  // aceptar 465 (TLS directo) y 587 (STARTTLS), y hay redes que bloquean uno de los dos.
+  if (process.env.SMTP_PORT) {
+    const puerto = parseInt(process.env.SMTP_PORT, 10);
+    if (puerto) {
+      config.port = puerto;
+      config.secure = puerto === 465;
+    }
+  }
+  if (process.env.SMTP_SECURE) {
+    config.secure = _esVerdadero(process.env.SMTP_SECURE);
+  }
+
+  if (process.env.SMTP_USER) {
+    config.auth = { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD };
+  }
+
+  return config;
+};
+
+/**
+ * Crea (una sola vez, perezosamente) el transporte SMTP. Devuelve null si no hay
+ * proveedor configurado o si MAIL_SERVICE trae un nombre desconocido.
  * @private
  * @returns {import('nodemailer').Transporter|null}
  */
@@ -24,20 +110,50 @@ const _getTransporter = () => {
   if (transporterInicializado) return transporter;
   transporterInicializado = true;
 
-  if (!process.env.SMTP_HOST) {
-    Logger.warn('SMTP no configurado (falta SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log.');
+  const config = _resolverConfig();
+  if (!config) {
+    // Si venía un MAIL_SERVICE inválido, _resolverConfig ya explicó el porqué; no repetir
+    // el genérico "falta configurar", que apuntaría al problema equivocado.
+    if (!process.env.MAIL_SERVICE && !process.env.SMTP_SERVICE && !process.env.SMTP_HOST) {
+      Logger.warn('SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log.');
+    }
     return null;
   }
 
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    secure: process.env.SMTP_PORT === '465',
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
-      : undefined,
+  configuracionEfectiva = config;
+  const { servicio, ...opciones } = config;
+  transporter = nodemailer.createTransport(opciones);
+
+  Logger.info(`SMTP configurado: ${servicio || 'servidor personalizado'} (${config.host}:${config.port}, ${config.secure ? 'TLS directo' : 'STARTTLS'})`, {
+    usuario: config.auth ? config.auth.user : '(sin autenticación)',
   });
   return transporter;
+};
+
+/**
+ * Abre una conexión al servidor SMTP y valida las credenciales sin enviar nada. Útil al
+ * arrancar el servidor y desde `npm run mail:test`.
+ * @returns {Promise<{configurado: boolean, ok: boolean, detalle: string}>}
+ */
+const verificarConexion = async () => {
+  const t = _getTransporter();
+  if (!t) {
+    return { configurado: false, ok: false, detalle: 'Sin proveedor SMTP configurado (MAIL_SERVICE / SMTP_HOST vacíos)' };
+  }
+
+  try {
+    await t.verify();
+    const detalle = `Conexión SMTP verificada con ${configuracionEfectiva.servicio || configuracionEfectiva.host} (${configuracionEfectiva.host}:${configuracionEfectiva.port})`;
+    Logger.info(detalle);
+    return { configurado: true, ok: true, detalle };
+  } catch (error) {
+    Logger.error('No se pudo verificar la conexión SMTP', {
+      host: configuracionEfectiva.host,
+      port: configuracionEfectiva.port,
+      error: error.message,
+    });
+    return { configurado: true, ok: false, detalle: error.message };
+  }
 };
 
 /**
@@ -47,13 +163,15 @@ const _getTransporter = () => {
  * @param {string} datos.destino
  * @param {string} datos.asunto
  * @param {string} datos.html
- * @returns {Promise<{enviado: boolean}>}
+ * @param {string} [datos.texto] - Alternativa en texto plano: mejora la entregabilidad y
+ *   sirve a los clientes que no muestran HTML.
+ * @returns {Promise<{enviado: boolean, motivo?: string}>}
  */
-const enviarCorreo = async ({ destino, asunto, html }) => {
+const enviarCorreo = async ({ destino, asunto, html, texto }) => {
   const t = _getTransporter();
   if (!t) {
     Logger.info(`[correo omitido, SMTP no configurado] Para: ${destino} · Asunto: ${asunto}`);
-    return { enviado: false };
+    return { enviado: false, motivo: 'SMTP no configurado' };
   }
 
   try {
@@ -62,11 +180,12 @@ const enviarCorreo = async ({ destino, asunto, html }) => {
       to: destino,
       subject: asunto,
       html,
+      ...(texto && { text: texto }),
     });
     return { enviado: true };
   } catch (error) {
     Logger.error('Error enviando correo', { destino, asunto, error: error.message });
-    return { enviado: false };
+    return { enviado: false, motivo: error.message };
   }
 };
 
@@ -77,6 +196,8 @@ const _plantillaBase = (titulo, cuerpoHtml) => `
     <p style="color:#888; font-size:12px; margin-top:24px;">ParkU · Sistema de gestión de parqueaderos SENA</p>
   </div>
 `;
+
+const _firmaTexto = '\n\nParkU · Sistema de gestión de parqueaderos SENA';
 
 /**
  * @param {string} destino
@@ -92,6 +213,7 @@ const enviarCorreoVerificacion = (destino, nombre, link) => enviarCorreo({
     <p><a href="${link}" target="_blank">Verificar mi correo</a></p>
     <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
   `),
+  texto: `Hola ${nombre || ''},\n\nConfirma tu correo electrónico para activar tu cuenta ParkU:\n${link}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.${_firmaTexto}`,
 });
 
 /**
@@ -108,6 +230,13 @@ const enviarCorreoRecuperacion = (destino, nombre, link) => enviarCorreo({
     <p><a href="${link}" target="_blank">Restablecer mi contraseña</a></p>
     <p>Si no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.</p>
   `),
+  texto: `Hola ${nombre || ''},\n\nRecibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:\n${link}\n\nSi no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.${_firmaTexto}`,
 });
 
-module.exports = { enviarCorreo, enviarCorreoVerificacion, enviarCorreoRecuperacion };
+module.exports = {
+  enviarCorreo,
+  enviarCorreoVerificacion,
+  enviarCorreoRecuperacion,
+  verificarConexion,
+  listarServicios,
+};

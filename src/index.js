@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { swaggerDocs } = require('./config/swagger');
 const { testConnection, sequelize } = require('./config/database');
 const Logger = require('./utils/logger.util');
+const { verificarConexion: verificarConexionCorreo } = require('./utils/mailer.util');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -251,7 +252,18 @@ app.listen(PORT, async () => {
   
   // Probar conexión a BD
   await testConnection();
-  
+
+  // Probar SMTP: un fallo aquí no impide arrancar (los correos son un efecto secundario
+  // del registro, no un requisito), pero deja claro en el log que las verificaciones de
+  // correo no van a salir, en vez de descubrirlo cuando un usuario no reciba el enlace.
+  verificarConexionCorreo()
+    .then(({ configurado, ok, detalle }) => {
+      if (!configurado) console.log(`📧 Correo: sin configurar — ${detalle}`);
+      else if (ok) console.log('📧 Correo: SMTP verificado correctamente');
+      else console.log(`📧 Correo: SMTP configurado pero falló la conexión — ${detalle}`);
+    })
+    .catch(() => {});
+
   Logger.info('Servidor iniciado correctamente', {
     port: PORT,
     environment: process.env.NODE_ENV || 'development'
