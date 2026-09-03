@@ -85,9 +85,9 @@ const findByParqueadero = async (parqueaderoId) => {
  * @param {number} parqueaderoId
  * @returns {Promise<Array>}
  */
-const findDisponibles = async (parqueaderoId) => {
+const findDisponibles = async (parqueaderoId, tipo = null) => {
   const rows = await Celda.findAll({
-    where: { parqueadero: parqueaderoId, estado: 'DISPONIBLE' },
+    where: { parqueadero: parqueaderoId, estado: 'DISPONIBLE', ...(tipo && { tipo }) },
     include: [includeParqueadero],
     order: [['numero', 'ASC']],
   });

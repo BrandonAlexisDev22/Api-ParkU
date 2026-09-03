@@ -9,6 +9,8 @@
 
 const repo = require('../repositories/disponibilidadCelda.repository');
 const celdaRepo = require('../repositories/celda.repository');
+const ocupacionRepo = require('../repositories/ocupacionCelda.repository');
+const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const ESTADOS_PERMITIDOS = ['DISPONIBLE', 'OCUPADA', 'RESERVADA', 'MANTENIMIENTO', 'INACTIVA'];
@@ -37,6 +39,47 @@ const getByCelda = async (celdaId) => {
 const getHistorialPorCelda = (celdaId) => repo.findHistorialPorCelda(celdaId);
 
 /**
+ * Bloquea el cambio manual solo cuando la celda está REALMENTE en uso, no cuando su campo
+ * estado lo diga.
+ *
+ *   estado OCUPADA + ocupacion_celda ACTIVA        -> bloquear (hay un vehículo dentro)
+ *   estado OCUPADA + sin ocupación activa          -> permitir (estado desincronizado)
+ *   estado RESERVADA + reserva ACEPTADA vigente    -> bloquear (hay una reserva en curso)
+ *   estado RESERVADA + sin reserva vigente         -> permitir (reserva vencida/borrada)
+ *
+ * Reutiliza las consultas que ya existían (ocupacionCelda.findActivaPorCelda y
+ * reserva.findConflictos) en vez de escribir queries nuevas.
+ * @private
+ * @param {Object} celda
+ * @throws {Object} 409 si la celda está efectivamente en uso.
+ */
+const _validarUsoReal = async (celda) => {
+  if (celda.estado === 'OCUPADA') {
+    const ocupacion = await ocupacionRepo.findActivaPorCelda(celda.id);
+    if (ocupacion) {
+      throw {
+        status: 409,
+        message: `La celda ${celda.numero} tiene un vehículo estacionado; registra su salida antes de cambiar el estado manualmente`,
+      };
+    }
+    return;
+  }
+
+  if (celda.estado === 'RESERVADA') {
+    // Misma consulta que usa el ingreso (reserva.repository.findReservaQueBloquea), para
+    // que "la celda está reservada para alguien" signifique exactamente lo mismo en los
+    // dos sitios.
+    const aceptada = await reservaRepo.findReservaQueBloquea(celda.id);
+    if (aceptada) {
+      throw {
+        status: 409,
+        message: `La celda ${celda.numero} tiene una reserva aceptada en curso (hasta ${new Date(aceptada.fecha_hora_fin).toISOString()}); cancélala o espera a que termine antes de cambiar el estado manualmente`,
+      };
+    }
+  }
+};
+
+/**
  * Cambia manualmente el estado de una celda con motivo obligatorio.
  * @param {number} celdaId
  * @param {Object} data - { estado, motivo, observacion? }
@@ -48,16 +91,13 @@ const cambiar = async (celdaId, { estado, motivo, observacion }, usuarioId) => {
   const celda = await celdaRepo.findById(celdaId);
   if (!celda) throw { status: 404, message: 'Celda no encontrada' };
 
-  // celda.estado es la única fuente de verdad (ver celda.service.js): si hay un vehículo
-  // parqueado o una reserva activa bloqueándola, no se puede tocar manualmente aunque el
-  // request llegue directo por HTTP sin pasar por el Frontend -- debe liberarse primero
-  // (registrar salida, o que la reserva termine/se cancele).
-  if (['OCUPADA', 'RESERVADA'].includes(celda.estado)) {
-    throw {
-      status: 409,
-      message: `No se puede modificar manualmente una celda ${celda.estado.toLowerCase()}; debe liberarse primero (registrar la salida del vehículo o esperar a que termine la reserva)`,
-    };
-  }
+  // El bloqueo NO se decide por el campo celda.estado sino por la relación real que ese
+  // estado dice representar. Un estado puede quedar desincronizado (una ocupación cerrada
+  // a mano, una reserva borrada, un ingreso que falló a medias) y dejaba la celda
+  // congelada para siempre: el estado decía OCUPADA, no había vehículo, y el único camino
+  // para arreglarlo era tocar la base de datos. Ahora solo bloquea lo que de verdad está
+  // en uso, y una celda con estado colgado se puede corregir manualmente.
+  await _validarUsoReal(celda);
 
   if (!estado || !ESTADOS_PERMITIDOS.includes(estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };

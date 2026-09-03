@@ -12,7 +12,9 @@
 
 const repo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
+const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { validarTipoSegunPlaca, validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
 
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 // Placas colombianas: 5-6 caracteres alfanuméricos tras normalizar (mayúsculas, sin
@@ -95,7 +97,7 @@ const buscarPorPlaca = (placa) => {
  * @returns {Promise<Object>}
  */
 const create = async (data, usuarioId) => {
-  const { conductor_id, tipo } = data;
+  const { conductor_id, tipo, celda_id } = data;
   let { placa } = data;
 
   if (!tipo) throw { status: 400, message: 'El tipo de vehículo es requerido' };
@@ -114,6 +116,9 @@ const create = async (data, usuarioId) => {
 
   if (placa) {
     placa = _validarPlaca(placa);
+    // Regla del proyecto: último carácter numérico -> cuatro ruedas, alfabético -> moto.
+    // Centralizada en compatibilidadVehiculo.util.js, no reimplementada aquí.
+    validarTipoSegunPlaca(tipo, placa);
     data = { ...data, placa };
     const placaExiste = await repo.findByPlaca(placa);
     if (placaExiste) {
@@ -132,8 +137,19 @@ const create = async (data, usuarioId) => {
     }
   }
 
+  // Alta desde el panel de estacionamiento: si el flujo ya tiene una celda seleccionada,
+  // el vehículo que se cree para ella tiene que caberle. Sin esto se creaba una moto para
+  // una celda de carro y el rechazo solo aparecía al intentar el ingreso.
+  // celda_id NO se guarda en vehiculo (no es una columna suya): solo condiciona la validación.
+  if (celda_id) {
+    const celda = await celdaRepo.findById(celda_id);
+    if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    validarCompatibilidadCelda({ tipo, placa }, celda);
+  }
+  const { celda_id: _descartada, ...datosVehiculo } = data;
+
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.create(data, { transaction }));
+    return await runWithUsuario(usuarioId, (transaction) => repo.create(datosVehiculo, { transaction }));
   } catch (error) {
     traducirErrorTrigger(error);
   }

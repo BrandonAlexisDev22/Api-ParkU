@@ -20,6 +20,7 @@ const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
 const { ROLES } = require('../config/roles');
+const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
 
 const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
 
@@ -68,23 +69,47 @@ const _validarFechas = (inicio, fin) => {
 };
 
 /**
- * Valida que la celda y (si viene) el vehículo existan. Devuelve la celda ya cargada
- * para que el llamador pueda reutilizarla (p. ej. para resolver su parqueadero) sin
- * repetir la consulta.
+ * Valida que la celda y (si viene) el vehículo existan, que la celda esté en servicio,
+ * que el vehículo tenga conductor y que ambos tipos sean compatibles. Devuelve las dos
+ * entidades ya cargadas para que el llamador pueda reutilizarlas (p. ej. para resolver el
+ * parqueadero de la celda) sin repetir la consulta.
+ *
+ * La compatibilidad tipo vehículo ↔ tipo celda la aplicaba solo el trigger
+ * fn_validar_ocupacion_celda, que corre al INGRESAR: una reserva incompatible se creaba
+ * sin problema y el conflicto aparecía días después, al llegar el vehículo. Aquí se
+ * rechaza al reservar, con el mismo criterio (compatibilidadVehiculo.util.js).
+ *
  * @private
- * @returns {Promise<{celda: Object|null}>}
+ * @returns {Promise<{celda: Object|null, vehiculo: Object|null}>}
  */
 const _validarEntidades = async (celdaId, vehiculoId) => {
   let celda = null;
+  let vehiculo = null;
+
   if (celdaId !== undefined) {
     celda = await celdaRepo.findById(celdaId);
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    // No se filtra por OCUPADA/RESERVADA: una celda ocupada hoy puede reservarse para
+    // mañana, y el solapamiento real lo detecta findConflictos por rango horario. Lo que
+    // nunca sirve es una celda fuera de servicio.
+    if (['MANTENIMIENTO', 'INACTIVA'].includes(celda.estado)) {
+      throw { status: 409, message: `La celda ${celda.numero} está en ${celda.estado.toLowerCase()} y no admite reservas` };
+    }
   }
+
   if (vehiculoId) {
-    const vehiculo = await vehRepo.findById(vehiculoId);
+    vehiculo = await vehRepo.findById(vehiculoId);
     if (!vehiculo) throw { status: 404, message: 'Vehículo no encontrado' };
+    // Sin propietario no hay a quién responsabilizar del vehículo ni a quién avisar; el
+    // ingreso ya lo exigía indirectamente (el conductor debe ser propietario), la reserva no.
+    if (!vehiculo.conductor_principal_id) {
+      throw { status: 409, message: 'El vehículo no tiene conductor asociado: asigna un propietario antes de reservar' };
+    }
   }
-  return { celda };
+
+  if (celda && vehiculo) validarCompatibilidadCelda(vehiculo, celda);
+
+  return { celda, vehiculo };
 };
 
 /**
@@ -146,9 +171,23 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
     throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
   }
 
+  // Estado inicial: la celda solo pasa a RESERVADA cuando la reserva está ACEPTADA
+  // (trigger fn_reserva_bloquea_celda), y chk_reserva_gestion exige usuario_gestiona_id
+  // para cualquier estado distinto de PENDIENTE. Como Admin/Vigilante son precisamente
+  // quienes aprueban, una reserva que ELLOS registran nace ya aceptada y bloquea la celda
+  // en el acto; la que registra un Conductor para sí mismo sigue naciendo PENDIENTE y
+  // espera aprobación, que es el flujo de autoservicio que ya existía.
+  const gestionaAlCrear = usuarioRol === ROLES.ADMIN || usuarioRol === ROLES.VIGILANTE;
+  const estadoInicial = gestionaAlCrear
+    ? { estado: 'ACEPTADA', usuario_gestiona_id: usuarioId }
+    : {};
+
   try {
     return await runWithUsuario(usuarioId, (transaction) => repo.create(
-      { tipo_reserva, celda_id, usuario_registra_id: usuarioId, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin },
+      {
+        tipo_reserva, celda_id, usuario_registra_id: usuarioId, conductor_id, vehiculo_id,
+        motivo, fecha_hora_inicio, fecha_hora_fin, ...estadoInicial,
+      },
       { transaction },
     ));
   } catch (error) {

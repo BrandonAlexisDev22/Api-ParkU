@@ -15,6 +15,7 @@
 const repo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const disponibilidadRepo = require('../repositories/disponibilidadCelda.repository');
+const vehRepo = require('../repositories/vehiculo.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const MOTIVO_AJUSTE_CANTIDADES = 'AJUSTE_OPERATIVO';
@@ -58,11 +59,36 @@ const getById = async (id) => {
 const getByParqueadero = (parqueaderoId) => repo.findByParqueadero(parqueaderoId);
 
 /**
- * Obtiene celdas disponibles (estado = 'DISPONIBLE') en un parqueadero.
+ * Obtiene celdas disponibles (estado = 'DISPONIBLE') en un parqueadero, opcionalmente
+ * filtradas por el tipo de vehículo que va a ocuparlas.
+ *
+ * Sin filtro, esta consulta le ofrecía a una moto celdas de carro (y al revés): el usuario
+ * elegía una, y el rechazo aparecía recién al reservar o al ingresar, cuando el trigger
+ * comparaba los tipos. El filtro usa el mismo criterio de compatibilidad que reservas e
+ * ingreso (compatibilidadVehiculo.util.js), no una regla propia.
+ *
  * @param {number} parqueaderoId
+ * @param {Object} [filtros]
+ * @param {string} [filtros.tipo] - Tipo de celda pedido explícitamente.
+ * @param {number} [filtros.vehiculo_id] - Alternativa a `tipo`: se deduce del vehículo.
+ * @throws {Object} 400 si el tipo no es válido; 404 si el vehículo no existe.
  * @returns {Promise<Array>}
  */
-const getDisponibles = (parqueaderoId) => repo.findDisponibles(parqueaderoId);
+const getDisponibles = async (parqueaderoId, { tipo, vehiculo_id } = {}) => {
+  let tipoFiltro = tipo || null;
+
+  if (vehiculo_id) {
+    const vehiculo = await vehRepo.findById(vehiculo_id);
+    if (!vehiculo) throw { status: 404, message: 'Vehículo no encontrado' };
+    tipoFiltro = vehiculo.tipo;
+  }
+
+  if (tipoFiltro && !TIPOS_PERMITIDOS.includes(tipoFiltro)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  }
+
+  return repo.findDisponibles(parqueaderoId, tipoFiltro);
+};
 
 /**
  * Filtra celdas por tipo de vehículo.

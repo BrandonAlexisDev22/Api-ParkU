@@ -28,11 +28,27 @@ const includeContexto = [
   },
 ];
 
-// CRITICA primero, BAJA al final -- el orden alfabético/de declaración del enum de
-// Postgres no coincide con este orden de negocio, por eso se ordena con un CASE
-// explícito en vez de solo `order: [['prioridad', ...]]`.
+// Lo que hay que atender primero va primero. El orden alfabético/de declaración de los
+// enums de Postgres no coincide con ninguno de estos dos órdenes de negocio, por eso van
+// con un CASE explícito en vez de `order: [['prioridad', ...]]`.
+//
+// 1º por ESTADO: lo pendiente encabeza la lista y lo ya terminado queda al fondo. Antes se
+// ordenaba solo por prioridad, así que una novedad CERRADA de prioridad CRITICA salía por
+// encima de una PENDIENTE de prioridad BAJA -- justo al revés de lo que necesita quien
+// abre la pantalla para trabajar.
+// La columna va calificada con el alias de la tabla principal: estas consultas hacen JOIN
+// con vehiculo, celda y registro_acceso, que también tienen una columna `estado`, y un
+// `CASE estado` a secas revienta con "column reference estado is ambiguous".
+const ORDEN_ESTADO = `CASE "Novedad"."estado" WHEN 'PENDIENTE' THEN 1 WHEN 'EN_PROCESO' THEN 2 WHEN 'RESUELTA' THEN 3 WHEN 'CERRADA' THEN 4 WHEN 'CANCELADA' THEN 5 END`;
+// 2º por PRIORIDAD dentro de cada estado: CRITICA primero, BAJA al final. Las novedades
+// sin prioridad asignada (nacen en NULL hasta que alguien las acepta) quedan de últimas
+// dentro de su grupo, que es el comportamiento por defecto de Postgres para NULL en ASC.
 const ORDEN_PRIORIDAD = "CASE prioridad WHEN 'CRITICA' THEN 1 WHEN 'ALTA' THEN 2 WHEN 'MEDIA' THEN 3 WHEN 'BAJA' THEN 4 END";
-const ORDEN_POR_PRIORIDAD_Y_FECHA = [[Sequelize.literal(ORDEN_PRIORIDAD), 'ASC'], ['fecha_hora', 'DESC']];
+const ORDEN_POR_PRIORIDAD_Y_FECHA = [
+  [Sequelize.literal(ORDEN_ESTADO), 'ASC'],
+  [Sequelize.literal(ORDEN_PRIORIDAD), 'ASC'],
+  ['fecha_hora', 'DESC'],
+];
 
 /**
  * Obtiene todas las novedades, con las de mayor prioridad primero (CRITICA > ALTA >

@@ -24,6 +24,45 @@ const PRIORIDADES_PERMITIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 const ESTADOS_PERMITIDOS = ['PENDIENTE', 'EN_PROCESO', 'RESUELTA', 'CERRADA', 'CANCELADA'];
 
 /**
+ * Transiciones válidas del ciclo de vida de una novedad. CERRADA y CANCELADA son
+ * terminales: una novedad cerrada no puede reabrirse ni "inactivarse" desde el switch del
+ * frontend. Antes update() aceptaba cualquier estado del enum viniera de donde viniera, así
+ * que bastaba un PUT directo por HTTP para revivir un incidente ya cerrado.
+ */
+const TRANSICIONES_VALIDAS = {
+  PENDIENTE: ['EN_PROCESO', 'CANCELADA'],
+  EN_PROCESO: ['RESUELTA', 'CANCELADA'],
+  RESUELTA: ['CERRADA'],
+  CERRADA: [],
+  CANCELADA: [],
+};
+
+/**
+ * Rechaza un cambio de estado que no siga el ciclo de vida.
+ * @private
+ * @param {string} actual
+ * @param {string} nuevo
+ * @throws {Object} 409 si la transición no está permitida.
+ */
+const _validarTransicion = (actual, nuevo) => {
+  if (actual === nuevo) return;
+
+  const permitidos = TRANSICIONES_VALIDAS[actual] || [];
+  if (permitidos.includes(nuevo)) return;
+
+  if (!permitidos.length) {
+    throw {
+      status: 409,
+      message: `La novedad está ${actual} y ese es un estado final: no puede volver a cambiar de estado`,
+    };
+  }
+  throw {
+    status: 409,
+    message: `No se puede pasar de ${actual} a ${nuevo}. Desde ${actual} solo se permite: ${permitidos.join(', ')}`,
+  };
+};
+
+/**
  * Obtiene todas las novedades.
  * @returns {Promise<Array>}
  */
@@ -243,7 +282,7 @@ const create = async (data, usuarioId, usuarioRol) => {
  * @returns {Promise<Object>}
  */
 const update = async (id, data, usuarioId) => {
-  await getById(id);
+  const actual = await getById(id);
 
   if (data.tipo_novedad && !TIPOS_PERMITIDOS.includes(data.tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
@@ -254,6 +293,9 @@ const update = async (id, data, usuarioId) => {
   if (data.estado && !ESTADOS_PERMITIDOS.includes(data.estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
   }
+  // El switch de activar/inactivar del frontend llega aquí como un PUT con `estado`; no
+  // basta con que el frontend lo deshabilite.
+  if (data.estado) _validarTransicion(actual.estado, data.estado);
 
   await _validarReferencias(data);
 
@@ -271,7 +313,8 @@ const update = async (id, data, usuarioId) => {
  * @returns {Promise<Object>}
  */
 const aceptar = async (id, { usuario_asignado_id, prioridad }, usuarioId) => {
-  await getById(id);
+  const actual = await getById(id);
+  _validarTransicion(actual.estado, 'EN_PROCESO');
 
   if (!usuario_asignado_id) throw { status: 400, message: 'El vigilante asignado es requerido para aceptar el reporte' };
   if (!prioridad) throw { status: 400, message: 'La prioridad es requerida para aceptar el reporte' };
@@ -295,7 +338,8 @@ const aceptar = async (id, { usuario_asignado_id, prioridad }, usuarioId) => {
  * @returns {Promise<Object>}
  */
 const rechazar = async (id, { motivo }, usuarioId) => {
-  await getById(id);
+  const actual = await getById(id);
+  _validarTransicion(actual.estado, 'CANCELADA');
   if (!motivo?.trim()) throw { status: 400, message: 'El motivo de rechazo es requerido' };
 
   const data = { estado: 'CANCELADA', justificacion_cierre: motivo, fecha_hora_cierre: new Date() };

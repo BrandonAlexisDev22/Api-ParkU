@@ -112,6 +112,33 @@ const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
 };
 
 /**
+ * Reserva que está reteniendo una celda: la ACEPTADA más próxima que todavía no ha
+ * terminado. Es la que explica por qué celda.estado vale RESERVADA.
+ *
+ * No se filtra por "que contenga este instante" a propósito. El trigger
+ * fn_reserva_bloquea_celda pone la celda en RESERVADA en cuanto la reserva se acepta,
+ * aunque sea para dentro de tres horas; si aquí solo se miraran las reservas vigentes
+ * ahora mismo, la celda quedaría retenida pero sin dueño identificable, y cualquier otro
+ * vehículo podría ocuparla o un administrador liberarla sin enterarse de que hay alguien
+ * esperándola.
+ *
+ * @param {number} celdaId
+ * @param {Date} [momento] - Referencia temporal; por defecto, ahora.
+ * @returns {Promise<Object|null>}
+ */
+const findReservaQueBloquea = async (celdaId, momento = new Date()) => {
+  const row = await Reserva.findOne({
+    where: {
+      celda_id: celdaId,
+      estado: 'ACEPTADA',
+      fecha_hora_fin: { [Op.gt]: momento },
+    },
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Crea una nueva reserva en el sistema.
  * @param {Object} data
  * @param {import('sequelize').Transaction} opciones.transaction
@@ -121,10 +148,17 @@ const create = async (data, { transaction } = {}) => {
   const {
     tipo_reserva, celda_id, usuario_registra_id, conductor_id, vehiculo_id,
     motivo, fecha_hora_inicio, fecha_hora_fin, estado = 'PENDIENTE',
+    // Obligatorio para cualquier estado distinto de PENDIENTE: la BD lo exige con
+    // chk_reserva_gestion. Antes no estaba en esta lista, así que crear una reserva ya
+    // aceptada (la que registra un Admin/Vigilante) reventaba contra el CHECK.
+    usuario_gestiona_id = null,
   } = data;
 
   const nueva = await Reserva.create(
-    { tipo_reserva, celda_id, usuario_registra_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin, estado },
+    {
+      tipo_reserva, celda_id, usuario_registra_id, conductor_id, vehiculo_id,
+      motivo, fecha_hora_inicio, fecha_hora_fin, estado, usuario_gestiona_id,
+    },
     { transaction }
   );
   return findById(nueva.id, { transaction });
@@ -185,6 +219,7 @@ module.exports = {
   findByCelda,
   findActivasPorParqueadero,
   findConflictos,
+  findReservaQueBloquea,
   create,
   update,
   cambiarEstado,

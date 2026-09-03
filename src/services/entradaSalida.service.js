@@ -17,8 +17,43 @@ const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const conductorRepo = require('../repositories/conductor.repository');
+const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
+const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
+
+/**
+ * Si la celda está reservada en este momento, exige que quien entra sea EXACTAMENTE la
+ * reserva: mismo vehículo y mismo conductor.
+ *
+ * El trigger fn_validar_ocupacion_celda (punto 3.3) ya comparaba el vehículo, pero ignora
+ * al conductor: con la reserva de "Vehículo A + Conductor A", entrar con "Vehículo A +
+ * Conductor B" pasaba sin problema y el registro quedaba a nombre de quien no reservó.
+ *
+ * @private
+ * @param {Object} celda
+ * @param {number} vehiculoId
+ * @param {number} [conductorId]
+ * @throws {Object} 409 si el vehículo o el conductor no son los de la reserva vigente.
+ */
+const _validarReservaDeCelda = async (celda, vehiculoId, conductorId) => {
+  if (celda.estado !== 'RESERVADA') return;
+
+  const reserva = await reservaRepo.findReservaQueBloquea(celda.id);
+  if (!reserva) return; // Estado RESERVADA sin reserva que lo justifique: nadie a quien proteger.
+
+  if (reserva.vehiculo_id && reserva.vehiculo_id !== vehiculoId) {
+    throw { status: 409, message: `La celda ${celda.numero} está reservada para otro vehículo` };
+  }
+  if (reserva.conductor_id && reserva.conductor_id !== conductorId) {
+    throw {
+      status: 409,
+      message: conductorId
+        ? `La celda ${celda.numero} está reservada para otro conductor`
+        : `La celda ${celda.numero} está reservada: debes identificar al conductor de la reserva para registrar el ingreso`,
+    };
+  }
+};
 
 /**
  * Obtiene el historial completo de entradas y salidas.
@@ -81,6 +116,12 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
   if (!vehExiste.estado) {
     throw { status: 409, message: 'El vehículo está deshabilitado y no puede ingresar' };
   }
+  // Sin propietario no hay a quién responsabilizar de lo que pase con el vehículo dentro
+  // del parqueadero. Antes solo se validaba la propiedad cuando el ingreso traía
+  // conductor_id: un vehículo huérfano entraba sin más.
+  if (!vehExiste.conductor_principal_id) {
+    throw { status: 409, message: 'El vehículo no tiene conductor asociado: asígnale un propietario antes de registrar el ingreso' };
+  }
 
   const parqExiste = await parqRepo.findById(parqueadero_id);
   if (!parqExiste) throw { status: 404, message: 'Parqueadero no encontrado' };
@@ -88,9 +129,13 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
     throw { status: 409, message: 'El parqueadero se encuentra inactivo y no permite operaciones de estacionamiento.' };
   }
 
+  let celda = null;
   if (celda_id) {
-    const celdaExiste = await celdaRepo.findById(celda_id);
-    if (!celdaExiste) throw { status: 404, message: 'Celda no encontrada' };
+    celda = await celdaRepo.findById(celda_id);
+    if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    // Mismo criterio que fn_validar_ocupacion_celda 3.4, pero aplicado antes de escribir:
+    // un 409 legible en vez del RAISE EXCEPTION crudo de Postgres.
+    validarCompatibilidadCelda(vehExiste, celda);
   }
 
   if (conductor_id) {
@@ -103,6 +148,10 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
       throw { status: 409, message: 'El conductor indicado no es propietario de este vehículo' };
     }
   }
+
+  // Celda reservada: solo entra la pareja vehículo+conductor de la reserva. Va después de
+  // resolver el conductor para poder compararlo.
+  if (celda) await _validarReservaDeCelda(celda, vehiculo_id, conductor_id);
 
   const ingresoAbierto = await repo.findIngresoAbierto(vehiculo_id);
   if (ingresoAbierto) {

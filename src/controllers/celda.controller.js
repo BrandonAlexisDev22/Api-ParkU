@@ -197,7 +197,12 @@ const getByParqueadero = async (req, res) => {
  */
 const getDisponibles = async (req, res) => {
   try {
-    const data = await svc.getDisponibles(req.params.parqueaderoId);
+    // ?tipo=MOTO o ?vehiculo_id=12 filtran a las celdas compatibles. Sin ninguno de los
+    // dos se devuelven todas las disponibles, como antes (retrocompatible).
+    const data = await svc.getDisponibles(req.params.parqueaderoId, {
+      tipo: req.query.tipo,
+      vehiculo_id: req.query.vehiculo_id,
+    });
     res.json(data);
   } catch (e) {
     handleError(res, e);
