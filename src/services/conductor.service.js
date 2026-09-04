@@ -190,15 +190,68 @@ const getByUsuarioId = async (usuarioId) => {
 };
 
 /**
- * Crea un nuevo conductor. Si no se envía usuario_id:
- *   - Si `correo` corresponde a un Usuario ya existente, se reutiliza (se vincula a él).
- *   - Si no existe ningún Usuario con ese correo, se crea uno nuevo (requiere
- *     `contrasena`) dentro de la MISMA transacción que el conductor -- si la creación
- *     del conductor falla después (p. ej. documento duplicado), el rollback deshace
- *     también el usuario recién creado: nunca queda un usuario huérfano.
+ * Decide qué hacer con la cuenta de acceso del conductor que se está creando. El
+ * formulario elige el modo de forma explícita, en vez de deducirlo del correo:
+ *
+ *   VINCULAR   llega `usuario_id`      -> se usa esa cuenta, que ya existe.
+ *   CREAR      llega `crear_cuenta:true` -> se crea la cuenta con correo + contraseña.
+ *              Es el "no tiene cuenta" del formulario, el que despliega los campos de
+ *              contraseña y confirmación.
+ *   SIN_CUENTA llega `sin_cuenta:true`  -> el conductor queda sin cuenta de acceso
+ *              (usuario_id NULL, un estado válido del modelo). Es el visitante que
+ *              registra el vigilante al parquear: no hay a quién pedirle una contraseña.
+ *   AUTO       no llega ninguna bandera pero sí correo -> comportamiento histórico, que se
+ *              conserva para no romper a quien ya llamaba así: el correo decide (se
+ *              reutiliza la cuenta que lo tenga, o se crea una si viene contraseña).
+ *
+ * @private
+ * @throws {Object} 400 si se piden dos modos a la vez o no hay datos para decidir.
+ * @returns {'VINCULAR'|'CREAR'|'SIN_CUENTA'|'AUTO'}
+ */
+const _resolverModoCuenta = ({ usuario_id, crear_cuenta, crearCuenta, sin_cuenta, correo }) => {
+  const quiereCrear = crear_cuenta === true || crearCuenta === true;
+  const quiereSinCuenta = sin_cuenta === true;
+
+  if (quiereCrear && quiereSinCuenta) {
+    throw { status: 400, message: 'crear_cuenta y sin_cuenta son opciones opuestas: envía solo una' };
+  }
+  if (usuario_id && quiereCrear) {
+    throw {
+      status: 400,
+      message: 'No se puede crear una cuenta nueva y vincular una existente a la vez: envía usuario_id (vincular) o crear_cuenta (crear), no ambos',
+    };
+  }
+  if (usuario_id && quiereSinCuenta) {
+    throw { status: 400, message: 'sin_cuenta pide un conductor sin cuenta de acceso, así que no puede venir con usuario_id' };
+  }
+
+  if (usuario_id) return 'VINCULAR';
+  if (quiereCrear) return 'CREAR';
+  if (quiereSinCuenta) return 'SIN_CUENTA';
+  if (correo) return 'AUTO';
+
+  throw {
+    status: 400,
+    message: 'El correo es requerido. Si esta persona no va a tener cuenta de acceso envía sin_cuenta: true; si quieres crearle una, envía crear_cuenta: true con contrasena y confirmar_contrasena',
+  };
+};
+
+/**
+ * Crea un nuevo conductor, resolviendo su cuenta de acceso según el modo elegido
+ * (ver _resolverModoCuenta): vincular una existente, crear una nueva, o ninguna.
+ *
+ * La cuenta y el conductor se escriben en la MISMA transacción: si la creación del
+ * conductor falla después (p. ej. documento duplicado), el rollback deshace también el
+ * usuario recién creado y nunca queda una cuenta huérfana.
+ *
  * @param {Object} data
- * @param {string} [data.correo] - Para vincular/crear el usuario cuando no se envía usuario_id.
- * @param {string} [data.contrasena] - Requerida solo si hay que crear un usuario nuevo.
+ * @param {number} [data.usuario_id] - Cuenta ya existente a la que vincularlo.
+ * @param {boolean} [data.crear_cuenta] - Crear la cuenta de acceso (requiere correo,
+ *   contrasena y confirmar_contrasena).
+ * @param {boolean} [data.sin_cuenta] - Registrarlo sin cuenta de acceso.
+ * @param {string} [data.correo]
+ * @param {string} [data.contrasena]
+ * @param {string} [data.confirmar_contrasena]
  * @throws {Object} 400 si faltan campos o son inválidos.
  * @throws {Object} 404 si alguna referencia (usuario/catálogo) no existe.
  * @throws {Object} 409 si el documento o correo ya están registrados.
@@ -215,6 +268,9 @@ const create = async (data) => {
   // cuenta (ver más abajo).
   let { usuario_id, correo, numero_telefonico } = data;
 
+  // Se decide ANTES de validar nada más: de él depende qué campos son obligatorios.
+  const modoCuenta = _resolverModoCuenta(data);
+
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
   // tipo_usuario_id es OPCIONAL. El alta que ocurre en medio de asignar una celda (panel
@@ -226,12 +282,18 @@ const create = async (data) => {
   // Correo y teléfono son obligatorios SALVO que se vincule una cuenta existente: en ese
   // caso salen de ella (ver CAMPOS_DE_LA_CUENTA más abajo) y exigirlos aquí obligaría al
   // formulario a reescribir a mano unos datos que precisamente no puede editar.
-  if (!usuario_id) {
-    // Sin cuenta indicada, el correo es además la clave para resolverla: se reutiliza la
-    // que tenga ese correo, o se crea una nueva.
-    if (!correo) throw { status: 400, message: 'El correo es requerido' };
+  if (modoCuenta === 'CREAR') {
+    // Los tres campos del "no tiene cuenta": sin ellos no hay cuenta que crear.
+    if (!correo) throw { status: 400, message: 'El correo es requerido para crear la cuenta de acceso' };
+    if (!numero_telefonico) throw { status: 400, message: 'El número telefónico es requerido' };
+    // Fortaleza + confirmación ANTES de tocar la base de datos, la misma política que
+    // POST /api/usuarios y el registro público (PasswordUtil, un solo sitio).
+    PasswordUtil.validarNueva(contrasena, data);
+  } else if (modoCuenta === 'AUTO') {
     if (!numero_telefonico) throw { status: 400, message: 'El número telefónico es requerido' };
   }
+  // SIN_CUENTA no exige correo ni teléfono: de un visitante al que se le registra el
+  // vehículo para parquearlo puede no conocerse ninguno de los dos.
 
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
@@ -272,13 +334,41 @@ const create = async (data) => {
 
   try {
     return await sequelize.transaction(async (transaction) => {
-      if (!usuario_id && correo) {
+      if (modoCuenta === 'CREAR') {
+        // Pidieron crear la cuenta, así que ese correo tiene que estar libre. Antes se
+        // reutilizaba en silencio la cuenta que lo tuviera, y el conductor acababa
+        // vinculado a una persona distinta sin que nadie lo dijera.
+        const cuentaExistente = await usuarioRepo.findByCorreo(correo);
+        if (cuentaExistente) {
+          throw {
+            status: 409,
+            message: `Ya existe una cuenta con el correo ${correo}: selecciónala en el buscador de cuentas en vez de crear una nueva`,
+            data: { usuario_id: cuentaExistente.id, nombre: cuentaExistente.nombre },
+          };
+        }
+        const telefonoEnUso = await usuarioRepo.findByTelefono(numero_telefonico);
+        if (telefonoEnUso) {
+          throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
+        }
+        const hash = await bcrypt.hash(contrasena, 10);
+        const nuevoUsuario = await usuarioRepo.create(
+          { nombre: nombre_apellidos, correo, contrasena: hash, rol_id: ROLES.CONDUCTOR, numero_telefonico },
+          { transaction },
+        );
+        usuario_id = nuevoUsuario.id;
+      } else if (modoCuenta === 'AUTO' && correo) {
         const usuarioExistente = await usuarioRepo.findByCorreo(correo);
         if (usuarioExistente) {
           usuario_id = usuarioExistente.id;
+          // Esa cuenta puede pertenecer ya a otro conductor (usuario_id es UNIQUE): sin
+          // esta comprobación el choque llegaba como error crudo de Postgres.
+          await validarReferencias({ usuario_id });
         } else {
           if (!contrasena) {
-            throw { status: 400, message: 'contrasena es requerida para crear la cuenta de usuario de este conductor' };
+            throw {
+              status: 400,
+              message: 'contrasena es requerida para crear la cuenta de usuario de este conductor. Si esta persona no va a tener cuenta, envía sin_cuenta: true',
+            };
           }
           // Este camino crea una cuenta de usuario nueva, así que aplica la misma política
           // que POST /api/usuarios y el registro público: fortaleza + confirmación.
@@ -306,6 +396,75 @@ const create = async (data) => {
   } catch (error) {
     traducirErrorTrigger(error);
   }
+};
+
+/**
+ * Devuelve el conductor indicado y lo CREA si todavía no existe.
+ *
+ * Es lo que permite registrar un vehículo -- y por tanto parquearlo -- cuando su dueño
+ * nunca ha pasado por el sistema. Antes el panel de estacionamiento se quedaba bloqueado
+ * ahí: el vehículo exige propietario, así que había que abandonar el flujo, ir al módulo de
+ * conductores, darlo de alta y volver a empezar con el vehículo delante de la barrera.
+ *
+ * El conductor que nace por este camino queda SIN cuenta de acceso (usuario_id NULL, un
+ * estado válido del modelo): el vigilante no puede inventar una contraseña por el dueño del
+ * vehículo. Esa persona puede registrarse después, y su cuenta se vincula entonces
+ * (PUT /api/conductores/:id).
+ *
+ * @param {Object} datos
+ * @param {number} [datos.conductor_id] - Si viene, solo se comprueba que exista.
+ * @param {string} [datos.tipo_documento='CC'] - Alias: tipoDocumento.
+ * @param {string} [datos.numero_documento] - Con él se busca antes de crear nada: si esa
+ *   persona ya estaba registrada se reutiliza, no se duplica.
+ * @param {string} [datos.nombre_apellidos] - Obligatorio solo si hay que crearlo.
+ * @param {string} [datos.correo]
+ * @param {string} [datos.numero_telefonico]
+ * @param {Object} [opciones]
+ * @param {import('sequelize').Transaction} [opciones.transaction] - La misma del vehículo,
+ *   para que un fallo al crearlo no deje un conductor suelto.
+ * @throws {Object} 400 si el documento es inválido o falta el nombre para crearlo.
+ * @throws {Object} 404 si el conductor_id indicado no existe.
+ * @returns {Promise<Object|null>} El conductor existente o el recién creado; null si no se
+ *   pidió ninguno (el vehículo se registra sin propietario, como hasta ahora).
+ */
+const resolverOCrear = async (datos = {}, { transaction } = {}) => {
+  if (datos.conductor_id) {
+    const existente = await repo.findById(datos.conductor_id, { transaction });
+    if (!existente) throw { status: 404, message: 'Conductor no encontrado' };
+    return existente;
+  }
+
+  const numeroDocumento = datos.numero_documento ?? datos.numeroDocumento;
+  if (!numeroDocumento) return null;
+
+  const tipoDocumento = (datos.tipo_documento ?? datos.tipoDocumento ?? 'CC').toString().trim().toUpperCase();
+  if (!TIPOS_DOCUMENTO.includes(tipoDocumento)) {
+    throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
+  }
+
+  const yaRegistrado = await repo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
+  if (yaRegistrado) return yaRegistrado;
+
+  if (!datos.nombre_apellidos) {
+    throw {
+      status: 400,
+      message: `No hay ningún conductor con documento ${tipoDocumento} ${numeroDocumento}: envía nombre_apellidos para registrarlo en el momento`,
+    };
+  }
+  validarCorreo(datos.correo);
+
+  return repo.create({
+    usuario_id: null,
+    tipo_documento: tipoDocumento,
+    numero_documento: numeroDocumento,
+    nombre_apellidos: datos.nombre_apellidos,
+    correo: datos.correo || null,
+    numero_telefonico: datos.numero_telefonico || null,
+    // Perfil formativo (Aprendiz/Instructor/Administrativo) sin resolver: no aporta nada a
+    // estacionar un vehículo y exigirlo obligaría al vigilante a inventarlo. Se completa
+    // después vía PUT /api/conductores/:id.
+    tipo_usuario_id: null,
+  }, { transaction });
 };
 
 /**
@@ -436,6 +595,7 @@ module.exports = {
   getByCorreo,
   getByUsuarioId,
   create,
+  resolverOCrear,
   update,
   desvincularUsuario,
   remove,

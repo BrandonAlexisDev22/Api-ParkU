@@ -267,6 +267,74 @@ router.get('/:id/vinculacion',
   ctrl.getDatosVinculacion
 );
 
+/**
+ * @swagger
+ * /api/usuarios/disponibilidad:
+ *   get:
+ *     summary: Comprueba si un correo, teléfono o documento ya están ocupados
+ *     description: >
+ *       Validación "mientras se escribe" para los formularios de cuenta y de conductor.
+ *       Mira las dos tablas donde puede estar el dato: usuario (cuentas) y conductor
+ *       (personas registradas, que pueden existir sin cuenta), porque un correo libre en
+ *       una pero usado en la otra haría fallar el guardado igualmente.
+ *       Se puede consultar un campo o los tres a la vez.
+ *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: correo
+ *         schema: { type: string }
+ *       - in: query
+ *         name: numero_telefonico
+ *         schema: { type: string }
+ *       - in: query
+ *         name: tipo_documento
+ *         schema: { type: string, enum: [CC, CE, TI, PASAPORTE, PEP, NIT] }
+ *       - in: query
+ *         name: numero_documento
+ *         schema: { type: string }
+ *       - in: query
+ *         name: excluir_usuario_id
+ *         schema: { type: integer }
+ *         description: >
+ *           Cuenta que se está editando. Sus propios valores no cuentan como ocupados; sin
+ *           esto, editar un usuario sin tocar su correo lo marcaría siempre como repetido.
+ *     responses:
+ *       200:
+ *         description: Un bloque por cada campo consultado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 disponible:
+ *                   type: boolean
+ *                   description: false si CUALQUIERA de los campos consultados está ocupado.
+ *                 correo:
+ *                   type: object
+ *                   properties:
+ *                     valor: { type: string }
+ *                     disponible: { type: boolean }
+ *                     motivo: { type: string, nullable: true }
+ *                     usuario_id: { type: integer, nullable: true }
+ *                     conductor_id: { type: integer, nullable: true }
+ *                 numero_telefonico:
+ *                   type: object
+ *                 documento:
+ *                   type: object
+ *       400:
+ *         description: No se envió ningún criterio, o el documento vino incompleto
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+// Antes de GET /:id a propósito: Express casa por orden y '/disponibilidad' encajaría en
+// el patrón '/:id', que intentaría buscar el usuario con id "disponibilidad".
+router.get('/disponibilidad',
+  verificarToken,
+  ctrl.disponibilidad
+);
+
 router.get('/:id',
   verificarToken,
   verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),

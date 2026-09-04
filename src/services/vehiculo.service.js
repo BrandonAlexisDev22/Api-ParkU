@@ -12,6 +12,7 @@
 
 const repo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
+const conductorSvc = require('../services/conductor.service');
 const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarTipoSegunPlaca, validarCompatibilidadCelda, esCompatible } = require('../utils/compatibilidadVehiculo.util');
@@ -118,13 +119,30 @@ const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
 
 /**
  * Registra un nuevo vehículo. La placa es obligatoria salvo para bicicletas.
- * @param {Object} data - Datos del vehículo; conductor_id opcional (propietario principal).
+ *
+ * El propietario se puede indicar de dos formas: con `conductor_id` (ya registrado) o con
+ * el documento de su dueño, y en ese caso SE CREA si todavía no existe -- ver
+ * conductor.service.resolverOCrear. Eso es lo que permite parquear a alguien que nunca ha
+ * pasado por el sistema sin salir del panel de estacionamiento.
+ *
+ * @param {Object} data - Datos del vehículo.
+ * @param {number} [data.conductor_id] - Propietario principal ya registrado.
+ * @param {Object} [data.conductor] - Datos del dueño cuando no hay conductor_id:
+ *   { tipo_documento, numero_documento, nombre_apellidos, correo?, numero_telefonico? }.
+ *   Se aceptan también sueltos en la raíz (tipo_documento/numero_documento/nombre_apellidos).
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
  * @throws {Object} 400 si faltan datos, 404 si el conductor no existe, 409 si la placa ya está registrada.
  * @returns {Promise<Object>}
  */
 const create = async (data, usuarioId) => {
   const { conductor_id, tipo, celda_id } = data;
+  // Datos del dueño para el alta "en el momento". Se admiten anidados o en la raíz porque
+  // el panel de estacionamiento manda un solo formulario con todo mezclado.
+  const datosConductor = data.conductor ?? {
+    tipo_documento: data.tipo_documento,
+    numero_documento: data.numero_documento,
+    nombre_apellidos: data.nombre_apellidos,
+  };
   let { placa } = data;
 
   if (!tipo) throw { status: 400, message: 'El tipo de vehículo es requerido' };
@@ -176,10 +194,29 @@ const create = async (data, usuarioId) => {
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
     validarCompatibilidadCelda({ tipo, placa }, celda);
   }
-  const { celda_id: _descartada, ...datosVehiculo } = data;
+  // Ninguno de estos es columna de vehiculo: celda_id solo condiciona la validación y los
+  // datos del conductor van a su propia tabla.
+  const {
+    celda_id: _descartada, conductor: _conductor,
+    tipo_documento: _tipoDoc, numero_documento: _numDoc, nombre_apellidos: _nombre,
+    ...datosVehiculo
+  } = data;
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.create(datosVehiculo, { transaction }));
+    return await runWithUsuario(usuarioId, async (transaction) => {
+      // El conductor se resuelve DENTRO de la transacción del vehículo: si el vehículo
+      // falla al escribirse (placa duplicada, trigger), el rollback se lleva también al
+      // conductor recién creado y no queda una ficha suelta de una persona que al final no
+      // se registró.
+      const propietario = await conductorSvc.resolverOCrear(
+        { conductor_id, ...datosConductor },
+        { transaction },
+      );
+      return repo.create(
+        { ...datosVehiculo, conductor_id: propietario ? propietario.id : null },
+        { transaction },
+      );
+    });
   } catch (error) {
     traducirErrorTrigger(error);
   }

@@ -91,12 +91,17 @@ const findById = async (id, { transaction } = {}) => {
  * Busca un conductor por su documento (tipo + número, clave compuesta única).
  * @param {string} tipoDocumento
  * @param {string} numeroDocumento
+ * @param {import('sequelize').Transaction} [opciones.transaction] - Necesario para leer
+ *   dentro de una transacción abierta (p. ej. el alta de conductor que ocurre al registrar
+ *   un vehículo): sin él la lectura sale por otra conexión del pool y no ve lo que esa
+ *   transacción todavía no ha confirmado.
  * @returns {Promise<Object|null>}
  */
-const findByDocumento = async (tipoDocumento, numeroDocumento) => {
+const findByDocumento = async (tipoDocumento, numeroDocumento, { transaction } = {}) => {
   const row = await Conductor.findOne({
     where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
     include: includeCatalogos,
+    transaction,
   });
   return mapConductor(row);
 };

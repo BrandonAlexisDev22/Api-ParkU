@@ -89,7 +89,35 @@ const { handleError } = require('../helpers/errorHandler');
  *         conductor_id:
  *           type: integer
  *           nullable: true
- *           description: Si se envía, queda registrado como propietario principal.
+ *           description: >
+ *             Propietario principal, ya registrado. Alternativa a `conductor`: si el dueño
+ *             todavía no existe en el sistema, no hace falta salir a crearlo aparte.
+ *         conductor:
+ *           type: object
+ *           nullable: true
+ *           description: >
+ *             Datos del dueño cuando no se envía conductor_id. Se busca por documento: si
+ *             esa persona ya estaba registrada se reutiliza, y si no, SE CREA en la misma
+ *             transacción que el vehículo (sin cuenta de acceso: usuario_id null). Es lo
+ *             que permite parquear a alguien que nunca ha pasado por el sistema sin
+ *             abandonar el panel de estacionamiento. Los mismos campos se aceptan sueltos
+ *             en la raíz del cuerpo.
+ *           properties:
+ *             tipo_documento:
+ *               type: string
+ *               enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *               default: CC
+ *             numero_documento:
+ *               type: string
+ *             nombre_apellidos:
+ *               type: string
+ *               description: Obligatorio solo si hay que crear al conductor.
+ *             correo:
+ *               type: string
+ *               nullable: true
+ *             numero_telefonico:
+ *               type: string
+ *               nullable: true
  *         placa:
  *           type: string
  *           nullable: true

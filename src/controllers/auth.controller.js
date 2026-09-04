@@ -4,7 +4,6 @@ const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
 const { sequelize } = require('../config/database');
 const usuarioRepo = require('../repositories/usuario.repository');
-const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
 const verificacionCorreoSvc = require('../services/verificacionCorreo.service');
 const Logger = require('../utils/logger.util');
 
@@ -39,12 +38,11 @@ class AuthController {
       // comprueba aquí -- antes de cualquier escritura. La regla vive en PasswordUtil para
       // que el registro público y POST /api/usuarios rechacen exactamente lo mismo.
       PasswordUtil.validarConfirmacion(contrasena, req.body);
-      // Documento opcional: acepta tipo_documento/numero_documento (nombres reales de
-      // columna en conductor) o su alias tipoDocumento/numeroDocumento (mismo criterio que
-      // ya usa GET /api/auth/existe-documento). Si se envía, se crea un Conductor vinculado
-      // (usuario_id) en la MISMA transacción que el Usuario -- ver
-      // src/utils/conductorVinculado.util.js. Si el documento ya está en uso, toda la
-      // transacción se revierte y no queda un Usuario huérfano sin conductor.
+      // Documento opcional: acepta tipo_documento/numero_documento (los nombres reales de
+      // las columnas) o su alias tipoDocumento/numeroDocumento (mismo criterio que ya usa
+      // GET /api/auth/existe-documento). Se guarda EN LA CUENTA (migración 002); no crea
+      // ningún perfil de conductor. Si ese documento ya pertenece a otra cuenta, toda la
+      // transacción se revierte y no queda un Usuario a medias.
       const tipoDocumento = req.body.tipo_documento ?? req.body.tipoDocumento;
       const numeroDocumento = req.body.numero_documento ?? req.body.numeroDocumento;
       if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
@@ -183,12 +181,10 @@ class AuthController {
 
   /**
    * GET /api/auth/existe-documento - Mismo propósito que existeCorreo/existeNumero,
-   * pero contra la entidad Conductor (tipo_documento + numero_documento es su
-   * clave única compuesta). El registro público NO crea un Conductor (ver
-   * comentario en `register`), así que este chequeo es solo informativo: evita
-   * que alguien registre una cuenta con un documento que ya pertenece a otra
-   * persona en el sistema, aunque el documento en sí no quede asociado a la
-   * cuenta que se está creando.
+   * pero para el documento. Mira las DOS tablas donde puede estar: `usuario` (el
+   * registro guarda ahí el documento desde la migración 002) y `conductor` (personas
+   * registradas que pueden no tener cuenta). Consultar solo conductor daba "libre" para
+   * un documento que ya estaba en una cuenta, y el registro fallaba luego con un 409.
    */
   static async existeDocumento(req, res) {
     try {
@@ -201,10 +197,16 @@ class AuthController {
         // Un tipo de documento que ni siquiera es válido no puede existir.
         return res.status(200).json({ success: true, existe: false });
       }
-      const conductor = await Conductor.findOne({
-        where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+      const [cuenta, conductor] = await Promise.all([
+        Usuario.findOne({ where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento } }),
+        Conductor.findOne({ where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento } }),
+      ]);
+      return res.status(200).json({
+        success: true,
+        existe: !!cuenta || !!conductor,
+        en_cuenta: !!cuenta,
+        en_conductor: !!conductor,
       });
-      return res.status(200).json({ success: true, existe: !!conductor });
     } catch (error) {
       console.error('Error en existeDocumento:', error);
       return res.status(500).json({ success: false, message: 'Error interno del servidor' });

@@ -21,6 +21,26 @@ const getDatosVinculacion = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/usuarios/disponibilidad - Comprobación "mientras se escribe" para los
+ * formularios de cuenta y de conductor. Acepta correo, numero_telefonico y/o
+ * tipo_documento + numero_documento, y excluir_usuario_id al editar una cuenta.
+ */
+const disponibilidad = async (req, res) => {
+  try {
+    const data = await svc.comprobarDisponibilidad({
+      correo: req.query.correo,
+      numero_telefonico: req.query.numero_telefonico ?? req.query.numero,
+      tipo_documento: req.query.tipo_documento ?? req.query.tipoDocumento,
+      numero_documento: req.query.numero_documento ?? req.query.numeroDocumento,
+      excluir_usuario_id: req.query.excluir_usuario_id ?? req.query.excluirUsuarioId,
+    });
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 const getById = async (req, res) => {
   try {
     const data = await svc.getById(req.params.id);
@@ -83,6 +103,7 @@ module.exports = {
   getAll,
   getById,
   getDatosVinculacion,
+  disponibilidad,
   create,
   update,
   actualizarFoto,

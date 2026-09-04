@@ -88,14 +88,32 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: integer
  *           nullable: true
  *           description: >
- *             Opcional. Si se omite y se envía `correo`, se reutiliza el Usuario con ese
- *             correo si ya existe, o se crea uno nuevo (requiere `contrasena`) en la misma
- *             transacción que el conductor -- si el conductor falla, el usuario nuevo
- *             también se revierte.
+ *             Cuenta de acceso YA EXISTENTE a la que vincular el conductor ("sí tiene
+ *             cuenta"). Excluyente con crear_cuenta y con sin_cuenta.
+ *         crear_cuenta:
+ *           type: boolean
+ *           nullable: true
+ *           description: >
+ *             "No tiene cuenta": crea la cuenta de acceso del conductor. Requiere correo,
+ *             numero_telefonico, contrasena y confirmar_contrasena. Si ese correo ya tiene
+ *             cuenta responde 409 con su usuario_id, para que el formulario la seleccione
+ *             en vez de duplicarla. La cuenta y el conductor se escriben en la misma
+ *             transacción: si el conductor falla, la cuenta nueva también se revierte.
+ *         sin_cuenta:
+ *           type: boolean
+ *           nullable: true
+ *           description: >
+ *             Registra al conductor SIN cuenta de acceso (usuario_id null). Correo y
+ *             teléfono pasan a ser opcionales. Es el caso del visitante al que el vigilante
+ *             registra para poder parquearlo.
  *         contrasena:
  *           type: string
  *           nullable: true
- *           description: Solo requerida si hay que crear un Usuario nuevo (no se envía usuario_id ni existe uno con ese correo).
+ *           description: Requerida con crear_cuenta. Misma política que el registro público (8+, mayúscula, minúscula y número).
+ *         confirmar_contrasena:
+ *           type: string
+ *           nullable: true
+ *           description: Requerida con crear_cuenta; debe coincidir exactamente con contrasena.
  *         tipo_documento:
  *           type: string
  *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]

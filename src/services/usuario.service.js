@@ -11,7 +11,7 @@ const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES, ALIAS_ROL } = require('../config/roles');
 const rolRepo = require('../repositories/rol.repository');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
-const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
+const { TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
 const conductorRepo = require('../repositories/conductor.repository');
 const { CAMPOS_DE_LA_CUENTA } = conductorRepo;
 const PasswordUtil = require('../utils/password.util');
@@ -168,18 +168,132 @@ const getDatosVinculacion = async (id) => {
       tipo_documento: usuario.tipo_documento ?? null,
       numero_documento: usuario.numero_documento ?? null,
     },
-    // El documento NO pertenece a la cuenta: si esta no tiene conductor todavía, hay que
-    // capturarlo a mano. Se deja explícito para que el formulario no lo espere en vano.
+    // El documento SÍ es de la cuenta (migración 002), así que normalmente ya viene en
+    // prefill. Solo hay que capturarlo cuando esa cuenta todavía no lo tenga -- las que se
+    // crearon antes de la migración y nunca fueron conductor.
     campos_solo_lectura: [...CAMPOS_DE_LA_CUENTA],
     campos_a_capturar: usuario.numero_documento ? [] : ['tipo_documento', 'numero_documento'],
   };
 };
 
 /**
+ * Comprueba, campo a campo, si un correo, un teléfono o un documento ya están ocupados.
+ *
+ * Es lo que necesita un formulario para avisar MIENTRAS se escribe, en vez de dejar que se
+ * rellene entero y descubrir el choque al guardar (que es lo que pasaba: el 409 llegaba al
+ * pulsar "Crear", con todos los demás campos ya escritos).
+ *
+ * Mira las DOS tablas donde puede estar el dato: `usuario` (cuentas de acceso) y
+ * `conductor` (personas registradas, que pueden existir sin cuenta). Un correo libre en
+ * una pero usado en la otra no es un correo libre: crear con él fallaría igualmente.
+ *
+ * @param {Object} criterios - Al menos uno.
+ * @param {string} [criterios.correo]
+ * @param {string} [criterios.numero_telefonico]
+ * @param {string} [criterios.tipo_documento] - Junto con numero_documento.
+ * @param {string} [criterios.numero_documento]
+ * @param {number} [criterios.excluir_usuario_id] - Cuenta que se está editando: sus propios
+ *   valores no se cuentan como ocupados (si no, editar sin tocar el correo lo marcaría
+ *   siempre en rojo).
+ * @throws {Object} 400 si no se envía ningún criterio.
+ * @returns {Promise<Object>} Un bloque por campo consultado y un `disponible` global.
+ */
+const comprobarDisponibilidad = async (criterios = {}) => {
+  const correo = criterios.correo ? String(criterios.correo).trim().toLowerCase() : null;
+  const telefono = criterios.numero_telefonico ? String(criterios.numero_telefonico).trim() : null;
+  const numeroDocumento = criterios.numero_documento ? String(criterios.numero_documento).trim() : null;
+  const tipoDocumento = criterios.tipo_documento ? String(criterios.tipo_documento).trim().toUpperCase() : null;
+  const excluirId = criterios.excluir_usuario_id ? Number(criterios.excluir_usuario_id) : null;
+
+  if (!correo && !telefono && !numeroDocumento) {
+    throw { status: 400, message: 'Envía al menos uno: correo, numero_telefonico o tipo_documento + numero_documento' };
+  }
+  if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
+    throw { status: 400, message: 'tipo_documento y numero_documento deben enviarse juntos' };
+  }
+
+  const resultado = {};
+
+  if (correo) {
+    const bloque = { valor: correo, disponible: true, motivo: null };
+    if (!EMAIL_REGEX.test(correo)) {
+      bloque.disponible = false;
+      bloque.motivo = 'El correo electrónico no tiene un formato válido';
+    } else {
+      const cuenta = await repo.findByCorreo(correo);
+      if (cuenta && cuenta.id !== excluirId) {
+        bloque.disponible = false;
+        bloque.motivo = 'Ya existe una cuenta de acceso con ese correo';
+        bloque.usuario_id = cuenta.id;
+        bloque.nombre = cuenta.nombre;
+      } else {
+        // El correo puede estar ocupado por un conductor sin cuenta: conductor.correo tiene
+        // su propia validación de duplicados, y el alta fallaría igual al guardar.
+        const conductores = (await conductorRepo.findByCorreo(correo))
+          .filter((c) => !excluirId || c.usuario_id !== excluirId);
+        if (conductores.length > 0) {
+          bloque.disponible = false;
+          bloque.motivo = `Ese correo ya pertenece al conductor ${conductores[0].nombre_apellidos}`;
+          bloque.conductor_id = conductores[0].id;
+        }
+      }
+    }
+    resultado.correo = bloque;
+  }
+
+  if (telefono) {
+    const bloque = { valor: telefono, disponible: true, motivo: null };
+    if (!TELEFONO_REGEX.test(telefono.replace(/[\s-]/g, ''))) {
+      bloque.disponible = false;
+      bloque.motivo = 'El número de teléfono no tiene un formato válido';
+    } else {
+      const cuenta = await repo.findByTelefono(telefono);
+      if (cuenta && cuenta.id !== excluirId) {
+        bloque.disponible = false;
+        bloque.motivo = 'Ese número de teléfono ya está registrado en otra cuenta';
+        bloque.usuario_id = cuenta.id;
+      }
+    }
+    resultado.numero_telefonico = bloque;
+  }
+
+  if (numeroDocumento) {
+    const bloque = {
+      tipo_documento: tipoDocumento, numero_documento: numeroDocumento, disponible: true, motivo: null,
+    };
+    if (!TIPOS_DOCUMENTO_VALIDOS.includes(tipoDocumento)) {
+      bloque.disponible = false;
+      bloque.motivo = `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO_VALIDOS.join(', ')}`;
+    } else {
+      const cuenta = await repo.findByDocumento(tipoDocumento, numeroDocumento);
+      const conductor = await conductorRepo.findByDocumento(tipoDocumento, numeroDocumento);
+      if (cuenta && cuenta.id !== excluirId) {
+        bloque.disponible = false;
+        bloque.motivo = `Ese documento ya está registrado en la cuenta ${cuenta.correo}`;
+        bloque.usuario_id = cuenta.id;
+      } else if (conductor && (!excluirId || conductor.usuario_id !== excluirId)) {
+        bloque.disponible = false;
+        bloque.motivo = `Ese documento ya pertenece al conductor ${conductor.nombre_apellidos}`;
+        bloque.conductor_id = conductor.id;
+      }
+      // El conductor encontrado se devuelve aunque el documento esté "ocupado" por él
+      // mismo: el formulario de vinculación lo usa para ofrecer "es esta persona".
+      if (conductor) bloque.conductor_id = conductor.id;
+    }
+    resultado.documento = bloque;
+  }
+
+  resultado.disponible = Object.values(resultado).every((b) => b.disponible !== false);
+  return resultado;
+};
+
+/**
  * Registra un nuevo usuario con contraseña cifrada. Si se envía tipo_documento +
- * numero_documento (o sus alias tipoDocumento/numeroDocumento), crea además un Conductor
- * vinculado (usuario_id) en la MISMA transacción -- ver conductorVinculado.util.js. Si el
- * documento ya está en uso, toda la transacción se revierte y no se crea el usuario.
+ * numero_documento (o sus alias tipoDocumento/numeroDocumento), el documento se guarda EN
+ * LA CUENTA (migración 002). NO se crea ningún Conductor: ese perfil nace cuando de verdad
+ * hace falta -- al dar de alta al conductor (POST /api/conductores) o al registrar su
+ * vehículo para parquearlo (POST /api/vehiculos). Si el documento ya pertenece a otra
+ * cuenta, toda la transacción se revierte y no se crea el usuario.
  * @param {Object} data - Datos del usuario. Acepta el rol como `rol` o `rol_id` (número o
  *   nombre: "Administrador"/"Vigilante"/"Conductor"); si no viene, queda en Conductor.
  * @throws {Object} 400 si faltan campos obligatorios o el correo/teléfono/rol/documento no
@@ -261,10 +375,9 @@ const create = async (data) => {
 
 /**
  * Actualiza parcialmente un usuario. Si se envía tipo_documento + numero_documento (o sus
- * alias tipoDocumento/numeroDocumento), actualiza el documento del Conductor ya vinculado
- * a este usuario, o crea uno nuevo si todavía no tenía -- ANTES este par de campos se
- * ignoraba en silencio (ni error ni efecto), que era la causa real de "el documento no se
- * actualiza"; ver conductorVinculado.util.js para el mismo patrón usado en create()/register().
+ * alias tipoDocumento/numeroDocumento), el documento se escribe en la cuenta y -- SOLO si
+ * esa cuenta ya tiene un Conductor vinculado -- también en él, en la misma transacción,
+ * para que las dos copias no se separen. Editar una cuenta NUNCA crea un Conductor.
  * @param {number} id
  * @param {Object} data - Campos a actualizar
  * @throws {Object} 404 si no existe, 400 si el documento no es válido, 409 si correo/
@@ -350,22 +463,17 @@ const update = async (id, data) => {
           throw { status: 409, message: 'Ya existe un conductor registrado con ese documento' };
         }
 
+        // Solo se sincroniza el Conductor que YA existe. Editar una cuenta no crea uno:
+        // el documento vive en la cuenta desde la migración 002, así que no hace falta un
+        // perfil de conductor para guardarlo. Antes se creaba aquí, y por eso a una cuenta
+        // a la que solo se le corregía el documento le aparecía de la nada un conductor
+        // que nadie pidió -- y esa cuenta quedaba marcada como "ya vinculada".
         if (conductorVinculado) {
           await conductorRepo.update(
             conductorVinculado.id,
             { tipo_documento: tipoDocumentoNormalizado, numero_documento: numeroDocumento },
             { transaction },
           );
-        } else {
-          await crearConductorVinculado({
-            usuario_id: id,
-            tipo_documento: tipoDocumentoNormalizado,
-            numero_documento: numeroDocumento,
-            nombre_apellidos: updateData.nombre || usuario.nombre,
-            correo: updateData.correo || usuario.correo,
-            numero_telefonico: updateData.numero_telefonico || usuario.numero_telefonico,
-            transaction,
-          });
         }
       }
 
@@ -435,5 +543,5 @@ const remove = async (id) => {
 // Este service no debe tener una segunda implementación de login.
 
 module.exports = {
-  getAll, getById, getDatosVinculacion, create, update, cambiarContrasena, actualizarFoto, remove,
+  getAll, getById, getDatosVinculacion, comprobarDisponibilidad, create, update, cambiarContrasena, actualizarFoto, remove,
 };
