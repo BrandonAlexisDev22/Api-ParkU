@@ -1,0 +1,31 @@
+{"timestamp":"2026-09-04T01:36:54.621Z","level":"INFO","message":"GET / 200 - 8ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:36:57.236Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-04T01:36:57.237Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-04T01:37:15.773Z","level":"INFO","message":"GET / 200 - 5ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:18.022Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-04T01:37:18.023Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-04T01:37:19.313Z","level":"WARN","message":"POST /api/auth/registro 400 - 7ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:20.031Z","level":"INFO","message":"POST /api/auth/registro 201 - 616ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:20.354Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: m1.http.834975@parku.test · Asunto: 507601 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-04T01:37:20.355Z","level":"INFO","message":"[dev] Verificación para m1.http.834975@parku.test · código: 507601 · enlace: https://park-u.vercel.app/verificar-correo?token=728eb3ef015fdc1fa092fe4a3de912542b8702e87cb79c27dfc9e0ec8dbd2e62"}
+{"timestamp":"2026-09-04T01:37:41.136Z","level":"INFO","message":"GET / 200 - 6ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:43.102Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-04T01:37:43.103Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-04T01:37:44.874Z","level":"WARN","message":"POST /api/auth/registro 400 - 6ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:45.650Z","level":"INFO","message":"POST /api/auth/registro 201 - 659ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:37:45.974Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: m1.http.860295@parku.test · Asunto: 195905 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-04T01:37:45.976Z","level":"INFO","message":"[dev] Verificación para m1.http.860295@parku.test · código: 195905 · enlace: https://park-u.vercel.app/verificar-correo?token=2d981c130beb9242b93c01f3b5c0715809099cb0efe32761e9bf5d9378937a8e"}
+{"timestamp":"2026-09-04T01:38:03.119Z","level":"INFO","message":"GET / 200 - 6ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:04.971Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-04T01:38:04.972Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3999","environment":"development"}}
+{"timestamp":"2026-09-04T01:38:05.538Z","level":"INFO","message":"POST /api/auth/registro 201 - 2386ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:05.731Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: prueba.http.1788485882206@parku.test · Asunto: 284630 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-04T01:38:05.732Z","level":"INFO","message":"[dev] Verificación para prueba.http.1788485882206@parku.test · código: 284630 · enlace: https://park-u.vercel.app/verificar-correo?token=bec98ef2c9d3df3d27398c9528eba23646c968ece2868f8f1494ba261c4f9bca"}
+{"timestamp":"2026-09-04T01:38:06.123Z","level":"INFO","message":"POST /api/auth/login 200 - 316ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:06.418Z","level":"WARN","message":"POST /api/auth/verificar-codigo 400 - 290ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:06.913Z","level":"INFO","message":"POST /api/auth/verificar-codigo 200 - 490ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:07.403Z","level":"INFO","message":"POST /api/auth/login 200 - 388ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:07.796Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: prueba.http.1788485882206@parku.test · Asunto: 598040 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-04T01:38:07.797Z","level":"INFO","message":"[dev] Verificación para prueba.http.1788485882206@parku.test · código: 598040 · enlace: https://park-u.vercel.app/verificar-correo?token=c99dfb15ba8f5ac3006b71e5391218a68ba7eec8ad2ebd092641594ce384212d"}
+{"timestamp":"2026-09-04T01:38:07.798Z","level":"INFO","message":"POST /api/auth/reenviar-verificacion 200 - 291ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-04T01:38:08.291Z","level":"INFO","message":"POST /api/auth/verificar-codigo 200 - 489ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}

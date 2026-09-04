@@ -15,6 +15,7 @@ const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES } = require('../config/roles');
+const PasswordUtil = require('../utils/password.util');
 
 const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
@@ -135,7 +136,12 @@ const create = async (data) => {
 
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
-  if (!tipo_usuario_id) throw { status: 400, message: 'El tipo de usuario es requerido' };
+  // tipo_usuario_id es OPCIONAL. El alta que ocurre en medio de asignar una celda (panel
+  // de estacionamiento) no tiene por qué preguntar el perfil formativo del conductor
+  // -- Aprendiz/Instructor/Administrativo no aporta nada a estacionar un vehículo, y
+  // exigirlo obligaba al vigilante a inventar un valor. La columna ya era nullable y
+  // crearConductorVinculado (registro público y alta admin de usuario) ya lo dejaba en
+  // NULL, así que este era el único sitio que lo exigía. Si viene, se valida igual.
   // El correo es la clave para resolver la cuenta de usuario (reutilizar la existente o
   // crear una nueva), y el teléfono es dato de contacto obligatorio del conductor.
   if (!correo) throw { status: 400, message: 'El correo es requerido' };
@@ -159,11 +165,13 @@ const create = async (data) => {
     }
   }
 
-  if (usuario_id) {
-    await validarReferencias({ usuario_id, tipo_usuario_id });
-  } else {
-    await validarReferencias({ tipo_usuario_id });
-  }
+  // Solo se pasa tipo_usuario_id cuando de verdad vino: validarReferencias comprueba
+  // `!== undefined`, así que un null explícito lo mandaría a buscar el catálogo con id
+  // null y respondería un 404 confuso en vez de aceptarlo como "sin perfil asignado".
+  const referencias = {};
+  if (usuario_id) referencias.usuario_id = usuario_id;
+  if (tipo_usuario_id) referencias.tipo_usuario_id = tipo_usuario_id;
+  await validarReferencias(referencias);
 
   try {
     return await sequelize.transaction(async (transaction) => {
@@ -175,6 +183,9 @@ const create = async (data) => {
           if (!contrasena) {
             throw { status: 400, message: 'contrasena es requerida para crear la cuenta de usuario de este conductor' };
           }
+          // Este camino crea una cuenta de usuario nueva, así que aplica la misma política
+          // que POST /api/usuarios y el registro público: fortaleza + confirmación.
+          PasswordUtil.validarNueva(contrasena, data);
           const hash = await bcrypt.hash(contrasena, 10);
           const nuevoUsuario = await usuarioRepo.create(
             { nombre: nombre_apellidos, correo, contrasena: hash, rol_id: ROLES.CONDUCTOR, numero_telefonico },

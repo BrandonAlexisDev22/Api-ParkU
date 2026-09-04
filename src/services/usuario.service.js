@@ -12,6 +12,7 @@ const { resolverRolId } = require('../config/roles');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
 const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
 const conductorRepo = require('../repositories/conductor.repository');
+const PasswordUtil = require('../utils/password.util');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Formato permisivo (con o sin '+', 7-15 dígitos) -- el mismo criterio que ya se usaba en
@@ -95,6 +96,11 @@ const create = async (data) => {
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
   }
+  // Fortaleza + confirmación, ANTES de tocar la base de datos. La fortaleza ya la exigía
+  // el registro público (registerValidation), pero esta ruta no pasa por esa cadena: un
+  // administrador podía crear cuentas con contraseñas triviales. La confirmación no
+  // existía en ninguna de las dos.
+  PasswordUtil.validarNueva(contrasena, data);
   if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
     throw { status: 400, message: 'tipo_documento y numero_documento deben enviarse juntos' };
   }

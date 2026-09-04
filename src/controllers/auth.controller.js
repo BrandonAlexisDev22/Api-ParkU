@@ -34,6 +34,10 @@ class AuthController {
       }
 
       const { correo, contrasena, nombre, numero } = req.body;
+      // La fortaleza ya la validó registerValidation; falta la confirmación, que se
+      // comprueba aquí -- antes de cualquier escritura. La regla vive en PasswordUtil para
+      // que el registro público y POST /api/usuarios rechacen exactamente lo mismo.
+      PasswordUtil.validarConfirmacion(contrasena, req.body);
       // Documento opcional: acepta tipo_documento/numero_documento (nombres reales de
       // columna en conductor) o su alias tipoDocumento/numeroDocumento (mismo criterio que
       // ya usa GET /api/auth/existe-documento). Si se envía, se crea un Conductor vinculado
