@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/rolPermiso.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -70,7 +70,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['configuracion.gestionar'], roles: [1] }),
   ctrl.getAll
 );
 
@@ -107,7 +107,7 @@ router.get('/',
  */
 router.get('/rol/:rolId',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['configuracion.gestionar'], roles: [1] }),
   ctrl.getByRol
 );
 
@@ -145,7 +145,7 @@ router.get('/rol/:rolId',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['configuracion.gestionar'], roles: [1] }),
   ctrl.create
 );
 
@@ -176,7 +176,7 @@ router.post('/',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['configuracion.gestionar'], roles: [1] }),
   ctrl.remove
 );
 

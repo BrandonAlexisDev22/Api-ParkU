@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/usuario.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 const { crearUploadMiddleware } = require('../middlewares/upload.middleware');
 
 const uploadFoto = crearUploadMiddleware({
@@ -177,7 +177,7 @@ const uploadFoto = crearUploadMiddleware({
  */
 router.get('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),
   ctrl.getAll
 );
 
@@ -211,7 +211,7 @@ router.get('/',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),
   ctrl.getById
 );
 
@@ -247,7 +247,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['usuarios.gestionar'], roles: [1] }),
   ctrl.create
 );
 
@@ -328,7 +328,7 @@ router.put('/foto',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['usuarios.gestionar'], roles: [1] }),
   ctrl.update
 );
 
@@ -403,7 +403,7 @@ router.patch('/:id/contrasena',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['usuarios.gestionar'], roles: [1] }),
   ctrl.remove
 );
 

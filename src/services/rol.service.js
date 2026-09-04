@@ -8,6 +8,7 @@ const permisoRepo = require('../repositories/permiso.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES } = require('../config/roles');
+const { invalidarCachePermisos } = require('../middlewares/auth.middleware');
 
 const getAll = () => repo.findAll();
 
@@ -121,7 +122,11 @@ const reemplazarPermisos = async (id, permisos) => {
   await getById(id);
   const ids = await _normalizarPermisos(permisos);
   await _protegerRolAdmin(id, ids);
-  return repo.reemplazarPermisos(id, ids);
+  const actualizado = await repo.reemplazarPermisos(id, ids);
+  // Sin esto, quien ya tuviera sesión abierta seguiría con los permisos viejos hasta que
+  // caducara la caché: dar o quitar un permiso tiene que notarse en la siguiente petición.
+  invalidarCachePermisos(id);
+  return actualizado;
 };
 
 /**
@@ -169,6 +174,7 @@ const asignarPermiso = async (rolId, permisoId) => {
   const permiso = await permisoRepo.findById(permisoId);
   if (!permiso) throw { status: 404, message: 'Permiso no encontrado' };
   await repo.asignarPermiso(rolId, permisoId);
+  invalidarCachePermisos(rolId);
   return getById(rolId); // devuelve el rol actualizado con sus permisos
 };
 
@@ -183,6 +189,7 @@ const quitarPermiso = async (rolId, permisoId) => {
   const restantes = (rol.permisos || []).map((p) => p.id).filter((id) => id !== Number(permisoId));
   await _protegerRolAdmin(rolId, restantes);
   await repo.quitarPermiso(rolId, permisoId);
+  invalidarCachePermisos(rolId);
   return getById(rolId);
 };
 
