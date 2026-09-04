@@ -118,6 +118,24 @@ const { handleError } = require('../helpers/errorHandler');
  *             numero_telefonico:
  *               type: string
  *               nullable: true
+ *               description: Opcional, como en el resto del sistema.
+ *             usuario_id:
+ *               type: integer
+ *               nullable: true
+ *               description: Cuenta de acceso ya existente a la que vincularlo.
+ *             crear_cuenta:
+ *               type: boolean
+ *               nullable: true
+ *               description: >
+ *                 El "no tengo cuenta" del panel: crea también la cuenta de acceso de esta
+ *                 persona. Requiere correo, contrasena y confirmar_contrasena. Sin esta
+ *                 bandera (y sin usuario_id) el conductor se registra sin cuenta.
+ *             contrasena:
+ *               type: string
+ *               nullable: true
+ *             confirmar_contrasena:
+ *               type: string
+ *               nullable: true
  *         placa:
  *           type: string
  *           nullable: true

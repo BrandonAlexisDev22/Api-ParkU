@@ -17,7 +17,6 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - numero_documento
  *         - nombre_apellidos
- *         - tipo_usuario_id
  *       properties:
  *         id:
  *           type: integer
@@ -50,7 +49,11 @@ const { handleError } = require('../helpers/errorHandler');
  *         regional_formacion:
  *           type: string
  *           nullable: true
- *           description: Texto libre proveniente de SOFIA Plus.
+ *           description: >
+ *             Solo lectura. Dato histórico de SOFIA Plus: ya no se pide en los formularios
+ *             de alta ni de edición (se ignora si se envía), pero lo ya guardado se
+ *             conserva y se sigue devolviendo. Igual para centro_formacion y
+ *             programa_formacion.
  *         centro_formacion:
  *           type: string
  *           nullable: true
@@ -82,7 +85,6 @@ const { handleError } = require('../helpers/errorHandler');
  *       required:
  *         - numero_documento
  *         - nombre_apellidos
- *         - tipo_usuario_id
  *       properties:
  *         usuario_id:
  *           type: integer
@@ -134,15 +136,11 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion:
- *           type: string
  *           nullable: true
- *         centro_formacion:
- *           type: string
- *           nullable: true
- *         programa_formacion:
- *           type: string
- *           nullable: true
+ *           description: >
+ *             Perfil dentro del SENA (Aprendiz/Instructor/Administrativo). Es un dato del
+ *             CONDUCTOR, no de la cuenta de acceso: la tabla usuario no tiene ningún campo
+ *             equivalente, así que no debe aparecer en los formularios de usuario. Opcional.
  *         vigencia:
  *           type: string
  *           format: date
@@ -181,15 +179,11 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion:
- *           type: string
  *           nullable: true
- *         centro_formacion:
- *           type: string
- *           nullable: true
- *         programa_formacion:
- *           type: string
- *           nullable: true
+ *           description: >
+ *             Perfil dentro del SENA (Aprendiz/Instructor/Administrativo). Es un dato del
+ *             CONDUCTOR, no de la cuenta de acceso: la tabla usuario no tiene ningún campo
+ *             equivalente, así que no debe aparecer en los formularios de usuario. Opcional.
  *         vigencia:
  *           type: string
  *           format: date

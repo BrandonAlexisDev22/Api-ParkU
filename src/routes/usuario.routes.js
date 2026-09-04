@@ -39,7 +39,11 @@ const uploadFoto = crearUploadMiddleware({
  *           description: Contraseña encriptada (no visible en respuestas).
  *         rol:
  *           type: integer
- *           description: ID del rol asignado (rol_id en la base de datos).
+ *           description: >
+ *             ID del rol asignado (rol_id en la base de datos). Es lo único que clasifica a
+ *             una cuenta. NO existe ningún "tipo de usuario" en la tabla usuario: ese campo
+ *             (Aprendiz/Instructor/Administrativo) pertenece al conductor, así que no debe
+ *             pedirse en los formularios de cuenta.
  *         numero_telefonico:
  *           type: string
  *           nullable: true

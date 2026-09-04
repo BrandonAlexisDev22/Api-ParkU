@@ -26,6 +26,16 @@ const TIPOS_PERMITIDOS = ['CARRO', 'MOTO'];
 // registradas de antes, y filtrar o consultarlas debe seguir funcionando. Lo que se cierra
 // es la puerta de entrada (crear/editar), no la de salida.
 const TIPOS_HISTORICOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
+// Lo que el panel de estacionamiento puede mandar sobre el DUEÑO en el mismo formulario
+// del vehículo. Ninguno es columna de `vehiculo`: se separan del payload y viajan a
+// conductor.service.resolverOCrear, que decide si esa persona ya existe, hay que crearla, y
+// si además hay que crearle una cuenta de acceso.
+const CAMPOS_DEL_CONDUCTOR = [
+  'tipo_documento', 'numero_documento', 'nombre_apellidos', 'correo', 'numero_telefonico',
+  'direccion', 'tipo_usuario_id', 'movilidad_reducida', 'tipo_discapacidad',
+  'usuario_id', 'crear_cuenta', 'sin_cuenta', 'contrasena', 'confirmar_contrasena',
+];
+
 // Placas colombianas: 5-6 caracteres alfanuméricos tras normalizar (mayúsculas, sin
 // espacios/guiones) -- mismo criterio que ck_vehiculo_placa_formato en la BD, más estricto
 // en longitud para que el frontend y el backend rechacen el mismo formato.
@@ -136,13 +146,15 @@ const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
  */
 const create = async (data, usuarioId) => {
   const { conductor_id, tipo, celda_id } = data;
-  // Datos del dueño para el alta "en el momento". Se admiten anidados o en la raíz porque
-  // el panel de estacionamiento manda un solo formulario con todo mezclado.
-  const datosConductor = data.conductor ?? {
-    tipo_documento: data.tipo_documento,
-    numero_documento: data.numero_documento,
-    nombre_apellidos: data.nombre_apellidos,
-  };
+  // Datos del dueño para el alta "en el momento", incluidos los de su cuenta de acceso: el
+  // panel de estacionamiento manda un solo formulario con todo mezclado -- los datos de la
+  // persona, su opción "no tengo cuenta" con contraseña y confirmación, y luego los del
+  // vehículo. Se admiten anidados en `conductor` o sueltos en la raíz; lo anidado manda.
+  const datosConductor = {};
+  for (const campo of CAMPOS_DEL_CONDUCTOR) {
+    if (data[campo] !== undefined) datosConductor[campo] = data[campo];
+  }
+  Object.assign(datosConductor, data.conductor || {});
   let { placa } = data;
 
   if (!tipo) throw { status: 400, message: 'El tipo de vehículo es requerido' };
@@ -196,11 +208,10 @@ const create = async (data, usuarioId) => {
   }
   // Ninguno de estos es columna de vehiculo: celda_id solo condiciona la validación y los
   // datos del conductor van a su propia tabla.
-  const {
-    celda_id: _descartada, conductor: _conductor,
-    tipo_documento: _tipoDoc, numero_documento: _numDoc, nombre_apellidos: _nombre,
-    ...datosVehiculo
-  } = data;
+  const datosVehiculo = { ...data };
+  delete datosVehiculo.celda_id;
+  delete datosVehiculo.conductor;
+  for (const campo of CAMPOS_DEL_CONDUCTOR) delete datosVehiculo[campo];
 
   try {
     return await runWithUsuario(usuarioId, async (transaction) => {
