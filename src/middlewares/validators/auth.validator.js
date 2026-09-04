@@ -20,10 +20,14 @@ const registerValidation = [
     .matches(/[0-9]/)
     .withMessage('La contraseña debe tener al menos un número'),
 
+  // El registro público IGNORA el rol (siempre nace como Comunidad SENA, ver
+  // auth.controller.register), así que aquí solo se comprueba la forma. El rango fijo
+  // 1..3 que había antes rechazaba con 400 una petición que incluyera un rol nuevo y
+  // válido -- creado desde POST /api/roles -- aunque el registro ni siquiera lo mire.
   body('rol')
     .optional()
-    .isInt({ min: 1, max: 3 })
-    .withMessage('Rol inválido (debe ser 1, 2 o 3)'),
+    .isInt({ min: 1 })
+    .withMessage('El rol debe ser un identificador numérico'),
 ];
 
 // =============================================

@@ -8,7 +8,8 @@ const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/usuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
-const { resolverRolId } = require('../config/roles');
+const { ROLES, ALIAS_ROL } = require('../config/roles');
+const rolRepo = require('../repositories/rol.repository');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
 const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
 const conductorRepo = require('../repositories/conductor.repository');
@@ -44,7 +45,73 @@ const _validarTelefono = (numero) => {
  * Obtiene todos los usuarios (sin contraseñas).
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+/**
+ * Normaliza texto para comparar nombres de rol sin depender de tildes ni mayúsculas
+ * ("Comunidad SENA", "comunidad sena" y "COMUNIDAD SENÁ" son el mismo rol).
+ * @private
+ */
+const _normalizarTexto = (texto) => texto
+  .toString().trim().toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/**
+ * Resuelve el rol que envía el cliente CONTRA LA TABLA `rol` REAL, no contra una lista
+ * fija en el código. Acepta el id (número o string numérico) o el nombre del rol.
+ *
+ * Antes esto lo hacía config/roles.js validando contra ROLES = {ADMIN:1, VIGILANTE:2,
+ * CONDUCTOR:3}: crear un rol nuevo desde POST /api/roles funcionaba, pero asignárselo a un
+ * usuario respondía "Rol inválido" porque ese id no estaba en la constante. Ahora cualquier
+ * rol que exista en la base de datos es asignable el mismo día que se crea, sin tocar código.
+ *
+ * @private
+ * @param {number|string|undefined|null} valor
+ * @throws {Object} 400 si el valor no corresponde a ningún rol existente. El mensaje lista
+ *   los roles reales, para que el cliente sepa qué puede enviar.
+ * @returns {Promise<number|undefined>} undefined si no vino nada (el caller pone el default).
+ */
+const _resolverRol = async (valor) => {
+  if (valor === undefined || valor === null || valor === '') return undefined;
+
+  const roles = await rolRepo.findAll();
+
+  const comoNumero = Number(valor);
+  if (Number.isInteger(comoNumero) && comoNumero > 0) {
+    const porId = roles.find((r) => r.id === comoNumero);
+    if (porId) return porId.id;
+  } else if (typeof valor === 'string') {
+    const buscado = _normalizarTexto(valor);
+    const porNombre = roles.find((r) => _normalizarTexto(r.nombre) === buscado);
+    if (porNombre) return porNombre.id;
+
+    // Alias históricos ("conductor" -> "Comunidad sena"): el nombre real cambió pero los
+    // clientes viejos siguen enviando el antiguo.
+    const porAlias = ALIAS_ROL[buscado];
+    if (porAlias && roles.some((r) => r.id === porAlias)) return porAlias;
+  }
+
+  throw {
+    status: 400,
+    message: `Rol inválido: "${valor}". Roles disponibles: ${roles.map((r) => `${r.id} (${r.nombre})`).join(', ')}`,
+  };
+};
+
+/**
+ * Lista usuarios, opcionalmente filtrados por rol.
+ *
+ * El filtro acepta cualquier rol que exista en la base de datos (por id o por nombre); no
+ * hay una lista cerrada de tres. Las opciones del desplegable las da GET /api/roles, así
+ * que un rol creado hoy aparece hoy en el filtro sin desplegar nada.
+ *
+ * @param {Object} [filtros]
+ * @param {number|string} [filtros.rol] - Id o nombre del rol. Alias: rol_id.
+ * @throws {Object} 400 si el rol indicado no existe.
+ * @returns {Promise<Array>}
+ */
+const getAll = async (filtros = {}) => {
+  const rolEnviado = filtros.rol !== undefined ? filtros.rol : filtros.rol_id;
+  const rol_id = await _resolverRol(rolEnviado);
+  return repo.findAll({ rol_id });
+};
 
 /**
  * Busca un usuario por ID.
@@ -106,7 +173,9 @@ const create = async (data) => {
   }
   _validarCorreo(correo);
   _validarTelefono(numero_telefonico);
-  const rol_id = resolverRolId(rolEnviado) ?? 3;
+  // Se resuelve contra la tabla `rol` real (ver _resolverRol). Sin rol explícito, la
+  // cuenta nace como Comunidad SENA, que es el rol de menor privilegio.
+  const rol_id = (await _resolverRol(rolEnviado)) ?? ROLES.CONDUCTOR;
 
   const existe = await repo.findByCorreo(correo);
   if (existe) throw { status: 409, message: 'El correo ya está registrado' };
@@ -199,7 +268,7 @@ const update = async (id, data) => {
     }
   }
 
-  // El rol puede venir como `rol` o como `rol_id`, número o nombre (ver resolverRolId).
+  // El rol puede venir como `rol` o como `rol_id`, número o nombre (ver _resolverRol).
   const updateData = { ...data };
   delete updateData.tipo_documento;
   delete updateData.tipoDocumento;
@@ -207,7 +276,7 @@ const update = async (id, data) => {
   delete updateData.numeroDocumento;
   const rolEnviado = updateData.rol !== undefined ? updateData.rol : updateData.rol_id;
   delete updateData.rol;
-  const rolResuelto = resolverRolId(rolEnviado);
+  const rolResuelto = await _resolverRol(rolEnviado);
   if (rolResuelto !== undefined) updateData.rol_id = rolResuelto;
 
   try {

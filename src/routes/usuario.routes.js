@@ -136,13 +136,34 @@ const uploadFoto = crearUploadMiddleware({
  * @swagger
  * /api/usuarios:
  *   get:
- *     summary: Listar todos los usuarios
+ *     summary: Listar usuarios, opcionalmente filtrados por rol
+ *     description: >
+ *       El filtro admite cualquier rol existente en la base de datos, por id o por nombre
+ *       (sin distinguir mayúsculas ni tildes). No hay una lista cerrada de roles: un rol
+ *       creado con POST /api/roles se puede filtrar de inmediato. Las opciones del
+ *       desplegable se obtienen de GET /api/roles.
  *     tags: [Usuarios]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: rol
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Id o nombre del rol: 2, "Vigilante", "comunidad sena"...
+ *         example: Vigilante
+ *       - in: query
+ *         name: rol_id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Alias de `rol` para filtrar solo por id.
  *     responses:
  *       200:
  *         description: Lista de usuarios obtenida
+ *       400:
+ *         description: El rol indicado no existe (el mensaje lista los roles disponibles)
  *         content:
  *           application/json:
  *             schema:

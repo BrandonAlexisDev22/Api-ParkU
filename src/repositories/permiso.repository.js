@@ -12,8 +12,21 @@ const includeModulo = {
   attributes: ['id', 'nombre'],
 };
 
+/**
+ * Todos los permisos, agrupables por módulo.
+ *
+ * Se ordena por modulo_id y luego por nombre: así la lista llega ya organizada por módulo
+ * (Configuración, Usuarios, Parqueaderos, Control de Ingreso...) y la pantalla de crear/
+ * editar rol puede pintar secciones recorriéndola de arriba abajo, sin reordenar nada. El
+ * orden alfabético puro que había antes intercalaba módulos -- "reportes.consultar"
+ * (Medición y Desempeño) caía entre los de Parqueaderos y los de Reservas.
+ * @returns {Promise<Array>}
+ */
 const findAll = async () => {
-  const rows = await Permiso.findAll({ include: [includeModulo], order: [['nombre', 'ASC']] });
+  const rows = await Permiso.findAll({
+    include: [includeModulo],
+    order: [['modulo_id', 'ASC'], ['nombre', 'ASC']],
+  });
   return rows.map((r) => r.toJSON());
 };
 

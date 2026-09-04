@@ -3,7 +3,9 @@ const { handleError } = require('../helpers/errorHandler');
 
 const getAll = async (req, res) => {
   try {
-    const data = await svc.getAll();
+    // ?rol=2 o ?rol=Vigilante o ?rol_id=2 filtran por cualquier rol existente en la BD.
+    // Sin parámetro devuelve todos, como antes.
+    const data = await svc.getAll({ rol: req.query.rol, rol_id: req.query.rol_id });
     res.json(data);
   } catch (e) {
     handleError(res, e);

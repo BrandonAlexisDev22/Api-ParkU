@@ -31,12 +31,20 @@ const mapUsuario = (instancia) => {
 const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'correo_verificado', 'ultimo_acceso', 'fecha_creacion'];
 
 /**
- * Recupera todos los usuarios con el nombre de su rol.
+ * Recupera los usuarios con el nombre de su rol, opcionalmente filtrados por rol.
+ *
+ * El filtro es por `rol_id`, sin lista blanca de valores: cualquier rol de la tabla `rol`
+ * sirve, incluidos los que se creen en el futuro. Quien llama ya resolvió el id contra la
+ * base de datos (usuario.service._resolverRol).
+ *
+ * @param {Object} [filtros]
+ * @param {number} [filtros.rol_id] - Si viene, solo los usuarios de ese rol.
  * @returns {Promise<Array>}
  */
-const findAll = async () => {
+const findAll = async ({ rol_id } = {}) => {
   const rows = await Usuario.findAll({
     attributes: ATRIBUTOS_PUBLICOS,
+    ...(rol_id !== undefined && rol_id !== null && { where: { rol_id } }),
     include: [includeRol],
     order: [['nombre', 'ASC']],
   });

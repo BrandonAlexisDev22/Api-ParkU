@@ -33,33 +33,15 @@ const ALIAS_ROL = {
   'comunidad_sena': ROLES.CONDUCTOR,
 };
 
-/**
- * Resuelve el identificador de rol que envía el cliente -- puede venir como número
- * (1/2/3), como string numérico ("1") o como nombre ("Administrador", "vigilante"...).
- * Devuelve `undefined` si `valor` no vino (para que el caller decida el default) y
- * lanza 400 si vino algo que no corresponde a ningún rol real -- así un valor
- * irreconocible nunca cae silenciosamente en Conductor.
- * @param {number|string|undefined|null} valor
- * @throws {Object} 400 si `valor` no es un rol válido.
- * @returns {number|undefined}
- */
-const resolverRolId = (valor) => {
-  if (valor === undefined || valor === null || valor === '') return undefined;
+// NOTA: aquí ya NO vive la resolución del rol que envía el cliente. Antes existía un
+// resolverRolId() que validaba contra Object.values(ROLES), es decir contra esta lista
+// fija de tres: en cuanto se creaba un rol nuevo desde POST /api/roles, asignárselo a un
+// usuario respondía "Rol inválido" aunque el rol existiera en la base de datos. La
+// resolución dinámica (contra la tabla `rol` real) está en usuario.service.js.
+//
+// Estas constantes siguen aquí porque son otra cosa: los IDs de los tres roles que el
+// código necesita reconocer por nombre para decidir permisos de negocio
+// (verificarRol([ROLES.ADMIN]), "¿quien crea la reserva es Vigilante?"...). Son roles del
+// sistema, no el catálogo completo.
 
-  const comoNumero = Number(valor);
-  if (Number.isInteger(comoNumero) && Object.values(ROLES).includes(comoNumero)) {
-    return comoNumero;
-  }
-
-  if (typeof valor === 'string') {
-    const resuelto = ALIAS_ROL[valor.trim().toLowerCase()];
-    if (resuelto) return resuelto;
-  }
-
-  throw {
-    status: 400,
-    message: `Rol inválido: "${valor}". Use 1 (Administrador), 2 (Vigilante), 3 (Conductor), o el nombre correspondiente.`,
-  };
-};
-
-module.exports = { ROLES, NOMBRES_ROL, resolverRolId };
+module.exports = { ROLES, NOMBRES_ROL, ALIAS_ROL };
