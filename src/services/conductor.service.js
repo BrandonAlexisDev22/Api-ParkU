@@ -39,10 +39,22 @@ const validarDiscapacidad = (movilidadReducida, tipoDiscapacidad) => {
  * Valida que las referencias a catálogos y usuario existan.
  * @param {Object} data
  */
-const validarReferencias = async ({ usuario_id, tipo_usuario_id }) => {
+const validarReferencias = async ({ usuario_id, tipo_usuario_id }, conductorIdActual = null) => {
   if (usuario_id) {
     const usuario = await usuarioRepo.findById(usuario_id);
     if (!usuario) throw { status: 404, message: 'El usuario indicado no existe' };
+
+    // conductor.usuario_id es UNIQUE: una cuenta pertenece como mucho a un conductor. Sin
+    // esta comprobación el choque lo daba la base de datos como error de constraint, que
+    // sube como 500 ilegible en vez de decir qué pasó y con quién.
+    const yaVinculado = await repo.findByUsuarioId(usuario_id);
+    if (yaVinculado && yaVinculado.id !== Number(conductorIdActual)) {
+      throw {
+        status: 409,
+        message: `Esa cuenta ya está vinculada al conductor ${yaVinculado.nombre_apellidos}. Cancela primero esa vinculación (DELETE /api/conductores/${yaVinculado.id}/usuario).`,
+        data: { conductor_id: yaVinculado.id, nombre_apellidos: yaVinculado.nombre_apellidos },
+      };
+    }
   }
   if (tipo_usuario_id !== undefined) {
     const tipoUsuario = await tipoUsuarioRepo.findById(tipo_usuario_id);
@@ -127,12 +139,14 @@ const getByUsuarioId = async (usuarioId) => {
  */
 const create = async (data) => {
   const {
-    tipo_documento = 'CC', numero_documento, nombre_apellidos, correo,
+    tipo_documento = 'CC', numero_documento, nombre_apellidos,
     direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
     centro_formacion, programa_formacion, vigencia,
     movilidad_reducida = false, tipo_discapacidad, estado = true, contrasena,
   } = data;
-  let { usuario_id } = data;
+  // correo puede reasignarse: si se vincula una cuenta existente, manda el correo de esa
+  // cuenta (ver más abajo).
+  let { usuario_id, correo } = data;
 
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
@@ -172,6 +186,21 @@ const create = async (data) => {
   if (usuario_id) referencias.usuario_id = usuario_id;
   if (tipo_usuario_id) referencias.tipo_usuario_id = tipo_usuario_id;
   await validarReferencias(referencias);
+
+  // Cuando se vincula una cuenta existente, SU correo manda: es el que sirve para iniciar
+  // sesión y el que ya está verificado. Aceptar aquí uno distinto dejaría dos correos para
+  // la misma persona (uno en `usuario`, otro en `conductor`) sin forma de saber cuál vale.
+  if (usuario_id) {
+    const cuenta = await usuarioRepo.findById(usuario_id);
+    if (correo && correo.trim().toLowerCase() !== cuenta.correo.trim().toLowerCase()) {
+      throw {
+        status: 409,
+        message: `El correo lo define la cuenta vinculada (${cuenta.correo}) y no se puede cambiar desde el conductor`,
+        data: { correo_de_la_cuenta: cuenta.correo },
+      };
+    }
+    correo = cuenta.correo;
+  }
 
   try {
     return await sequelize.transaction(async (transaction) => {
@@ -254,6 +283,18 @@ const update = async (id, data) => {
   }
   if (data.correo !== undefined) validarCorreo(data.correo);
 
+  // El correo de un conductor CON cuenta vinculada es de solo lectura: pertenece a la
+  // cuenta (es la credencial de acceso y la dirección ya verificada). Editarlo aquí dejaba
+  // al conductor y a su usuario con correos distintos, sin ninguna señal de cuál era el
+  // bueno. Para cambiarlo se edita el usuario, o se cancela la vinculación primero.
+  if (data.correo !== undefined && conductor.usuario_id && data.correo !== conductor.correo) {
+    throw {
+      status: 409,
+      message: 'El correo no se puede editar desde el conductor porque proviene de su cuenta de usuario vinculada. Cámbialo en la cuenta (PUT /api/usuarios/:id) o cancela la vinculación primero.',
+      data: { usuario_id: conductor.usuario_id, correo_actual: conductor.correo },
+    };
+  }
+
   const movilidadReducidaFinal = data.movilidad_reducida !== undefined ? data.movilidad_reducida : conductor.movilidad_reducida;
   const tipoDiscapacidadFinal = data.tipo_discapacidad !== undefined ? data.tipo_discapacidad : conductor.tipo_discapacidad;
   validarDiscapacidad(movilidadReducidaFinal, tipoDiscapacidadFinal);
@@ -274,7 +315,9 @@ const update = async (id, data) => {
     }
   }
 
-  await validarReferencias(data);
+  // Se pasa el id actual para que vincular la cuenta que YA es suya no se rechace como
+  // duplicada.
+  await validarReferencias(data, id);
 
   return repo.update(id, data);
 };

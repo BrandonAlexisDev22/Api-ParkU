@@ -9,12 +9,24 @@ const { Conductor, TipoUsuario, Usuario } = require('../models');
 
 const includeCatalogos = [
   { model: TipoUsuario, as: 'tipoUsuario', attributes: ['nombre'] },
-  { model: Usuario, as: 'usuario', attributes: ['id', 'correo', 'nombre'] },
+  // La cuenta vinculada se trae completa (sin datos sensibles: nunca la contraseña) para
+  // que quien consulte un conductor vea de una vez con qué usuario está vinculado y pueda
+  // detectar desajustes -- p. ej. un correo distinto entre conductor y cuenta.
+  {
+    model: Usuario,
+    as: 'usuario',
+    attributes: ['id', 'nombre', 'correo', 'numero_telefonico', 'rol_id', 'estado'],
+  },
 ];
 
 /**
- * Aplana el resultado de Sequelize para exponer el nombre del tipo de usuario
- * como campo plano de solo lectura (tipo_usuario_nombre).
+ * Aplana el resultado de Sequelize: expone el nombre del tipo de usuario como campo plano
+ * y la cuenta vinculada como objeto `usuario`.
+ *
+ * Antes el include traía el nombre de la cuenta y el mapper LO DESCARTABA: de todo el
+ * usuario vinculado solo sobrevivía `usuario_correo`, así que la pantalla de vinculación no
+ * tenía forma de mostrar a quién estaba vinculado el conductor. `usuario_correo` se
+ * conserva para no romper a quien ya lo usaba.
  * @param {import('sequelize').Model} instancia
  * @returns {Object|null}
  */
@@ -25,7 +37,12 @@ const mapConductor = (instancia) => {
   return {
     ...resto,
     tipo_usuario_nombre: tipoUsuario ? tipoUsuario.nombre : null,
+    usuario: usuario || null,
     usuario_correo: usuario ? usuario.correo : null,
+    usuario_nombre: usuario ? usuario.nombre : null,
+    // Deja explícito si el correo del conductor y el de su cuenta se separaron: el correo
+    // no debería editarse en el conductor cuando viene de una cuenta (ver el service).
+    correo_sincronizado: usuario ? usuario.correo === resto.correo : null,
   };
 };
 
