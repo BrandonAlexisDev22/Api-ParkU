@@ -129,6 +129,9 @@ app.use('/api/usuarios', require('./routes/usuario.routes'));
 app.use('/api/roles', require('./routes/rol.routes'));
 
 // Gestión de Permisos (Solo Admin)
+// Catálogo de módulos: agrupa los permisos y lo consume la pantalla de crear/editar rol.
+app.use('/api/modulos', require('./routes/modulo.routes'));
+
 app.use('/api/permisos', require('./routes/permiso.routes'));
 
 // Asignación de Permisos (Solo Admin)

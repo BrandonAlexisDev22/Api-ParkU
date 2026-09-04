@@ -151,7 +151,7 @@ const uploadFoto = crearUploadMiddleware({
  *         required: false
  *         schema:
  *           type: string
- *         description: Id o nombre del rol: 2, "Vigilante", "comunidad sena"...
+ *         description: 'Id o nombre del rol. Ejemplos: 2, Vigilante, comunidad sena'
  *         example: Vigilante
  *       - in: query
  *         name: rol_id
