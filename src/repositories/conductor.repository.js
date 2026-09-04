@@ -43,6 +43,10 @@ const mapConductor = (instancia) => {
     // Deja explícito si el correo del conductor y el de su cuenta se separaron: el correo
     // no debería editarse en el conductor cuando viene de una cuenta (ver el service).
     correo_sincronizado: usuario ? usuario.correo === resto.correo : null,
+    // Qué campos debe deshabilitar el formulario. Los datos que provienen de la cuenta no
+    // se editan desde el conductor (el backend los rechaza con 409); esto le ahorra a la
+    // interfaz tener que deducir la regla, y si mañana cambia, cambia en un solo sitio.
+    campos_solo_lectura: usuario ? ['correo'] : [],
   };
 };
 

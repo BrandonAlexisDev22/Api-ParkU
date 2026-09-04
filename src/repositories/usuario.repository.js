@@ -4,12 +4,22 @@
  * Incluye el nombre del rol a través de la asociación con 'rol'.
  */
 
-const { Usuario, Rol } = require('../models');
+const { Usuario, Rol, Conductor } = require('../models');
 
 const includeRol = {
   model: Rol,
   as: 'rol',
   attributes: ['nombre'],
+};
+
+// El documento de una persona vive en su Conductor vinculado, no en `usuario`. Sin este
+// include, el LISTADO de usuarios llegaba sin documento -- solo GET /api/usuarios/:id lo
+// resolvía, con una consulta aparte en el service. Al traerlo aquí, cualquier respuesta de
+// usuario (lista o detalle) llega completa y con el mismo shape.
+const includeConductor = {
+  model: Conductor,
+  as: 'conductor',
+  attributes: ['tipo_documento', 'numero_documento'],
 };
 
 /**
@@ -21,10 +31,12 @@ const includeRol = {
 const mapUsuario = (instancia) => {
   if (!instancia) return null;
   const plano = instancia.toJSON();
-  const { rol, ...resto } = plano;
+  const { rol, conductor, ...resto } = plano;
   return {
     ...resto,
     rol_nombre: rol ? rol.nombre : null,
+    tipo_documento: conductor ? conductor.tipo_documento : null,
+    numero_documento: conductor ? conductor.numero_documento : null,
   };
 };
 
@@ -45,7 +57,7 @@ const findAll = async ({ rol_id } = {}) => {
   const rows = await Usuario.findAll({
     attributes: ATRIBUTOS_PUBLICOS,
     ...(rol_id !== undefined && rol_id !== null && { where: { rol_id } }),
-    include: [includeRol],
+    include: [includeRol, includeConductor],
     order: [['nombre', 'ASC']],
   });
   return rows.map(mapUsuario);
@@ -63,7 +75,7 @@ const findById = async (id, { transaction } = {}) => {
   const row = await Usuario.findOne({
     where: { id },
     attributes: ATRIBUTOS_PUBLICOS,
-    include: [includeRol],
+    include: [includeRol, includeConductor],
     transaction,
   });
   return mapUsuario(row);

@@ -260,7 +260,12 @@ const desvincularUsuario = async (id) => {
   }
 
   try {
-    return await repo.update(id, { usuario_id: null });
+    // Se limpian los datos que PERTENECÍAN a la cuenta, no solo el vínculo. El correo era
+    // de solo lectura precisamente porque venía de ella (ver update): dejarlo puesto tras
+    // desvincular sería conservar un dato ajeno que ya nadie mantiene, y además bloquearía
+    // que esa dirección se use para otra cuenta. Los datos propios del conductor
+    // (documento, nombre, teléfono, dirección, vehículos, historial) no se tocan.
+    return await repo.update(id, { usuario_id: null, correo: null });
   } catch (error) {
     traducirErrorTrigger(error);
   }

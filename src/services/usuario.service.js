@@ -132,12 +132,10 @@ const getAll = async (filtros = {}) => {
 const getById = async (id) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Usuario no encontrado' };
-  const conductorVinculado = await conductorRepo.findByUsuarioId(id);
-  return {
-    ...item,
-    tipo_documento: conductorVinculado?.tipo_documento ?? null,
-    numero_documento: conductorVinculado?.numero_documento ?? null,
-  };
+  // El documento ya viene resuelto por el repositorio (include del Conductor vinculado),
+  // igual que en el listado. Antes se resolvía aquí con una segunda consulta, que además
+  // dejaba al listado sin documento porque no pasaba por este camino.
+  return item;
 };
 
 /**
