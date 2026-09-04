@@ -4,13 +4,35 @@
  * Incluye los permisos asociados a través de la tabla intermedia rol_permiso.
  */
 
-const { Rol, Permiso } = require('../models');
+const { Rol, Permiso, Modulo } = require('../models');
 
 const includePermisos = {
   model: Permiso,
   as: 'permisos',
-  attributes: ['id', 'nombre'],
+  // Se incluye modulo_id y el módulo completo para que la pantalla de crear/editar rol
+  // pueda pintar los permisos agrupados por módulo con SOLO esta respuesta, sin tener que
+  // cruzarla contra GET /api/permisos. Antes llegaban como {id, nombre} pelados: si la UI
+  // agrupaba por módulo, no encontraba por dónde agrupar y no mostraba ninguno.
+  attributes: ['id', 'nombre', 'modulo_id'],
   through: { attributes: [] }, // oculta los campos de la tabla intermedia
+  include: [{ model: Modulo, as: 'modulo', attributes: ['id', 'nombre'] }],
+};
+
+/**
+ * Aplana un rol y añade `permiso_ids`: el arreglo plano de identificadores, que es
+ * justamente lo que necesita marcar casillas en un formulario y lo que hay que devolver en
+ * PUT /api/roles/:id/permisos. Se ordenan por módulo y nombre para que la lista salga
+ * siempre igual y agrupada.
+ * @param {import('sequelize').Model} instancia
+ * @returns {Object|null}
+ */
+const mapRol = (instancia) => {
+  if (!instancia) return null;
+  const plano = instancia.toJSON();
+  const permisos = (plano.permisos || []).sort(
+    (a, b) => (a.modulo_id - b.modulo_id) || a.nombre.localeCompare(b.nombre),
+  );
+  return { ...plano, permisos, permiso_ids: permisos.map((p) => p.id) };
 };
 
 /**
@@ -18,8 +40,8 @@ const includePermisos = {
  * @returns {Promise<Array>}
  */
 const findAll = async () => {
-  const rows = await Rol.findAll({ include: [includePermisos] });
-  return rows.map((r) => r.toJSON());
+  const rows = await Rol.findAll({ include: [includePermisos], order: [['id', 'ASC']] });
+  return rows.map(mapRol);
 };
 
 /**
@@ -29,7 +51,7 @@ const findAll = async () => {
  */
 const findById = async (id) => {
   const row = await Rol.findByPk(id, { include: [includePermisos] });
-  return row ? row.toJSON() : null;
+  return mapRol(row);
 };
 
 /**
