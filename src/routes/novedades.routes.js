@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/novedades.controller');
 const historialCtrl = require('../controllers/historial.controller');
 const evidenciaCtrl = require('../controllers/evidenciaNovedad.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 const { crearUploadMiddleware } = require('../middlewares/upload.middleware');
 
 // Solo actúa sobre requests multipart/form-data (campo "archivo"); un POST con
@@ -51,7 +51,7 @@ const uploadEvidencia = crearUploadMiddleware({
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getAll
 );
 
@@ -85,7 +85,7 @@ router.get('/',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getByVehiculo
 );
 
@@ -119,7 +119,7 @@ router.get('/vehiculo/:vehiculoId',
  */
 router.get('/registro-acceso/:registroAccesoId',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getByRegistroAcceso
 );
 
@@ -163,7 +163,7 @@ router.get('/registro-acceso/:registroAccesoId',
  */
 router.get('/filtros',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getByFiltros
 );
 
@@ -197,7 +197,7 @@ router.get('/filtros',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getById
 );
 
@@ -270,7 +270,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.update
 );
 
@@ -278,13 +278,13 @@ router.put('/:id',
 // propios reportes ni los de otros.
 router.patch('/:id/aceptar',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.aceptar
 );
 
 router.patch('/:id/rechazar',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['novedades.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.rechazar
 );
 
@@ -314,7 +314,7 @@ router.patch('/:id/rechazar',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['novedades.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 

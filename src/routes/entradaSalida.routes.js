@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/entradaSalida.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getAll
 );
 
@@ -81,7 +81,7 @@ router.get('/',
  */
 router.get('/filtro',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getByFecha
 );
 
@@ -116,7 +116,7 @@ router.get('/filtro',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getByVehiculo
 );
 
@@ -151,7 +151,7 @@ router.get('/vehiculo/:vehiculoId',
  */
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getById
 );
 
@@ -190,7 +190,7 @@ router.get('/:id',
  */
 router.post('/entrada',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['ingreso.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.registrarEntrada
 );
 
@@ -229,7 +229,7 @@ router.post('/entrada',
  */
 router.post('/salida',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['salida.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.registrarSalida
 );
 
@@ -260,7 +260,7 @@ router.post('/salida',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['ingreso.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 

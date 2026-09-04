@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/auditoria.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,13 +11,13 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
 
 router.get('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['reportes.consultar'], roles: [1] }), // o quien tenga el permiso
   ctrl.getAll
 );
 
 router.get('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['reportes.consultar'], roles: [1] }), // o quien tenga el permiso
   ctrl.getById
 );
 

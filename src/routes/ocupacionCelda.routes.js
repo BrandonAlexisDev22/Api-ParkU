@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/ocupacionCelda.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,7 +11,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
 
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getAll
 );
 
@@ -27,7 +27,7 @@ router.get('/vehiculo/:vehiculoId',
 
 router.get('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getById
 );
 

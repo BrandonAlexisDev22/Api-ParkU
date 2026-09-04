@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/parqueadero.controller');
 const historialCtrl = require('../controllers/historial.controller');
 const equipamientoCtrl = require('../controllers/equipamientoParqueadero.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -105,7 +105,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.create
 );
 
@@ -150,7 +150,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.update
 );
 
@@ -192,7 +192,7 @@ router.put('/:id',
  */
 router.patch('/:id/estado',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.cambiarEstado
 );
 
@@ -225,7 +225,7 @@ router.patch('/:id/estado',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 
@@ -315,7 +315,7 @@ router.get('/:id/equipamiento',
  */
 router.post('/:id/equipamiento',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   equipamientoCtrl.create
 );
 

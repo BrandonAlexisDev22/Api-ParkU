@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/equipamientoParqueadero.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -11,13 +11,13 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
 
 router.put('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.update
 );
 
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 

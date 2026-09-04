@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/celda.controller');
 const disponibilidadCtrl = require('../controllers/disponibilidadCelda.controller');
 const historialCtrl = require('../controllers/historial.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -300,7 +300,7 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.create
 );
 
@@ -356,13 +356,13 @@ router.post('/',
  */
 router.post('/parqueadero/:parqueaderoId/generar-lote',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.generarLote
 );
 
 router.put('/parqueadero/:parqueaderoId/ajustar-cantidades',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.ajustarCantidades
 );
 
@@ -370,7 +370,7 @@ router.put('/parqueadero/:parqueaderoId/ajustar-cantidades',
 // cuáles, repartiendo el recorte entre tipos y sin tocar ocupadas ni reservadas.
 router.put('/parqueadero/:parqueaderoId/reducir',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.reducirCeldas
 );
 
@@ -413,7 +413,7 @@ router.put('/parqueadero/:parqueaderoId/reducir',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.update
 );
 
@@ -444,7 +444,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 
@@ -559,7 +559,7 @@ router.get('/:id/disponibilidad/historial',
  */
 router.put('/:id/disponibilidad',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['parqueaderos.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   disponibilidadCtrl.cambiar
 );
 

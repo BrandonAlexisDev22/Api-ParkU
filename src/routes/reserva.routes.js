@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/reserva.controller');
 const historialCtrl = require('../controllers/historial.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -39,7 +39,7 @@ const { verificarToken, verificarRol } = require('../middlewares/auth.middleware
  */
 router.get('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['reservas.consultar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.getAll
 );
 
@@ -210,7 +210,7 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['reservas.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.update
 );
 
@@ -252,7 +252,7 @@ router.put('/:id',
  */
 router.patch('/:id/estado',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  verificarAcceso({ permisos: ['reservas.gestionar'], roles: [1,2] }), // o quien tenga el permiso
   ctrl.cambiarEstado
 );
 
@@ -284,7 +284,7 @@ router.patch('/:id/estado',
  */
 router.delete('/:id',
   verificarToken,
-  verificarRol([1]), // Solo Admin (1)
+  verificarAcceso({ permisos: ['reservas.gestionar'], roles: [1] }), // o quien tenga el permiso
   ctrl.remove
 );
 
