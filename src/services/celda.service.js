@@ -16,6 +16,7 @@ const repo = require('../repositories/celda.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const disponibilidadRepo = require('../repositories/disponibilidadCelda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
+const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const MOTIVO_AJUSTE_CANTIDADES = 'AJUSTE_OPERATIVO';
@@ -87,7 +88,36 @@ const getDisponibles = async (parqueaderoId, { tipo, vehiculo_id } = {}) => {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
 
-  return repo.findDisponibles(parqueaderoId, tipoFiltro);
+  const disponibles = await repo.findDisponibles(parqueaderoId, tipoFiltro);
+  if (!vehiculo_id) return disponibles;
+
+  // Un vehículo con reserva aceptada tiene que poder estacionar EN SU celda, y esa celda
+  // está en estado RESERVADA -- justamente el estado que este listado excluye. Sin esto,
+  // reservar dejaba al conductor sin ninguna celda que elegir al llegar: la suya no
+  // aparecía por estar reservada, y las demás lo rechazaban al intentar el ingreso.
+  // Se marca con reservada_para_este_vehiculo para que el frontend la destaque.
+  const suya = await _celdaReservadaPara(vehiculo_id, parqueaderoId);
+  if (!suya || disponibles.some((c) => c.id === suya.id)) return disponibles;
+
+  return [{ ...suya, reservada_para_este_vehiculo: true }, ...disponibles];
+};
+
+/**
+ * Celda que un vehículo tiene reservada ahora mismo en un parqueadero, si la hay.
+ * @private
+ * @param {number} vehiculoId
+ * @param {number} parqueaderoId
+ * @returns {Promise<Object|null>}
+ */
+const _celdaReservadaPara = async (vehiculoId, parqueaderoId) => {
+  const reservas = await reservaRepo.findByVehiculo(vehiculoId);
+  const ahora = new Date();
+  const vigente = reservas.find((r) => r.estado === 'ACEPTADA' && new Date(r.fecha_hora_fin) > ahora);
+  if (!vigente) return null;
+
+  const celda = await repo.findById(vigente.celda_id);
+  if (!celda || Number(celda.parqueadero) !== Number(parqueaderoId)) return null;
+  return celda;
 };
 
 /**

@@ -279,6 +279,15 @@ router.put('/:id',
  *       404:
  *         description: Conductor no encontrado
  */
+// Documentación Swagger en el controller (ctrl.desvincularUsuario). Va ANTES de
+// DELETE /:id no por precedencia de rutas (los patrones no chocan) sino para que se lea
+// junto al resto de la gestión del conductor.
+router.delete('/:id/usuario',
+  verificarToken,
+  verificarRol([1, 2]), // Admin (1) o Vigilante (2): los mismos que pueden crear/editar conductores
+  ctrl.desvincularUsuario
+);
+
 router.delete('/:id',
   verificarToken,
   verificarRol([1]), // Solo Admin (1)

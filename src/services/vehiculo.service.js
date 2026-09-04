@@ -14,7 +14,7 @@ const repo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
-const { validarTipoSegunPlaca, validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
+const { validarTipoSegunPlaca, validarCompatibilidadCelda, esCompatible } = require('../utils/compatibilidadVehiculo.util');
 
 const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 // Placas colombianas: 5-6 caracteres alfanuméricos tras normalizar (mayúsculas, sin
@@ -81,12 +81,29 @@ const getByConductor = (conductorId) => repo.findByConductor(conductorId);
  * @param {string} placa
  * @returns {Promise<Array>}
  */
-const buscarPorPlaca = (placa) => {
+const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
   const texto = (placa || '').toString().trim();
   if (!texto) return [];
   const normalizado = texto.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!normalizado) return [];
-  return repo.findByPlacaPrefix(normalizado, 20);
+
+  // Filtro por la celda donde se va a estacionar: al buscar la placa para un ingreso en
+  // una celda de moto no tiene sentido sugerir carros, porque elegir uno solo lleva a un
+  // rechazo dos pantallas después. Se resuelve el tipo desde la celda para no obligar al
+  // frontend a conocer la regla de compatibilidad.
+  let tipoFiltro = tipo || null;
+  if (celda_id) {
+    const celda = await celdaRepo.findById(celda_id);
+    if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    tipoFiltro = celda.tipo;
+  }
+  if (tipoFiltro && !TIPOS_PERMITIDOS.includes(tipoFiltro)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  }
+
+  const encontrados = await repo.findByPlacaPrefix(normalizado, 20);
+  if (!tipoFiltro) return encontrados;
+  return encontrados.filter((v) => esCompatible(v.tipo, tipoFiltro));
 };
 
 /**

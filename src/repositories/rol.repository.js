@@ -95,6 +95,26 @@ const quitarPermiso = async (rolId, permisoId) => {
   await rol.removePermiso(permisoId);
 };
 
+/**
+ * Deja el rol EXACTAMENTE con los permisos indicados: asigna los que falten y quita los
+ * que sobren, en una sola operación. Es lo que necesita una pantalla de "editar rol" con
+ * casillas de verificación, donde el cliente manda el conjunto completo y no una lista de
+ * altas y bajas.
+ *
+ * setPermisos es el método que genera belongsToMany; resuelve el diff solo, así que no hay
+ * que borrar todo y reinsertar (eso perdería fecha_asignacion de los permisos que se
+ * mantienen).
+ * @param {number} rolId
+ * @param {number[]} permisoIds
+ * @returns {Promise<Object>} El rol con sus permisos ya actualizados.
+ */
+const reemplazarPermisos = async (rolId, permisoIds) => {
+  const rol = await Rol.findByPk(rolId);
+  if (!rol) throw { status: 404, message: 'Rol no encontrado' };
+  await rol.setPermisos(permisoIds);
+  return findById(rolId);
+};
+
 module.exports = {
   findAll,
   findById,
@@ -103,4 +123,5 @@ module.exports = {
   remove,
   asignarPermiso,
   quitarPermiso,
+  reemplazarPermisos,
 };

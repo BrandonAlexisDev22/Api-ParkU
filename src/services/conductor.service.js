@@ -197,6 +197,36 @@ const create = async (data) => {
 };
 
 /**
+ * Cancela la vinculación entre un conductor y su cuenta de usuario, SIN borrar ninguno de
+ * los dos: el conductor queda como "registrado por vigilancia, sin cuenta propia"
+ * (usuario_id NULL, que es un estado válido del modelo) y la cuenta de usuario sigue
+ * existiendo intacta.
+ *
+ * Es la salida para el error más común del alta de conductores: elegir la cuenta
+ * equivocada en el selector. Antes no había forma de deshacerlo -- usuario_id es UNIQUE,
+ * así que esa cuenta quedaba atrapada en el conductor equivocado y no podía vincularse a
+ * quien correspondía, y la única alternativa era borrar el conductor y volver a crearlo,
+ * perdiendo sus vehículos y su historial.
+ *
+ * @param {number} id - ID del conductor.
+ * @throws {Object} 404 si el conductor no existe; 409 si no tiene ninguna cuenta vinculada.
+ * @returns {Promise<Object>} El conductor ya desvinculado.
+ */
+const desvincularUsuario = async (id) => {
+  const conductor = await getById(id);
+
+  if (!conductor.usuario_id) {
+    throw { status: 409, message: 'Este conductor no tiene ninguna cuenta de usuario vinculada' };
+  }
+
+  try {
+    return await repo.update(id, { usuario_id: null });
+  } catch (error) {
+    traducirErrorTrigger(error);
+  }
+};
+
+/**
  * Actualiza parcialmente un conductor existente.
  * @param {number} id
  * @param {Object} data - Campos a actualizar (todos opcionales).
@@ -262,5 +292,6 @@ module.exports = {
   getByUsuarioId,
   create,
   update,
+  desvincularUsuario,
   remove,
 };

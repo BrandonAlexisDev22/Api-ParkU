@@ -301,7 +301,13 @@ const getByConductor = async (req, res) => {
  */
 const buscarPorPlaca = async (req, res) => {
   try {
-    const data = await svc.buscarPorPlaca(req.query.placa);
+    // ?celda_id=7 restringe las sugerencias a los vehículos que caben en esa celda
+    // (celda de moto -> solo motos). ?tipo=MOTO hace lo mismo sin conocer la celda.
+    // Sin ninguno de los dos, el comportamiento es el de antes.
+    const data = await svc.buscarPorPlaca(req.query.placa, {
+      celda_id: req.query.celda_id,
+      tipo: req.query.tipo,
+    });
     res.json(data);
   } catch (e) {
     handleError(res, e);

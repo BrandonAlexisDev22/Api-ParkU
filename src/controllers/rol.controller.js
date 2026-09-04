@@ -209,10 +209,61 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/roles/{id}/permisos:
+ *   put:
+ *     summary: Fija el conjunto completo de permisos de un rol
+ *     description: >
+ *       El arreglo enviado reemplaza a los permisos actuales: los que no aparezcan se
+ *       retiran. Solo el rol Administrador puede llamarlo, y el propio rol Administrador
+ *       está protegido (no se le pueden retirar permisos, para no dejar el sistema sin
+ *       nadie capaz de volver a otorgarlos).
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [permisos]
+ *             properties:
+ *               permisos:
+ *                 type: array
+ *                 description: IDs de permiso. También acepta los objetos {id, nombre} tal como los devuelve GET /api/permisos.
+ *                 items:
+ *                   type: integer
+ *                 example: [4, 6, 10]
+ *     responses:
+ *       200:
+ *         description: Rol con sus permisos actualizados
+ *       404:
+ *         description: Rol o permiso no encontrado
+ *       409:
+ *         description: Se intentó retirar permisos al rol Administrador
+ */
+const reemplazarPermisos = async (req, res) => {
+  try {
+    const actualizado = await svc.reemplazarPermisos(req.params.id, req.body.permisos);
+    res.json(actualizado);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
   remove,
+  reemplazarPermisos,
 };

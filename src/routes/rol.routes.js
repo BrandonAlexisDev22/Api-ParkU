@@ -212,4 +212,11 @@ router.delete('/:id',
   ctrl.remove
 );
 
+// Documentación Swagger en el controller (ctrl.reemplazarPermisos).
+router.put('/:id/permisos',
+  verificarToken,
+  verificarRol([1]), // Solo Admin (1) -- el administrador es quien reparte permisos
+  ctrl.reemplazarPermisos
+);
+
 module.exports = router;

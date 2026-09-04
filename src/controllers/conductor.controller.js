@@ -481,6 +481,42 @@ const remove = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /conductores/{id}/usuario:
+ *   delete:
+ *     summary: Cancela la vinculación del conductor con su cuenta de usuario
+ *     description: >
+ *       Deshace la asociación sin borrar nada: el conductor conserva sus datos, vehículos
+ *       e historial, y la cuenta de usuario sigue existiendo. Pensado para cuando se
+ *       selecciona la cuenta equivocada al crear el conductor; como usuario_id es UNIQUE,
+ *       sin esto la cuenta quedaba atrapada y no podía vincularse a quien correspondía.
+ *     tags: [Conductores]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Conductor ya desvinculado (usuario_id en null)
+ *       404:
+ *         description: Conductor no encontrado
+ *       409:
+ *         description: El conductor no tenía ninguna cuenta vinculada
+ */
+const desvincularUsuario = async (req, res) => {
+  try {
+    const actualizado = await svc.desvincularUsuario(req.params.id);
+    res.json(actualizado);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 module.exports = {
   getAll,
   getById,
@@ -490,5 +526,6 @@ module.exports = {
   getByUsuarioId,
   create,
   update,
+  desvincularUsuario,
   remove,
 };

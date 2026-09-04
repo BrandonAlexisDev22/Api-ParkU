@@ -234,15 +234,11 @@ class AuthController {
         });
       }
 
-      // Cuentas creadas antes de este campo quedaron verificadas por migración
-      // (grandfathering); solo afecta a cuentas nuevas que no abrieron el enlace de
-      // verificación enviado al registrarse.
-      if (!user.correo_verificado) {
-        return res.status(403).json({
-          success: false,
-          message: 'Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada o solicita un nuevo enlace en /api/auth/reenviar-verificacion.'
-        });
-      }
+      // La verificación de correo YA NO BLOQUEA el inicio de sesión: se registra
+      // (correo_verificado) y el flujo de verificación sigue disponible -- enlace, código
+      // de 6 dígitos y reenvío --, pero es informativo, no un requisito para entrar. El
+      // estado viaja en la respuesta para que el frontend pueda invitar a verificar sin
+      // impedir el acceso.
 
       // Verificar contraseña
       const isPasswordValid = await PasswordUtil.compare(contrasena, user.contrasena);
