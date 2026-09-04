@@ -4,6 +4,7 @@ const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
 const { sequelize } = require('../config/database');
 const usuarioRepo = require('../repositories/usuario.repository');
+const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
 const verificacionCorreoSvc = require('../services/verificacionCorreo.service');
 const Logger = require('../utils/logger.util');
 
@@ -40,11 +41,18 @@ class AuthController {
       PasswordUtil.validarConfirmacion(contrasena, req.body);
       // Documento opcional: acepta tipo_documento/numero_documento (los nombres reales de
       // las columnas) o su alias tipoDocumento/numeroDocumento (mismo criterio que ya usa
-      // GET /api/auth/existe-documento). Se guarda EN LA CUENTA (migración 002); no crea
-      // ningún perfil de conductor. Si ese documento ya pertenece a otra cuenta, toda la
-      // transacción se revierte y no queda un Usuario a medias.
+      // GET /api/auth/existe-documento). Si viene, se guarda en la cuenta (migración 002) Y
+      // se crea el perfil de Conductor vinculado, en la MISMA transacción.
+      //
+      // Aquí SÍ se crea automáticamente, al revés que en POST /api/usuarios: quien se
+      // registra es la propia persona que va a parquear, así que su cuenta y su conductor
+      // son el mismo ser humano y vincularlos no le quita la cuenta a nadie. El alta
+      // administrativa, en cambio, crea cuentas para OTRAS personas -- ver el encabezado de
+      // src/utils/conductorVinculado.util.js.
       const tipoDocumento = req.body.tipo_documento ?? req.body.tipoDocumento;
       const numeroDocumento = req.body.numero_documento ?? req.body.numeroDocumento;
+      const tipoUsuarioId = req.body.tipo_usuario_id ?? req.body.tipoUsuarioId;
+      const direccion = req.body.direccion;
       if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
         return res.status(400).json({
           success: false,
@@ -77,6 +85,23 @@ class AuthController {
         }
       }
 
+      // El documento se comprueba ANTES de escribir nada: hay un índice único parcial
+      // (usuario_documento_idx) que, si se llega a él, responde con el error crudo de
+      // Postgres -- un 500 ilegible en vez de este 409. Mismo criterio que el correo y el
+      // teléfono, justo arriba.
+      if (tipoDocumento && numeroDocumento) {
+        const tipoNormalizado = tipoDocumento.toString().trim().toUpperCase();
+        const documentoEnUso = await Usuario.findOne({
+          where: { tipo_documento: tipoNormalizado, numero_documento: numeroDocumento },
+        });
+        if (documentoEnUso) {
+          return res.status(409).json({
+            success: false,
+            message: 'Ese documento ya está registrado en otra cuenta',
+          });
+        }
+      }
+
       // Encriptar contraseña
       const hashedPassword = await PasswordUtil.hash(contrasena);
 
@@ -94,20 +119,21 @@ class AuthController {
           numero_documento: numeroDocumento || null,
         }, { transaction });
 
-        // El registro YA NO crea un perfil de Conductor. El documento queda en la cuenta
-        // (migración 002) y esa cuenta sigue libre para vincularse cuando alguien la dé de
-        // alta como conductor, con el documento ya precargado. Antes se creaba el
-        // Conductor aquí mismo, y por eso las cuentas con documento aparecían siempre como
-        // "ya vinculada a otro conductor".
         if (tipoDocumento && numeroDocumento) {
-          const tipoNormalizado = tipoDocumento.toString().trim().toUpperCase();
-          const otraCuenta = await Usuario.findOne({
-            where: { tipo_documento: tipoNormalizado, numero_documento: numeroDocumento },
+          // El perfil de conductor de esta misma persona. Si falla (documento ya usado por
+          // otro conductor, tipo de usuario inexistente), el rollback se lleva también la
+          // cuenta: nunca queda media alta.
+          await crearConductorVinculado({
+            usuario_id: usuario.id,
+            tipo_documento: tipoDocumento.toString().trim().toUpperCase(),
+            numero_documento: numeroDocumento,
+            nombre_apellidos: nombre,
+            correo,
+            numero_telefonico: numero || null,
+            tipo_usuario_id: tipoUsuarioId || null,
+            direccion,
             transaction,
           });
-          if (otraCuenta && otraCuenta.id !== usuario.id) {
-            throw { status: 409, message: 'Ese documento ya está registrado en otra cuenta' };
-          }
         }
 
         return usuario;

@@ -169,6 +169,15 @@ router.post(
  *               numero_documento:
  *                 type: string
  *                 description: Opcional (también acepta numeroDocumento). Debe enviarse junto con tipo_documento.
+ *               tipo_usuario_id:
+ *                 type: integer
+ *                 description: >
+ *                   Perfil dentro del SENA (Aprendiz/Instructor/Administrativo), del catálogo
+ *                   GET /api/catalogos/tipos-usuario. Opcional: si no se envía, el conductor
+ *                   queda sin perfil asignado y se completa después.
+ *               direccion:
+ *                 type: string
+ *                 description: Opcional. Se guarda en el conductor que se crea con el registro.
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
