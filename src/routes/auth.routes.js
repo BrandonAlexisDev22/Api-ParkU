@@ -214,6 +214,63 @@ router.get(
 
 /**
  * @swagger
+ * /api/auth/perfil:
+ *   get:
+ *     summary: Perfil completo del usuario autenticado, con sus permisos
+ *     description: >
+ *       Todo lo que la aplicación necesita al arrancar en una sola llamada: datos de la
+ *       cuenta, documento (del Conductor vinculado, si tiene), nombre real del rol y la
+ *       lista de permisos con la que decidir qué pestañas mostrar. Los permisos se leen en
+ *       vivo de rol_permiso, así que uno otorgado hace un momento aparece sin necesidad de
+ *       volver a iniciar sesión.
+ *     tags: [Autenticación]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nombre:
+ *                       type: string
+ *                     correo:
+ *                       type: string
+ *                     rol_id:
+ *                       type: integer
+ *                     rol_nombre:
+ *                       type: string
+ *                     tipo_documento:
+ *                       type: string
+ *                       nullable: true
+ *                     numero_documento:
+ *                       type: string
+ *                       nullable: true
+ *                     permisos:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: [parqueaderos.consultar, reservas.gestionar]
+ *       401:
+ *         description: No autorizado - Token requerido
+ */
+router.get(
+  '/perfil',
+  verificarToken,
+  authCtrl.perfil
+);
+
+/**
+ * @swagger
  * /api/auth/existe-numero:
  *   get:
  *     summary: Verifica si un número de teléfono ya está registrado (validación en vivo del formulario de registro)

@@ -12,7 +12,8 @@ const Logger = require('../utils/logger.util');
 // Comparar contra un valor fuera de este set haría que Postgres rechace la
 // consulta con "invalid input value for enum" en vez de simplemente no encontrar nada.
 const TIPOS_DOCUMENTO_VALIDOS = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
-const { generarToken, generarRefreshToken } = require('../middlewares/auth.middleware');
+const { generarToken, generarRefreshToken, permisosDelRol } = require('../middlewares/auth.middleware');
+const usuarioSvc = require('../services/usuario.service');
 const recuperacionPasswordSvc = require('../services/recuperacionPassword.service');
 const { handleError } = require('../helpers/errorHandler');
 
@@ -273,6 +274,14 @@ class AuthController {
       // Los refresh tokens son JWT sin estado (usuario no tiene columna
       // refresh_token en la BD real) -- no hay nada que persistir aquí.
 
+      // Permisos efectivos del rol: sin esto el frontend no tiene forma de saber qué
+      // puede hacer quien acaba de entrar, y no puede decidir qué pestañas mostrar --
+      // con un rol nuevo (creado desde POST /api/roles) se quedaba sin ninguna, porque
+      // lo único que recibía era el id del rol y la interfaz solo conocía los tres del
+      // sistema. También viaja rol_nombre para poder mostrar la etiqueta real.
+      const permisos = [...(await permisosDelRol(user.rol_id))];
+      const publico = await usuarioRepo.findById(user.id);
+
       // Respuesta sin datos sensibles
       return res.status(200).json({
         success: true,
@@ -284,8 +293,10 @@ class AuthController {
             nombre: user.nombre,
             numero: user.numero_telefonico,
             rol: user.rol_id,
+            rol_nombre: publico?.rol_nombre ?? null,
             estado: user.estado,
             foto_perfil_url: user.foto_perfil_url,
+            permisos,
           },
           token,
           refreshToken,
@@ -306,13 +317,17 @@ class AuthController {
    */
   static async verificar(req, res) {
     try {
-      // El middleware verificarToken ya validó el token
-      // y guardó el usuario en req.usuario
+      // El middleware verificarToken ya validó el token y guardó el usuario en
+      // req.usuario. Se le añaden los permisos vigentes del rol para que el frontend
+      // pueda rehacer su menú al recargar la página sin volver a iniciar sesión -- y para
+      // que un permiso otorgado hace un momento se refleje en la siguiente carga.
+      const permisos = [...(await permisosDelRol(req.usuario.rol))];
+
       return res.status(200).json({
         success: true,
         message: 'Token válido',
         data: {
-          usuario: req.usuario
+          usuario: { ...req.usuario, permisos }
         }
       });
     } catch (error) {
@@ -321,6 +336,28 @@ class AuthController {
         success: false,
         message: 'Error interno del servidor'
       });
+    }
+  }
+
+  /**
+   * GET /api/auth/perfil - Perfil completo del usuario autenticado.
+   *
+   * Reúne en una sola respuesta lo que la aplicación necesita al arrancar: los datos de la
+   * cuenta, su documento (del Conductor vinculado, si tiene), el nombre real del rol y la
+   * lista de permisos con la que decidir qué pestañas mostrar. Antes había que adivinarlo
+   * cruzando varios endpoints, y los permisos no los devolvía ninguno.
+   */
+  static async perfil(req, res) {
+    try {
+      const usuario = await usuarioSvc.getById(req.usuario.id);
+      const permisos = [...(await permisosDelRol(usuario.rol_id))];
+
+      return res.status(200).json({
+        success: true,
+        data: { ...usuario, permisos },
+      });
+    } catch (error) {
+      handleError(res, error);
     }
   }
 
