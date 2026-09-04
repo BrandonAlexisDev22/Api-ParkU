@@ -15,9 +15,11 @@
  * con un 409 legible antes de llegar al RAISE EXCEPTION de Postgres.
  */
 
-// Tipos que circulan sobre placa "de carro" (último carácter numérico). El enum real de
-// vehiculo/celda es CARRO, MOTO, BICICLETA, CAMION, BUS.
-const TIPOS_PLACA_NUMERICA = ['CARRO', 'CAMION', 'BUS'];
+// Tipos que circulan sobre placa "de carro" (último carácter numérico). ParkU solo admite
+// CARRO y MOTO al registrar vehículos, así que aquí queda únicamente CARRO. El ENUM de la
+// base de datos todavía contiene BICICLETA, CAMION y BUS por los registros antiguos, pero
+// esta comprobación solo corre al crear o editar, donde esos tipos ya se rechazan.
+const TIPOS_PLACA_NUMERICA = ['CARRO'];
 
 /**
  * Deduce el tipo de vehículo a partir del último carácter de la placa, según la regla del

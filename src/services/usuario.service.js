@@ -231,18 +231,25 @@ const create = async (data) => {
         rol_id,
         estado: estado !== undefined ? estado : 'ACTIVO',
         numero_telefonico: numero_telefonico || null,
+        // El documento se guarda TAMBIÉN en la cuenta (migración 002), no solo en el
+        // Conductor. Es lo que permite que una cuenta lo tenga aunque todavía no sea
+        // conductor, y que al darla de alta como tal venga precargado.
+        tipo_documento: tipoDocumento || null,
+        numero_documento: numeroDocumento || null,
       }, { transaction });
 
+      // YA NO se crea un Conductor automáticamente. El documento vive en la cuenta
+      // (migración 002), que es lo que hacía falta: antes, capturarlo obligaba a crear el
+      // perfil de conductor, y esa cuenta quedaba ocupada -- por eso el formulario de
+      // "Nuevo conductor" solo podía ofrecer cuentas libres, que eran justo las que no
+      // tenían documento. Ahora la cuenta guarda su documento y sigue disponible para
+      // vincularse cuando se dé de alta a esa persona como conductor (POST /api/conductores),
+      // que es el momento en que ese perfil realmente hace falta.
       if (tipoDocumento && numeroDocumento) {
-        await crearConductorVinculado({
-          usuario_id: nuevo.id,
-          tipo_documento: tipoDocumento,
-          numero_documento: numeroDocumento,
-          nombre_apellidos: nombre,
-          correo,
-          numero_telefonico,
-          transaction,
-        });
+        const otraCuenta = await repo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
+        if (otraCuenta && otraCuenta.id !== nuevo.id) {
+          throw { status: 409, message: `El documento ${tipoDocumento} ${numeroDocumento} ya está registrado en otra cuenta` };
+        }
       }
 
       return nuevo;
@@ -313,6 +320,24 @@ const update = async (id, data) => {
   delete updateData.rol;
   const rolResuelto = await _resolverRol(rolEnviado);
   if (rolResuelto !== undefined) updateData.rol_id = rolResuelto;
+
+  // El documento se escribe en la cuenta Y en el Conductor vinculado, en la misma
+  // transacción, para que las dos copias no se separen nunca.
+  if (tipoDocumentoNormalizado && numeroDocumento) {
+    // Comprobación previa contra el índice único usuario_documento_idx: sin ella, el choque
+    // llega como el error genérico de Postgres ("Ya existe un registro con esos datos") y
+    // el cliente no sabe qué campo lo causó.
+    const otraCuenta = await repo.findByDocumento(tipoDocumentoNormalizado, numeroDocumento);
+    if (otraCuenta && otraCuenta.id !== Number(id)) {
+      throw {
+        status: 409,
+        message: `El documento ${tipoDocumentoNormalizado} ${numeroDocumento} ya está registrado en la cuenta ${otraCuenta.correo}`,
+        data: { usuario_id: otraCuenta.id, correo: otraCuenta.correo },
+      };
+    }
+    updateData.tipo_documento = tipoDocumentoNormalizado;
+    updateData.numero_documento = numeroDocumento;
+  }
 
   try {
     return await sequelize.transaction(async (transaction) => {

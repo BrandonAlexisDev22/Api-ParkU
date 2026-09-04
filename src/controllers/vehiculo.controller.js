@@ -22,10 +22,12 @@ const { handleError } = require('../helpers/errorHandler');
  *         placa:
  *           type: string
  *           nullable: true
- *           description: Única en el sistema. Solo las bicicletas pueden omitirla.
+ *           description: >
+ *             Única en el sistema y obligatoria. Puede venir en null en registros antiguos
+ *             de tipo BICICLETA, un tipo que ya no se admite al crear ni editar.
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *         tarjeta_propiedad:
  *           type: string
  *           nullable: true
@@ -93,7 +95,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *         tarjeta_propiedad:
  *           type: string
  *           nullable: true
@@ -144,7 +146,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *         tarjeta_propiedad:
  *           type: string
  *           nullable: true

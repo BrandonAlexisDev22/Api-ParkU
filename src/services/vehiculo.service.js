@@ -16,7 +16,15 @@ const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarTipoSegunPlaca, validarCompatibilidadCelda, esCompatible } = require('../utils/compatibilidadVehiculo.util');
 
-const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
+// Tipos que ParkU admite HOY al dar de alta o editar un vehículo. El parqueadero solo
+// gestiona carros y motos.
+const TIPOS_PERMITIDOS = ['CARRO', 'MOTO'];
+
+// Tipos que existen en el ENUM `tipo_vehiculo_enum` de la base de datos, incluidos los que
+// ya no se admiten. Se conservan para LEER: hay 1 vehículo BICICLETA y 2 celdas BICICLETA
+// registradas de antes, y filtrar o consultarlas debe seguir funcionando. Lo que se cierra
+// es la puerta de entrada (crear/editar), no la de salida.
+const TIPOS_HISTORICOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 // Placas colombianas: 5-6 caracteres alfanuméricos tras normalizar (mayúsculas, sin
 // espacios/guiones) -- mismo criterio que ck_vehiculo_placa_formato en la BD, más estricto
 // en longitud para que el frontend y el backend rechacen el mismo formato.
@@ -97,8 +105,10 @@ const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
     tipoFiltro = celda.tipo;
   }
-  if (tipoFiltro && !TIPOS_PERMITIDOS.includes(tipoFiltro)) {
-    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  // Filtro de LECTURA: admite también los tipos históricos, para poder buscar el vehículo
+  // que ocupa una celda de bicicleta ya existente.
+  if (tipoFiltro && !TIPOS_HISTORICOS.includes(tipoFiltro)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_HISTORICOS.join(', ')}` };
   }
 
   const encontrados = await repo.findByPlacaPrefix(normalizado, 20);
@@ -121,8 +131,11 @@ const create = async (data, usuarioId) => {
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
-  if (!placa && tipo !== 'BICICLETA') {
-    throw { status: 400, message: 'La placa es requerida (solo las bicicletas pueden omitirla)' };
+  // Carros y motos llevan placa siempre. La excepción existía solo para BICICLETA, que ya
+  // no se puede registrar (la restricción ck_vehiculo_placa_por_tipo de la BD sigue
+  // permitiéndola para las bicicletas que ya estaban).
+  if (!placa) {
+    throw { status: 400, message: 'La placa es requerida' };
   }
   _validarMarcaColor(data);
 

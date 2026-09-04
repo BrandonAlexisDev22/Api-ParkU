@@ -30,7 +30,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           description: Numeración de la celda (única dentro de su parqueadero).
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *           description: Tipo de vehículo que puede ocupar la celda.
  *         usabilidad:
  *           type: string
@@ -59,7 +59,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *         usabilidad:
  *           type: string
  *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
@@ -74,7 +74,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: string
  *         tipo:
  *           type: string
- *           enum: [CARRO, MOTO, BICICLETA, CAMION, BUS]
+ *           enum: [CARRO, MOTO]
  *         usabilidad:
  *           type: string
  *           enum: [GENERAL, EJECUTIVO, MOVILIDAD_REDUCIDA, VEHICULO_SENA]
@@ -221,7 +221,7 @@ const getDisponibles = async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA, BICICLETA]
+ *           enum: [CARRO, MOTO, MOVILIDAD_REDUCIDA]
  *         description: Tipo de vehículo
  *     responses:
  *       200:

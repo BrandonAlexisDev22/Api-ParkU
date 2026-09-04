@@ -67,6 +67,42 @@ const _tomarDatosDeLaCuenta = (cuenta, enviados) => {
 };
 
 /**
+ * Copia el documento del conductor a su cuenta de usuario, si tiene una.
+ *
+ * Las dos tablas guardan el documento a propósito (ver migración 002): `conductor` porque
+ * puede existir sin cuenta, y `usuario` porque una cuenta necesita tenerlo aunque todavía
+ * no sea conductor. Esta función es la que impide que las dos copias se separen; se llama
+ * SIEMPRE dentro de la transacción que escribe el conductor.
+ *
+ * @private
+ * @param {number|null} usuarioId
+ * @param {string} tipoDocumento
+ * @param {string} numeroDocumento
+ * @param {import('sequelize').Transaction} transaction
+ * @throws {Object} 409 si ese documento ya pertenece a otra cuenta.
+ */
+const _propagarDocumentoALaCuenta = async (usuarioId, tipoDocumento, numeroDocumento, transaction) => {
+  if (!usuarioId || !tipoDocumento || !numeroDocumento) return;
+
+  // Hay un índice único parcial (usuario_documento_idx): sin esta comprobación previa, el
+  // choque llegaría como error crudo de Postgres en vez de un 409 explicando con quién.
+  const otraCuenta = await usuarioRepo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
+  if (otraCuenta && otraCuenta.id !== Number(usuarioId)) {
+    throw {
+      status: 409,
+      message: `El documento ${tipoDocumento} ${numeroDocumento} ya está registrado en la cuenta ${otraCuenta.correo}`,
+      data: { usuario_id: otraCuenta.id, correo: otraCuenta.correo },
+    };
+  }
+
+  await usuarioRepo.update(
+    usuarioId,
+    { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+    { transaction },
+  );
+};
+
+/**
  * Valida que las referencias a catálogos y usuario existan.
  * @param {Object} data
  */
@@ -256,6 +292,10 @@ const create = async (data) => {
         }
       }
 
+      // El documento también es dato de la cuenta (migración 002): se propaga para que
+      // ambas copias nazcan iguales y la cuenta pueda precargarlo más adelante.
+      await _propagarDocumentoALaCuenta(usuario_id, tipo_documento, numero_documento, transaction);
+
       return repo.create({
         usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
         direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
@@ -360,7 +400,17 @@ const update = async (id, data) => {
   // duplicada.
   await validarReferencias(data, id);
 
-  return repo.update(id, data);
+  // Si cambia el documento y el conductor tiene cuenta, ambos se escriben juntos: o se
+  // actualizan los dos, o no se actualiza ninguno.
+  const cambiaDocumento = data.tipo_documento !== undefined || data.numero_documento !== undefined;
+  if (!cambiaDocumento || !conductor.usuario_id) {
+    return repo.update(id, data);
+  }
+
+  return sequelize.transaction(async (transaction) => {
+    await _propagarDocumentoALaCuenta(conductor.usuario_id, tipoDocumentoFinal, numeroDocumentoFinal, transaction);
+    return repo.update(id, data, { transaction });
+  });
 };
 
 /**

@@ -42,6 +42,19 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.STRING(20),
     allowNull: true,
   },
+  // Documento del titular de la cuenta (migración 002). Nullable: una cuenta puede existir
+  // sin documento capturado. Se mantiene sincronizado con el del Conductor vinculado, si lo
+  // hay -- la aplicación escribe ambos en la misma transacción (ver usuario.service.js).
+  // Que pueda existir SIN conductor es justo lo que permite precargarlo al dar de alta a
+  // esa persona como conductor.
+  tipo_documento: {
+    type: DataTypes.ENUM('CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'),
+    allowNull: true,
+  },
+  numero_documento: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
   intentos_fallidos: {
     type: DataTypes.SMALLINT,
     allowNull: false,

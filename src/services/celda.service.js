@@ -21,7 +21,13 @@ const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.uti
 
 const MOTIVO_AJUSTE_CANTIDADES = 'AJUSTE_OPERATIVO';
 
-const TIPOS_PERMITIDOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
+// Tipos que ParkU admite HOY al crear o editar una celda: solo carros y motos.
+const TIPOS_PERMITIDOS = ['CARRO', 'MOTO'];
+
+// Todos los valores del ENUM tipo_vehiculo_enum, incluidos los retirados. Se usan en los
+// filtros de LECTURA: hay 2 celdas BICICLETA registradas de antes y consultarlas debe
+// seguir funcionando. Lo que se cierra es crear nuevas.
+const TIPOS_HISTORICOS = ['CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'];
 const USABILIDADES_PERMITIDAS = ['GENERAL', 'EJECUTIVO', 'MOVILIDAD_REDUCIDA', 'VEHICULO_SENA'];
 
 // Prefijos de numeración automática para /generar-lote, uno por grupo pedido en el
@@ -84,8 +90,8 @@ const getDisponibles = async (parqueaderoId, { tipo, vehiculo_id } = {}) => {
     tipoFiltro = vehiculo.tipo;
   }
 
-  if (tipoFiltro && !TIPOS_PERMITIDOS.includes(tipoFiltro)) {
-    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  if (tipoFiltro && !TIPOS_HISTORICOS.includes(tipoFiltro)) {
+    throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_HISTORICOS.join(', ')}` };
   }
 
   const disponibles = await repo.findDisponibles(parqueaderoId, tipoFiltro);
@@ -126,8 +132,8 @@ const _celdaReservadaPara = async (vehiculoId, parqueaderoId) => {
  * @returns {Promise<Array>}
  */
 const getByTipo = async (tipo) => {
-  if (!TIPOS_PERMITIDOS.includes(tipo)) {
-    throw { status: 400, message: `Tipo no válido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
+  if (!TIPOS_HISTORICOS.includes(tipo)) {
+    throw { status: 400, message: `Tipo no válido. Permitidos: ${TIPOS_HISTORICOS.join(', ')}` };
   }
   return repo.findByTipo(tipo);
 };

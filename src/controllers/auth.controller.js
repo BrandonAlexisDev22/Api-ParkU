@@ -89,18 +89,27 @@ class AuthController {
           nombre,
           numero_telefonico: numero || null,
           estado: 'ACTIVO',
+          // El documento queda también en la cuenta (migración 002), no solo en el
+          // Conductor: así una cuenta lo tiene desde el registro y puede precargarse
+          // después, en vez de tener que teclearlo de nuevo.
+          tipo_documento: tipoDocumento ? tipoDocumento.toString().trim().toUpperCase() : null,
+          numero_documento: numeroDocumento || null,
         }, { transaction });
 
+        // El registro YA NO crea un perfil de Conductor. El documento queda en la cuenta
+        // (migración 002) y esa cuenta sigue libre para vincularse cuando alguien la dé de
+        // alta como conductor, con el documento ya precargado. Antes se creaba el
+        // Conductor aquí mismo, y por eso las cuentas con documento aparecían siempre como
+        // "ya vinculada a otro conductor".
         if (tipoDocumento && numeroDocumento) {
-          await crearConductorVinculado({
-            usuario_id: usuario.id,
-            tipo_documento: tipoDocumento,
-            numero_documento: numeroDocumento,
-            nombre_apellidos: nombre,
-            correo,
-            numero_telefonico: numero,
+          const tipoNormalizado = tipoDocumento.toString().trim().toUpperCase();
+          const otraCuenta = await Usuario.findOne({
+            where: { tipo_documento: tipoNormalizado, numero_documento: numeroDocumento },
             transaction,
           });
+          if (otraCuenta && otraCuenta.id !== usuario.id) {
+            throw { status: 409, message: 'Ese documento ya está registrado en otra cuenta' };
+          }
         }
 
         return usuario;

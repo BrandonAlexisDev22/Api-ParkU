@@ -35,8 +35,12 @@ const mapUsuario = (instancia) => {
   return {
     ...resto,
     rol_nombre: rol ? rol.nombre : null,
-    tipo_documento: conductor ? conductor.tipo_documento : null,
-    numero_documento: conductor ? conductor.numero_documento : null,
+    // El documento ya es una columna propia de `usuario` (migración 002). Se prefiere el
+    // valor de la cuenta y se cae al del conductor vinculado solo como red de seguridad,
+    // por si alguna fila antigua quedara sin rellenar: así una cuenta SIN conductor puede
+    // tener documento, que era justo lo que faltaba para precargarlo al crear el conductor.
+    tipo_documento: resto.tipo_documento ?? (conductor ? conductor.tipo_documento : null),
+    numero_documento: resto.numero_documento ?? (conductor ? conductor.numero_documento : null),
     // Para el buscador de "cuenta de acceso vinculada": permite marcar en la propia lista
     // las cuentas que ya pertenecen a un conductor, sin cruzar dos consultas en el cliente.
     ya_vinculado: !!conductor,
@@ -46,7 +50,7 @@ const mapUsuario = (instancia) => {
   };
 };
 
-const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'correo_verificado', 'ultimo_acceso', 'fecha_creacion'];
+const ATRIBUTOS_PUBLICOS = ['id', 'correo', 'nombre', 'numero_telefonico', 'rol_id', 'estado', 'foto_perfil_url', 'correo_verificado', 'ultimo_acceso', 'fecha_creacion', 'tipo_documento', 'numero_documento'];
 
 /**
  * Recupera los usuarios con el nombre de su rol, opcionalmente filtrados por rol.
@@ -98,6 +102,25 @@ const findByCorreo = async (correo) => {
 };
 
 /**
+ * Busca la cuenta que tiene un documento (para chequeo de duplicados antes de escribir:
+ * hay un índice único parcial usuario_documento_idx, y chocar con él daría un error crudo
+ * de Postgres en vez de un 409 legible).
+ * @param {string} tipoDocumento
+ * @param {string} numeroDocumento
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<Object|null>}
+ */
+const findByDocumento = async (tipoDocumento, numeroDocumento, { transaction } = {}) => {
+  if (!tipoDocumento || !numeroDocumento) return null;
+  const row = await Usuario.findOne({
+    where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+    attributes: ATRIBUTOS_PUBLICOS,
+    transaction,
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Busca un usuario por número de teléfono de la cuenta (para chequeo de duplicados).
  * @param {string} numeroTelefonico
  * @returns {Promise<Object|null>}
@@ -114,8 +137,14 @@ const findByTelefono = async (numeroTelefonico) => {
  * @returns {Promise<Object>}
  */
 const create = async (data, { transaction } = {}) => {
-  const { correo, nombre, contrasena, rol_id, estado = 'ACTIVO', numero_telefonico = null } = data;
-  const nuevo = await Usuario.create({ correo, nombre, contrasena, rol_id, estado, numero_telefonico }, { transaction });
+  const {
+    correo, nombre, contrasena, rol_id, estado = 'ACTIVO', numero_telefonico = null,
+    tipo_documento = null, numero_documento = null,
+  } = data;
+  const nuevo = await Usuario.create(
+    { correo, nombre, contrasena, rol_id, estado, numero_telefonico, tipo_documento, numero_documento },
+    { transaction },
+  );
   return findById(nuevo.id, { transaction });
 };
 
@@ -127,7 +156,7 @@ const create = async (data, { transaction } = {}) => {
  * @returns {Promise<Object>}
  */
 const update = async (id, data, { transaction } = {}) => {
-  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico', 'foto_perfil_url', 'correo_verificado'];
+  const allowedFields = ['correo', 'nombre', 'rol_id', 'estado', 'numero_telefonico', 'foto_perfil_url', 'correo_verificado', 'tipo_documento', 'numero_documento'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];
@@ -202,6 +231,7 @@ module.exports = {
   findAll,
   findById,
   findByCorreo,
+  findByDocumento,
   findByTelefono,
   create,
   update,
