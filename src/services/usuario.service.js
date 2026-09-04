@@ -13,6 +13,7 @@ const rolRepo = require('../repositories/rol.repository');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
 const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
 const conductorRepo = require('../repositories/conductor.repository');
+const { CAMPOS_DE_LA_CUENTA } = conductorRepo;
 const PasswordUtil = require('../utils/password.util');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -136,6 +137,42 @@ const getById = async (id) => {
   // igual que en el listado. Antes se resolvía aquí con una segunda consulta, que además
   // dejaba al listado sin documento porque no pasaba por este camino.
   return item;
+};
+
+/**
+ * Todo lo que necesita el formulario de "Nuevo conductor" al seleccionar una cuenta de
+ * acceso: qué valores precargar y cuáles debe dejar bloqueados.
+ *
+ * Existe porque esa pantalla tenía que armarlo a mano cruzando varias respuestas, y sin
+ * saber qué campos son de la cuenta terminaba dejándolos editables (y desincronizables).
+ * `prefill` viene con los nombres de campo del CONDUCTOR, no los del usuario, para que se
+ * pueda volcar directo en el formulario.
+ *
+ * @param {number} id - ID de la cuenta de usuario.
+ * @throws {Object} 404 si el usuario no existe.
+ * @returns {Promise<Object>}
+ */
+const getDatosVinculacion = async (id) => {
+  const usuario = await getById(id);
+
+  return {
+    usuario,
+    // Si ya pertenece a un conductor, esta cuenta no se puede volver a vincular: el
+    // formulario debería mostrarla deshabilitada en el buscador.
+    ya_vinculado: usuario.ya_vinculado,
+    conductor_vinculado: usuario.conductor_vinculado,
+    prefill: {
+      nombre_apellidos: usuario.conductor_vinculado?.nombre_apellidos ?? usuario.nombre ?? null,
+      correo: usuario.correo ?? null,
+      numero_telefonico: usuario.numero_telefonico ?? null,
+      tipo_documento: usuario.tipo_documento ?? null,
+      numero_documento: usuario.numero_documento ?? null,
+    },
+    // El documento NO pertenece a la cuenta: si esta no tiene conductor todavía, hay que
+    // capturarlo a mano. Se deja explícito para que el formulario no lo espere en vano.
+    campos_solo_lectura: [...CAMPOS_DE_LA_CUENTA],
+    campos_a_capturar: usuario.numero_documento ? [] : ['tipo_documento', 'numero_documento'],
+  };
 };
 
 /**
@@ -372,4 +409,6 @@ const remove = async (id) => {
 // único que chequea `estado` (ACTIVO/INACTIVO/BLOQUEADO) y emite JWT.
 // Este service no debe tener una segunda implementación de login.
 
-module.exports = { getAll, getById, create, update, cambiarContrasena, actualizarFoto, remove };
+module.exports = {
+  getAll, getById, getDatosVinculacion, create, update, cambiarContrasena, actualizarFoto, remove,
+};

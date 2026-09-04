@@ -19,7 +19,7 @@ const includeRol = {
 const includeConductor = {
   model: Conductor,
   as: 'conductor',
-  attributes: ['tipo_documento', 'numero_documento'],
+  attributes: ['id', 'tipo_documento', 'numero_documento', 'nombre_apellidos'],
 };
 
 /**
@@ -37,6 +37,12 @@ const mapUsuario = (instancia) => {
     rol_nombre: rol ? rol.nombre : null,
     tipo_documento: conductor ? conductor.tipo_documento : null,
     numero_documento: conductor ? conductor.numero_documento : null,
+    // Para el buscador de "cuenta de acceso vinculada": permite marcar en la propia lista
+    // las cuentas que ya pertenecen a un conductor, sin cruzar dos consultas en el cliente.
+    ya_vinculado: !!conductor,
+    conductor_vinculado: conductor
+      ? { id: conductor.id, nombre_apellidos: conductor.nombre_apellidos }
+      : null,
   };
 };
 

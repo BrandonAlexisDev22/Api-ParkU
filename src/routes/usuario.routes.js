@@ -209,6 +209,64 @@ router.get('/',
  *       404:
  *         description: Usuario no encontrado
  */
+/**
+ * @swagger
+ * /api/usuarios/{id}/vinculacion:
+ *   get:
+ *     summary: Datos para vincular esta cuenta a un conductor
+ *     description: >
+ *       Devuelve, en una sola llamada, qué debe precargar el formulario de "Nuevo
+ *       conductor" al seleccionar una cuenta de acceso y qué campos debe dejar
+ *       bloqueados. `prefill` usa los nombres de campo del CONDUCTOR para poder volcarlo
+ *       directo. `campos_solo_lectura` son los que pertenecen a la cuenta (el backend
+ *       rechaza con 409 cualquier intento de cambiarlos desde el conductor).
+ *       `campos_a_capturar` avisa de lo que la cuenta NO puede aportar -- el documento no
+ *       existe hasta que haya un conductor -- para que el formulario no lo espere en vano.
+ *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Datos de vinculación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 usuario:
+ *                   $ref: '#/components/schemas/Usuario'
+ *                 ya_vinculado:
+ *                   type: boolean
+ *                 conductor_vinculado:
+ *                   type: object
+ *                   nullable: true
+ *                 prefill:
+ *                   type: object
+ *                 campos_solo_lectura:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: [correo, numero_telefonico]
+ *                 campos_a_capturar:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: [tipo_documento, numero_documento]
+ *       404:
+ *         description: Usuario no encontrado
+ */
+router.get('/:id/vinculacion',
+  verificarToken,
+  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1, 2] }),
+  ctrl.getDatosVinculacion
+);
+
 router.get('/:id',
   verificarToken,
   verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),

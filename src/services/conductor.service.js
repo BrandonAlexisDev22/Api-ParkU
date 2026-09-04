@@ -11,6 +11,7 @@
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/conductor.repository');
+const { CAMPOS_DE_LA_CUENTA } = repo;
 const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
@@ -33,6 +34,36 @@ const validarDiscapacidad = (movilidadReducida, tipoDiscapacidad) => {
   if (tipoDiscapacidad && !movilidadReducida) {
     throw { status: 400, message: 'tipo_discapacidad solo puede registrarse si movilidad_reducida es true' };
   }
+};
+
+/**
+ * Resuelve los campos que pertenecen a la cuenta vinculada: los toma de ella y rechaza
+ * cualquier valor distinto que venga en la petición.
+ * @private
+ * @param {Object} cuenta - Usuario ya cargado.
+ * @param {Object} enviados - Valores que trae la petición para esos campos.
+ * @throws {Object} 409 si algún valor enviado contradice al de la cuenta.
+ * @returns {Object} Los valores definitivos.
+ */
+const _tomarDatosDeLaCuenta = (cuenta, enviados) => {
+  const resultado = {};
+  const normaliza = (v) => (v === undefined || v === null ? null : String(v).trim().toLowerCase());
+
+  for (const campo of CAMPOS_DE_LA_CUENTA) {
+    const deLaCuenta = cuenta[campo] ?? null;
+    const enviado = enviados[campo] ?? null;
+
+    if (enviado && deLaCuenta && normaliza(enviado) !== normaliza(deLaCuenta)) {
+      throw {
+        status: 409,
+        message: `El campo "${campo}" lo define la cuenta vinculada (${deLaCuenta}) y no se puede cambiar desde el conductor`,
+        data: { campo, valor_de_la_cuenta: deLaCuenta, campos_solo_lectura: CAMPOS_DE_LA_CUENTA },
+      };
+    }
+    // La cuenta manda; si ella no lo tiene, vale lo enviado.
+    resultado[campo] = deLaCuenta ?? enviado;
+  }
+  return resultado;
 };
 
 /**
@@ -140,13 +171,13 @@ const getByUsuarioId = async (usuarioId) => {
 const create = async (data) => {
   const {
     tipo_documento = 'CC', numero_documento, nombre_apellidos,
-    direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
+    direccion, tipo_usuario_id, regional_formacion,
     centro_formacion, programa_formacion, vigencia,
     movilidad_reducida = false, tipo_discapacidad, estado = true, contrasena,
   } = data;
   // correo puede reasignarse: si se vincula una cuenta existente, manda el correo de esa
   // cuenta (ver más abajo).
-  let { usuario_id, correo } = data;
+  let { usuario_id, correo, numero_telefonico } = data;
 
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
@@ -156,10 +187,15 @@ const create = async (data) => {
   // exigirlo obligaba al vigilante a inventar un valor. La columna ya era nullable y
   // crearConductorVinculado (registro público y alta admin de usuario) ya lo dejaba en
   // NULL, así que este era el único sitio que lo exigía. Si viene, se valida igual.
-  // El correo es la clave para resolver la cuenta de usuario (reutilizar la existente o
-  // crear una nueva), y el teléfono es dato de contacto obligatorio del conductor.
-  if (!correo) throw { status: 400, message: 'El correo es requerido' };
-  if (!numero_telefonico) throw { status: 400, message: 'El número telefónico es requerido' };
+  // Correo y teléfono son obligatorios SALVO que se vincule una cuenta existente: en ese
+  // caso salen de ella (ver CAMPOS_DE_LA_CUENTA más abajo) y exigirlos aquí obligaría al
+  // formulario a reescribir a mano unos datos que precisamente no puede editar.
+  if (!usuario_id) {
+    // Sin cuenta indicada, el correo es además la clave para resolverla: se reutiliza la
+    // que tenga ese correo, o se crea una nueva.
+    if (!correo) throw { status: 400, message: 'El correo es requerido' };
+    if (!numero_telefonico) throw { status: 400, message: 'El número telefónico es requerido' };
+  }
 
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
     throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
@@ -187,19 +223,15 @@ const create = async (data) => {
   if (tipo_usuario_id) referencias.tipo_usuario_id = tipo_usuario_id;
   await validarReferencias(referencias);
 
-  // Cuando se vincula una cuenta existente, SU correo manda: es el que sirve para iniciar
-  // sesión y el que ya está verificado. Aceptar aquí uno distinto dejaría dos correos para
-  // la misma persona (uno en `usuario`, otro en `conductor`) sin forma de saber cuál vale.
+  // Cuando se vincula una cuenta existente, SUS datos de contacto mandan (ver
+  // CAMPOS_DE_LA_CUENTA). Si no se envían, se toman de ella: el formulario no tiene que
+  // reescribirlos a mano. Si se envían distintos, se rechaza, porque aceptarlos dejaría a
+  // la misma persona con dos correos o dos teléfonos sin forma de saber cuál vale.
   if (usuario_id) {
     const cuenta = await usuarioRepo.findById(usuario_id);
-    if (correo && correo.trim().toLowerCase() !== cuenta.correo.trim().toLowerCase()) {
-      throw {
-        status: 409,
-        message: `El correo lo define la cuenta vinculada (${cuenta.correo}) y no se puede cambiar desde el conductor`,
-        data: { correo_de_la_cuenta: cuenta.correo },
-      };
-    }
-    correo = cuenta.correo;
+    const deCuenta = _tomarDatosDeLaCuenta(cuenta, { correo, numero_telefonico });
+    correo = deCuenta.correo;
+    numero_telefonico = deCuenta.numero_telefonico;
   }
 
   try {
@@ -288,16 +320,20 @@ const update = async (id, data) => {
   }
   if (data.correo !== undefined) validarCorreo(data.correo);
 
-  // El correo de un conductor CON cuenta vinculada es de solo lectura: pertenece a la
-  // cuenta (es la credencial de acceso y la dirección ya verificada). Editarlo aquí dejaba
-  // al conductor y a su usuario con correos distintos, sin ninguna señal de cuál era el
-  // bueno. Para cambiarlo se edita el usuario, o se cancela la vinculación primero.
-  if (data.correo !== undefined && conductor.usuario_id && data.correo !== conductor.correo) {
-    throw {
-      status: 409,
-      message: 'El correo no se puede editar desde el conductor porque proviene de su cuenta de usuario vinculada. Cámbialo en la cuenta (PUT /api/usuarios/:id) o cancela la vinculación primero.',
-      data: { usuario_id: conductor.usuario_id, correo_actual: conductor.correo },
-    };
+  // Los datos de contacto de un conductor CON cuenta vinculada son de solo lectura:
+  // pertenecen a la cuenta. Editarlos aquí dejaba al conductor y a su usuario con valores
+  // distintos, sin ninguna señal de cuál era el bueno. Para cambiarlos se edita la cuenta,
+  // o se cancela la vinculación primero.
+  if (conductor.usuario_id) {
+    for (const campo of CAMPOS_DE_LA_CUENTA) {
+      if (data[campo] !== undefined && data[campo] !== conductor[campo]) {
+        throw {
+          status: 409,
+          message: `El campo "${campo}" no se puede editar desde el conductor porque proviene de su cuenta de usuario vinculada. Cámbialo en la cuenta (PUT /api/usuarios/${conductor.usuario_id}) o cancela la vinculación primero.`,
+          data: { usuario_id: conductor.usuario_id, campo, valor_actual: conductor[campo], campos_solo_lectura: CAMPOS_DE_LA_CUENTA },
+        };
+      }
+    }
   }
 
   const movilidadReducidaFinal = data.movilidad_reducida !== undefined ? data.movilidad_reducida : conductor.movilidad_reducida;

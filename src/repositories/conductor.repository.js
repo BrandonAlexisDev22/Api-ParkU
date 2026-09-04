@@ -7,6 +7,21 @@
 
 const { Conductor, TipoUsuario, Usuario } = require('../models');
 
+/**
+ * Campos del conductor cuyo dueño es la CUENTA de usuario, no el conductor.
+ *
+ * Cuando hay una cuenta vinculada estos valores salen de ella y no se editan desde el
+ * conductor: el correo es la credencial de acceso (y la dirección ya verificada), y el
+ * teléfono es el contacto de la cuenta. Si se pudieran editar aquí, la misma persona
+ * acabaría con dos correos y dos teléfonos distintos sin forma de saber cuál vale.
+ *
+ * Se define aquí, en el módulo sin dependencias hacia arriba, para que la validación del
+ * backend y el `campos_solo_lectura` que consume el formulario usen la MISMA lista.
+ * (conductorVinculado.util lo reexporta; definirlo allí crearía un ciclo, porque ese
+ * módulo ya importa este repositorio.)
+ */
+const CAMPOS_DE_LA_CUENTA = ['correo', 'numero_telefonico'];
+
 const includeCatalogos = [
   { model: TipoUsuario, as: 'tipoUsuario', attributes: ['nombre'] },
   // La cuenta vinculada se trae completa (sin datos sensibles: nunca la contraseña) para
@@ -46,7 +61,7 @@ const mapConductor = (instancia) => {
     // Qué campos debe deshabilitar el formulario. Los datos que provienen de la cuenta no
     // se editan desde el conductor (el backend los rechaza con 409); esto le ahorra a la
     // interfaz tener que deducir la regla, y si mañana cambia, cambia en un solo sitio.
-    campos_solo_lectura: usuario ? ['correo'] : [],
+    campos_solo_lectura: usuario ? [...CAMPOS_DE_LA_CUENTA] : [],
   };
 };
 
@@ -197,4 +212,5 @@ module.exports = {
   create,
   update,
   remove,
+  CAMPOS_DE_LA_CUENTA,
 };

@@ -13,6 +13,10 @@ const conductorRepo = require('../repositories/conductor.repository');
 // Debe coincidir con el ENUM real de conductor.tipo_documento.
 const TIPOS_DOCUMENTO_VALIDOS = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
+// Definido en conductor.repository (módulo sin dependencias hacia arriba) y reexportado
+// aquí, que es el punto común de la vinculación usuario<->conductor.
+const { CAMPOS_DE_LA_CUENTA } = conductorRepo;
+
 /**
  * @param {Object} datos
  * @param {number} datos.usuario_id
@@ -53,4 +57,4 @@ const crearConductorVinculado = async ({
   );
 };
 
-module.exports = { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS };
+module.exports = { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS, CAMPOS_DE_LA_CUENTA };

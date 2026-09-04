@@ -12,6 +12,15 @@ const getAll = async (req, res) => {
   }
 };
 
+const getDatosVinculacion = async (req, res) => {
+  try {
+    const data = await svc.getDatosVinculacion(req.params.id);
+    res.json(data);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 const getById = async (req, res) => {
   try {
     const data = await svc.getById(req.params.id);
@@ -73,6 +82,7 @@ const remove = async (req, res) => {
 module.exports = {
   getAll,
   getById,
+  getDatosVinculacion,
   create,
   update,
   actualizarFoto,
