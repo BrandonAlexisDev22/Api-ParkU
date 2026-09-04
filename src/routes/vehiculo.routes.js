@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/vehiculo.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarRol, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -143,7 +143,8 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.create
 );
 
@@ -187,7 +188,8 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.update
 );
 
@@ -265,7 +267,8 @@ router.delete('/:id',
  */
 router.post('/:id/conductores',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.agregarPropietario
 );
 
@@ -306,7 +309,8 @@ router.post('/:id/conductores',
  */
 router.delete('/:id/conductores/:conductorId',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.quitarPropietario
 );
 

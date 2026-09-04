@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/conductor.controller');
-const { verificarToken, verificarRol } = require('../middlewares/auth.middleware');
+const { verificarToken, verificarRol, verificarAcceso } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -207,7 +207,10 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Admin y Vigilante entran por su rol, como siempre. Cualquier otro rol necesita el
+  // permiso -- es lo que hace que marcar "conductores.gestionar" en el editor de roles
+  // signifique algo de verdad, y no solo pinte la pestaña.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.create
 );
 
@@ -250,7 +253,10 @@ router.post('/',
  */
 router.put('/:id',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2)
+  // Admin y Vigilante entran por su rol, como siempre. Cualquier otro rol necesita el
+  // permiso -- es lo que hace que marcar "conductores.gestionar" en el editor de roles
+  // signifique algo de verdad, y no solo pinte la pestaña.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.update
 );
 
@@ -284,7 +290,8 @@ router.put('/:id',
 // junto al resto de la gestión del conductor.
 router.delete('/:id/usuario',
   verificarToken,
-  verificarRol([1, 2]), // Admin (1) o Vigilante (2): los mismos que pueden crear/editar conductores
+  // Los mismos que pueden crear/editar conductores.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
   ctrl.desvincularUsuario
 );
 
