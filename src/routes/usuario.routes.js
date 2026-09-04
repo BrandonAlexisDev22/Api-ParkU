@@ -97,12 +97,25 @@ const uploadFoto = crearUploadMiddleware({
  *           type: string
  *           enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
  *           description: >
- *             Opcional (también acepta `tipoDocumento`). Si se envía junto con
- *             numero_documento, crea un Conductor vinculado a este usuario en la misma
- *             transacción (409 si el documento ya existe).
+ *             Opcional (también acepta `tipoDocumento`). Se guarda en la propia cuenta
+ *             (columna de `usuario`). Si además el rol es Conductor, se crea su perfil de
+ *             Conductor vinculado en la misma transacción; para los demás roles no se crea
+ *             ninguno. 409 si el documento ya pertenece a otra cuenta o a otro conductor.
  *         numero_documento:
  *           type: string
  *           description: Opcional (también acepta `numeroDocumento`). Debe enviarse junto con tipo_documento.
+ *         tipo_usuario_id:
+ *           type: integer
+ *           nullable: true
+ *           description: >
+ *             Perfil dentro del SENA (Aprendiz/Instructor/Administrativo), del catálogo
+ *             GET /api/catalogos/tipos-usuario. Solo tiene efecto en cuentas de rol
+ *             Conductor: es un dato del perfil de conductor que se crea con ellas. La tabla
+ *             `usuario` no lo guarda.
+ *         direccion:
+ *           type: string
+ *           nullable: true
+ *           description: Igual que tipo_usuario_id, va al perfil de conductor.
  *     UsuarioUpdate:
  *       type: object
  *       properties:

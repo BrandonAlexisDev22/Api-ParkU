@@ -229,7 +229,7 @@ const create = async (data, usuarioId, usuarioRol) => {
   const esComunidadSena = usuarioRol === ROLES.CONDUCTOR;
   if (esComunidadSena) {
     if (usuario_asignado_id !== undefined || prioridad !== undefined) {
-      throw { status: 400, message: 'Comunidad SENA no puede seleccionar prioridad ni usuario asignado; eso lo define el personal autorizado al aceptar el reporte' };
+      throw { status: 400, message: 'Un conductor no puede seleccionar prioridad ni usuario asignado; eso lo define el personal autorizado al aceptar el reporte' };
     }
   }
   // Ni la prioridad ni el asignado son obligatorios al crear: un reporte nace PENDIENTE

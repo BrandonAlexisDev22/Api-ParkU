@@ -12,18 +12,19 @@ const ROLES = {
   CONDUCTOR: 3,
 };
 
-// NOTA: en la tabla real `rol`, el id 3 se llama "Comunidad sena" (no "Conductor" -- ese
-// era solo el nombre histórico de esta constante). Es el mismo id/rol; ROLES.CONDUCTOR se
-// mantiene como nombre de la constante para no romper todas las referencias existentes en
-// el código, pero el nombre de exhibición real es "Comunidad SENA".
+// El id 3 se llama "Conductor" también en la tabla real (migración 003). Se llamaba
+// "Comunidad sena", que no decía lo que ese rol hace: es quien parquea. Nada autoriza por
+// el texto -- todo va por id -- así que el cambio es solo de exhibición; los clientes que
+// sigan enviando el nombre viejo entran por ALIAS_ROL, más abajo.
 const NOMBRES_ROL = {
   [ROLES.ADMIN]: 'Administrador',
   [ROLES.VIGILANTE]: 'Vigilante',
-  [ROLES.CONDUCTOR]: 'Comunidad SENA',
+  [ROLES.CONDUCTOR]: 'Conductor',
 };
 
 // Alias en texto (sin acentos, insensible a mayúsculas) por si el cliente envía el nombre
-// del rol en vez de su ID.
+// del rol en vez de su ID. "comunidad sena" se conserva a propósito: es el nombre que tuvo
+// el rol 3 hasta la migración 003, y quien lo envíe debe seguir resolviendo al mismo rol.
 const ALIAS_ROL = {
   administrador: ROLES.ADMIN,
   admin: ROLES.ADMIN,

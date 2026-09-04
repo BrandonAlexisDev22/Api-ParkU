@@ -11,7 +11,7 @@ const { traducirErrorTrigger } = require('../utils/dbContext.util');
 const { ROLES, ALIAS_ROL } = require('../config/roles');
 const rolRepo = require('../repositories/rol.repository');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
-const { TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
+const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/conductorVinculado.util');
 const conductorRepo = require('../repositories/conductor.repository');
 const { CAMPOS_DE_LA_CUENTA } = conductorRepo;
 const PasswordUtil = require('../utils/password.util');
@@ -288,12 +288,18 @@ const comprobarDisponibilidad = async (criterios = {}) => {
 };
 
 /**
- * Registra un nuevo usuario con contraseña cifrada. Si se envía tipo_documento +
- * numero_documento (o sus alias tipoDocumento/numeroDocumento), el documento se guarda EN
- * LA CUENTA (migración 002). NO se crea ningún Conductor: ese perfil nace cuando de verdad
- * hace falta -- al dar de alta al conductor (POST /api/conductores) o al registrar su
- * vehículo para parquearlo (POST /api/vehiculos). Si el documento ya pertenece a otra
- * cuenta, toda la transacción se revierte y no se crea el usuario.
+ * Registra un nuevo usuario con contraseña cifrada. El documento (tipo_documento +
+ * numero_documento, o sus alias tipoDocumento/numeroDocumento) se guarda EN LA CUENTA
+ * (migración 002).
+ *
+ * Si además la cuenta es del rol **Conductor**, se le crea su perfil de conductor vinculado
+ * en la misma transacción, con el tipo_usuario_id que venga: un conductor es justamente
+ * quien va a parquear, así que ese perfil le hace falta desde el primer día. Los demás roles
+ * (Administrador, Vigilante, roles creados a medida) NO lo llevan -- creárselo dejaba su
+ * cuenta marcada como "ya vinculada" y fuera del selector del módulo de conductores.
+ *
+ * Si el documento ya pertenece a otra cuenta o a otro conductor, toda la transacción se
+ * revierte y no se crea el usuario.
  * @param {Object} data - Datos del usuario. Acepta el rol como `rol` o `rol_id` (número o
  *   nombre: "Administrador"/"Vigilante"/"Conductor"); si no viene, queda en Conductor.
  * @throws {Object} 400 si faltan campos obligatorios o el correo/teléfono/rol/documento no
@@ -306,8 +312,16 @@ const create = async (data) => {
   // así que un cliente que mandara `rol_id` (el nombre real de la columna) terminaba
   // siempre en el default (Conductor) sin que nada lo avisara.
   const rolEnviado = data.rol !== undefined ? data.rol : data.rol_id;
-  const tipoDocumento = data.tipo_documento ?? data.tipoDocumento;
   const numeroDocumento = data.numero_documento ?? data.numeroDocumento;
+  // Se normaliza aquí, una vez: la columna es un ENUM y un "cc" en minúsculas lo rechaza
+  // Postgres con "invalid input value for enum", que sube como 500 en vez de un 400 claro.
+  const tipoDocumento = (data.tipo_documento ?? data.tipoDocumento)
+    ? String(data.tipo_documento ?? data.tipoDocumento).trim().toUpperCase()
+    : undefined;
+  // Perfil SENA (Aprendiz/Instructor/…) del conductor que acompaña a una cuenta de rol
+  // Conductor. En la cuenta no se guarda: la tabla usuario no tiene nada equivalente.
+  const tipoUsuarioId = data.tipo_usuario_id ?? data.tipoUsuarioId;
+  const direccion = data.direccion;
 
   if (!nombre || !correo || !contrasena) {
     throw { status: 400, message: 'nombre, correo y contrasena son requeridos' };
@@ -320,10 +334,13 @@ const create = async (data) => {
   if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
     throw { status: 400, message: 'tipo_documento y numero_documento deben enviarse juntos' };
   }
+  if (tipoDocumento && !TIPOS_DOCUMENTO_VALIDOS.includes(tipoDocumento)) {
+    throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO_VALIDOS.join(', ')}` };
+  }
   _validarCorreo(correo);
   _validarTelefono(numero_telefonico);
   // Se resuelve contra la tabla `rol` real (ver _resolverRol). Sin rol explícito, la
-  // cuenta nace como Comunidad SENA, que es el rol de menor privilegio.
+  // cuenta nace como Conductor, que es el rol de menor privilegio.
   const rol_id = (await _resolverRol(rolEnviado)) ?? ROLES.CONDUCTOR;
 
   const existe = await repo.findByCorreo(correo);
@@ -332,6 +349,20 @@ const create = async (data) => {
   if (numero_telefonico) {
     const telefonoEnUso = await repo.findByTelefono(numero_telefonico);
     if (telefonoEnUso) throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
+  }
+
+  // El documento se comprueba ANTES de escribir: hay un índice único parcial
+  // (usuario_documento_idx) que, si se llega a él, responde con el error crudo de Postgres
+  // -- un 500 ilegible en vez de este 409 que dice de quién es.
+  if (tipoDocumento && numeroDocumento) {
+    const documentoEnUso = await repo.findByDocumento(tipoDocumento, numeroDocumento);
+    if (documentoEnUso) {
+      throw {
+        status: 409,
+        message: `El documento ${tipoDocumento} ${numeroDocumento} ya está registrado en la cuenta ${documentoEnUso.correo}`,
+        data: { usuario_id: documentoEnUso.id, correo: documentoEnUso.correo },
+      };
+    }
   }
 
   const hash = await bcrypt.hash(contrasena, 10);
@@ -352,18 +383,22 @@ const create = async (data) => {
         numero_documento: numeroDocumento || null,
       }, { transaction });
 
-      // YA NO se crea un Conductor automáticamente. El documento vive en la cuenta
-      // (migración 002), que es lo que hacía falta: antes, capturarlo obligaba a crear el
-      // perfil de conductor, y esa cuenta quedaba ocupada -- por eso el formulario de
-      // "Nuevo conductor" solo podía ofrecer cuentas libres, que eran justo las que no
-      // tenían documento. Ahora la cuenta guarda su documento y sigue disponible para
-      // vincularse cuando se dé de alta a esa persona como conductor (POST /api/conductores),
-      // que es el momento en que ese perfil realmente hace falta.
-      if (tipoDocumento && numeroDocumento) {
-        const otraCuenta = await repo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
-        if (otraCuenta && otraCuenta.id !== nuevo.id) {
-          throw { status: 409, message: `El documento ${tipoDocumento} ${numeroDocumento} ya está registrado en otra cuenta` };
-        }
+      // El perfil de conductor SOLO para las cuentas de rol Conductor: son las que van a
+      // parquear. Para cualquier otro rol no se crea nada -- una cuenta de Administrador o
+      // de Vigilante con perfil de conductor quedaba marcada como "ya vinculada" y
+      // desaparecía del selector del módulo de conductores.
+      if (rol_id === ROLES.CONDUCTOR && tipoDocumento && numeroDocumento) {
+        await crearConductorVinculado({
+          usuario_id: nuevo.id,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
+          nombre_apellidos: nombre,
+          correo,
+          numero_telefonico: numero_telefonico || null,
+          tipo_usuario_id: tipoUsuarioId || null,
+          direccion,
+          transaction,
+        });
       }
 
       return nuevo;
