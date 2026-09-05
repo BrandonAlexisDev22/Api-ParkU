@@ -3,6 +3,7 @@
  * @description Lógica de negocio para la gestión de roles.
  */
 
+const { sequelize } = require('../config/database');
 const repo = require('../repositories/rol.repository');
 const permisoRepo = require('../repositories/permiso.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
@@ -158,7 +159,21 @@ const remove = async (id) => {
   }
 
   try {
-    return await repo.remove(id);
+    return await sequelize.transaction(async (transaction) => {
+      // Los permisos concedidos a un rol son suyos y no significan nada sin él, pero la
+      // clave foránea de rol_permiso es RESTRICT: mientras quedara una sola fila, la base
+      // rechazaba el borrado y el aviso que llegaba era el genérico de Postgres ("está
+      // referenciada por otros registros"), aunque el rol no tuviera ni un usuario. Se
+      // borran aquí, en la misma transacción: o se va todo, o no se va nada.
+      await sequelize.query('DELETE FROM rol_permiso WHERE rol_id = :id', {
+        replacements: { id }, transaction,
+      });
+      const borrado = await repo.remove(id, { transaction });
+      // La caché de permisos guarda lo que tenía este rol; sin esto, un rol nuevo que
+      // reutilice el id heredaría sus permisos durante el minuto de vida de la caché.
+      invalidarCachePermisos(Number(id));
+      return borrado;
+    });
   } catch (error) {
     traducirErrorTrigger(error);
   }

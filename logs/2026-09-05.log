@@ -2259,3 +2259,140 @@
 {"timestamp":"2026-09-05T11:42:51.688Z","level":"WARN","message":"PATCH /api/reservas/286/cancelar 403 - 259ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-05T11:42:52.466Z","level":"INFO","message":"PATCH /api/reservas/286/cancelar 200 - 776ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-05T11:42:52.727Z","level":"WARN","message":"PATCH /api/reservas/286/cancelar 409 - 259ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:48:52.166Z","level":"INFO","message":"GET / 200 - 7ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:48:54.907Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:48:54.907Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-05T21:48:58.103Z","level":"WARN","message":"POST /api/auth/registro 400 - 5ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:48:58.822Z","level":"INFO","message":"POST /api/auth/registro 201 - 615ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:48:59.037Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: m1.ok.924097@parku.test · Asunto: 443731 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:48:59.037Z","level":"INFO","message":"[dev] Verificación para m1.ok.924097@parku.test · código: 443731 · enlace: https://park-u.vercel.app/verificar-correo?token=a8daa273d20ba74a3a2390f243e4fffcee8bd5da16849c0fd3b0aa6a53fc7153"}
+{"timestamp":"2026-09-05T21:49:21.568Z","level":"INFO","message":"GET / 200 - 5ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:23.206Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:49:23.206Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3996","environment":"development"}}
+{"timestamp":"2026-09-05T21:49:24.155Z","level":"INFO","message":"POST /api/roles 201 - 843ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:24.946Z","level":"INFO","message":"PUT /api/roles/187/permisos 200 - 781ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:26.001Z","level":"INFO","message":"PUT /api/roles/187 200 - 1051ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:26.326Z","level":"INFO","message":"GET /api/permisos 200 - 212ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:27.293Z","level":"INFO","message":"POST /api/usuarios 201 - 964ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:27.505Z","level":"WARN","message":"GET /api/roles 403 - 209ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:27.613Z","level":"WARN","message":"GET /api/usuarios 403 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:28.346Z","level":"INFO","message":"PUT /api/roles/187/permisos 200 - 729ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:28.669Z","level":"INFO","message":"GET /api/roles 200 - 319ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:28.885Z","level":"INFO","message":"GET /api/usuarios 200 - 212ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:28.994Z","level":"WARN","message":"POST /api/usuarios 403 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:29.631Z","level":"INFO","message":"PUT /api/roles/187/permisos 200 - 634ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:29.842Z","level":"WARN","message":"GET /api/roles 403 - 208ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:29.951Z","level":"WARN","message":"POST /api/conductores 403 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:30.687Z","level":"INFO","message":"PUT /api/roles/187/permisos 200 - 732ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:31.634Z","level":"INFO","message":"POST /api/conductores 201 - 944ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:32.274Z","level":"INFO","message":"PUT /api/roles/187/permisos 200 - 637ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:32.490Z","level":"INFO","message":"GET /api/roles 200 - 213ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:32.804Z","level":"WARN","message":"GET /api/roles 403 - 207ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:32.911Z","level":"WARN","message":"GET /api/usuarios 403 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:49:32.913Z","level":"WARN","message":"GET /api/roles 401 - 0ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:01.547Z","level":"INFO","message":"GET / 200 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:03.152Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:50:03.153Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3992","environment":"development"}}
+{"timestamp":"2026-09-05T21:50:03.567Z","level":"INFO","message":"POST /api/roles 201 - 306ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:04.459Z","level":"INFO","message":"POST /api/usuarios 201 - 887ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:04.670Z","level":"WARN","message":"GET /api/ocupaciones 403 - 206ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:04.774Z","level":"WARN","message":"GET /api/entradas-salidas 403 - 102ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:04.875Z","level":"WARN","message":"GET /api/reservas 403 - 99ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:04.977Z","level":"WARN","message":"GET /api/novedades 403 - 99ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:05.080Z","level":"WARN","message":"GET /api/auditoria 403 - 100ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:05.182Z","level":"WARN","message":"GET /api/monitoreo/celdas 403 - 99ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:06.035Z","level":"INFO","message":"PUT /api/roles/188/permisos 200 - 850ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:06.313Z","level":"INFO","message":"GET /api/ocupaciones 200 - 275ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:06.498Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 183ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:06.782Z","level":"INFO","message":"GET /api/reservas 200 - 282ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:06.970Z","level":"INFO","message":"GET /api/novedades 200 - 185ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:07.890Z","level":"INFO","message":"GET /api/auditoria 200 - 918ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:08.119Z","level":"INFO","message":"GET /api/monitoreo/celdas 200 - 205ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:08.222Z","level":"WARN","message":"POST /api/parqueaderos 403 - 100ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:08.910Z","level":"INFO","message":"PUT /api/roles/188/permisos 200 - 685ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:09.710Z","level":"INFO","message":"POST /api/parqueaderos 201 - 797ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:10.407Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 198ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:10.711Z","level":"INFO","message":"GET /api/reservas 200 - 302ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:10.914Z","level":"INFO","message":"GET /api/novedades 200 - 201ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:11.116Z","level":"INFO","message":"GET /api/ocupaciones 200 - 198ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:11.315Z","level":"INFO","message":"GET /api/monitoreo/celdas 200 - 197ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:11.519Z","level":"WARN","message":"GET /api/auditoria 403 - 202ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:12.477Z","level":"INFO","message":"GET /api/auditoria 200 - 955ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:12.495Z","level":"WARN","message":"GET /api/reservas 401 - 0ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:40.094Z","level":"INFO","message":"GET / 200 - 4ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:50:41.831Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:50:41.832Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3997","environment":"development"}}
+{"timestamp":"2026-09-05T21:50:45.782Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: borrado.token.39652@parku.test · Asunto: 558515 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:50:45.782Z","level":"INFO","message":"[dev] Verificación para borrado.token.39652@parku.test · código: 558515 · enlace: https://park-u.vercel.app/verificar-correo?token=82963e04bc59f3598f9f34dd3721aeb9c4b837890307bc303d4b6c405990186f"}
+{"timestamp":"2026-09-05T21:51:05.567Z","level":"INFO","message":"DELETE /api/usuarios/1411 204 - 1061ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:06.101Z","level":"WARN","message":"DELETE /api/usuarios/2 409 - 442ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:06.106Z","level":"WARN","message":"DELETE /api/usuarios/1409 401 - 0ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:06.375Z","level":"INFO","message":"GET /api/auth/verificar 200 - 267ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:44.824Z","level":"INFO","message":"GET / 200 - 4ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:46.490Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:51:46.490Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-05T21:51:47.604Z","level":"INFO","message":"POST /api/usuarios 201 - 895ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:48.110Z","level":"WARN","message":"GET /api/conductores/usuario/1420 404 - 203ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:49.487Z","level":"INFO","message":"POST /api/usuarios 201 - 1273ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:49.892Z","level":"INFO","message":"GET /api/usuarios/disponibilidad?correo=libre.04311@parku.test 200 - 303ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:50.097Z","level":"INFO","message":"GET /api/usuarios/disponibilidad?correo=admin%40parku.sena.edu.co 200 - 201ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:50.201Z","level":"WARN","message":"GET /api/usuarios/disponibilidad 400 - 102ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:50.204Z","level":"WARN","message":"GET /api/usuarios/disponibilidad?correo=x@y.com 401 - 1ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:51.669Z","level":"INFO","message":"POST /api/conductores 201 - 1462ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:52.140Z","level":"INFO","message":"POST /api/auth/login 200 - 467ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:52.447Z","level":"WARN","message":"POST /api/conductores 409 - 304ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:52.549Z","level":"INFO","message":"GET /api/catalogos/tipos-usuario 200 - 99ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:52.651Z","level":"WARN","message":"POST /api/conductores 400 - 100ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:53.485Z","level":"INFO","message":"POST /api/conductores 201 - 831ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:53.588Z","level":"INFO","message":"GET /api/auth/existe-documento?tipoDocumento=CC&numeroDocumento=9104311 200 - 101ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:53.702Z","level":"INFO","message":"GET /api/catalogos/tipos-usuario 200 - 112ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:54.936Z","level":"INFO","message":"POST /api/auth/registro 201 - 1231ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:55.139Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: registro.cond.04311@parku.test · Asunto: 754540 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:51:55.140Z","level":"INFO","message":"[dev] Verificación para registro.cond.04311@parku.test · código: 754540 · enlace: https://park-u.vercel.app/verificar-correo?token=4d7f29c7d19aada6f8c0896b326dbfe479fd6cce1ecf10c0ededc941b696b08a"}
+{"timestamp":"2026-09-05T21:51:55.710Z","level":"INFO","message":"POST /api/auth/registro 201 - 499ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:51:55.884Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: registro.sindoc.04311@parku.test · Asunto: 767665 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:51:55.884Z","level":"INFO","message":"[dev] Verificación para registro.sindoc.04311@parku.test · código: 767665 · enlace: https://park-u.vercel.app/verificar-correo?token=c22a2d0b124d8de619e69711352384c4448a7ce5478ce172a6e88243b4b21f63"}
+{"timestamp":"2026-09-05T21:51:56.216Z","level":"WARN","message":"POST /api/auth/registro 409 - 303ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:28.283Z","level":"INFO","message":"GET / 200 - 4ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:29.899Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:52:29.900Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3999","environment":"development"}}
+{"timestamp":"2026-09-05T21:52:30.386Z","level":"INFO","message":"POST /api/auth/registro 201 - 2083ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:30.550Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: prueba.http.1788645147740@parku.test · Asunto: 318728 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:52:30.550Z","level":"INFO","message":"[dev] Verificación para prueba.http.1788645147740@parku.test · código: 318728 · enlace: https://park-u.vercel.app/verificar-correo?token=bac5519415339b9c52b18f3f8792ac039a07cf8fad12f4db1cec0f0e009d4a52"}
+{"timestamp":"2026-09-05T21:52:31.040Z","level":"INFO","message":"POST /api/auth/login 200 - 393ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:31.208Z","level":"WARN","message":"POST /api/auth/verificar-codigo 400 - 165ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:31.623Z","level":"INFO","message":"POST /api/auth/verificar-codigo 200 - 412ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:32.014Z","level":"INFO","message":"POST /api/auth/login 200 - 307ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:32.346Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: prueba.http.1788645147740@parku.test · Asunto: 835760 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-05T21:52:32.347Z","level":"INFO","message":"[dev] Verificación para prueba.http.1788645147740@parku.test · código: 835760 · enlace: https://park-u.vercel.app/verificar-correo?token=8dc52645d12a2838d5bfc243ea6c32877864cf1fa210ee3f1da37327867a6bb2"}
+{"timestamp":"2026-09-05T21:52:32.347Z","level":"INFO","message":"POST /api/auth/reenviar-verificacion 200 - 248ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:32.766Z","level":"INFO","message":"POST /api/auth/verificar-codigo 200 - 416ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:44.811Z","level":"INFO","message":"GET / 200 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:46.538Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:52:46.539Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3997","environment":"development"}}
+{"timestamp":"2026-09-05T21:52:47.814Z","level":"WARN","message":"PUT /api/usuarios/perfil 401 - 1ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:48.276Z","level":"INFO","message":"POST /api/auth/login 200 - 457ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:49.251Z","level":"INFO","message":"PUT /api/usuarios/perfil 200 - 972ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:49.555Z","level":"INFO","message":"GET /api/auth/verificar 200 - 204ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:49.662Z","level":"WARN","message":"PUT /api/usuarios/perfil 400 - 104ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:50.131Z","level":"INFO","message":"GET /api/usuarios/disponibilidad?tipo_documento=CC&numero_documento=1026139000 200 - 281ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:52:50.228Z","level":"WARN","message":"PUT /api/usuarios/1 403 - 94ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:20.336Z","level":"INFO","message":"GET / 200 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:22.230Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-05T21:53:22.230Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3996","environment":"development"}}
+{"timestamp":"2026-09-05T21:53:26.830Z","level":"INFO","message":"POST /api/reservas 201 - 1254ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:26.941Z","level":"WARN","message":"POST /api/reservas 400 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:27.049Z","level":"WARN","message":"POST /api/reservas 400 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:27.155Z","level":"WARN","message":"POST /api/reservas 400 - 103ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:27.266Z","level":"WARN","message":"POST /api/reservas 400 - 108ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:28.101Z","level":"INFO","message":"PATCH /api/reservas/306/estado 200 - 832ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:29.350Z","level":"INFO","message":"POST /api/reservas 201 - 1246ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:30.200Z","level":"INFO","message":"PATCH /api/reservas/307/estado 200 - 846ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:31.461Z","level":"INFO","message":"POST /api/reservas 201 - 1257ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:31.683Z","level":"WARN","message":"PATCH /api/reservas/308/estado 403 - 219ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:32.105Z","level":"WARN","message":"PATCH /api/reservas/308/cancelar 400 - 420ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:33.171Z","level":"INFO","message":"PATCH /api/reservas/308/cancelar 200 - 1064ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:34.112Z","level":"INFO","message":"POST /api/reservas 201 - 938ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:34.430Z","level":"WARN","message":"PATCH /api/reservas/309/cancelar 403 - 315ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:35.368Z","level":"INFO","message":"PATCH /api/reservas/309/cancelar 200 - 936ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-05T21:53:35.684Z","level":"WARN","message":"PATCH /api/reservas/309/cancelar 409 - 313ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}

@@ -644,6 +644,26 @@ const update = async (id, datosEnviados, usuarioId) => {
     for (const campo of CAMPOS_DE_LA_CUENTA) delete data[campo];
   }
 
+  // Al VINCULAR OTRA CUENTA, la ficha pasa a ser la de esa persona: nombre, correo, teléfono
+  // y documento se reemplazan por los suyos. Antes se conservaba lo que hubiera cuando la
+  // cuenta nueva traía un campo vacío, y quedaba una ficha mitad de una persona y mitad de
+  // otra (el teléfono del conductor anterior con el nombre y el correo del nuevo). Si la
+  // cuenta no tiene teléfono, el conductor se queda sin teléfono: eso es lo que dice la cuenta.
+  const cambiaDeCuenta = data.usuario_id !== undefined
+    && data.usuario_id !== null
+    && Number(data.usuario_id) !== Number(conductor.usuario_id);
+  if (cambiaDeCuenta) {
+    const cuentaNueva = await usuarioRepo.findById(data.usuario_id);
+    if (!cuentaNueva) throw { status: 404, message: 'La cuenta que intentas vincular no existe' };
+    data.nombre_apellidos = cuentaNueva.nombre;
+    data.correo = cuentaNueva.correo;
+    data.numero_telefonico = cuentaNueva.numero_telefonico ?? null;
+    if (cuentaNueva.tipo_documento && cuentaNueva.numero_documento) {
+      data.tipo_documento = cuentaNueva.tipo_documento;
+      data.numero_documento = cuentaNueva.numero_documento;
+    }
+  }
+
   // Reactivar exige tener cuenta. Es el caso de un conductor cuya cuenta fue eliminada: se
   // quedó en pausa a propósito (ver usuario.service.remove) y volver a activarlo sin darle
   // acceso lo dejaría operando sin nadie detrás. Los visitantes no cuentan: nunca tuvieron.
@@ -702,7 +722,13 @@ const update = async (id, datosEnviados, usuarioId) => {
 
   // Si cambia el documento y el conductor tiene cuenta, ambos se escriben juntos: o se
   // actualizan los dos, o no se actualiza ninguno.
-  const cambiaDocumento = data.tipo_documento !== undefined || data.numero_documento !== undefined;
+  //
+  // Al CAMBIAR DE CUENTA no hay nada que propagar: el documento que se acaba de poner es el
+  // de la cuenta nueva, así que ya está donde tiene que estar. Escribirlo además en la
+  // cuenta anterior chocaba contra el índice único y hacía fallar el relevo entero
+  // ("ese documento ya está registrado en la cuenta …", hablando de la cuenta nueva).
+  const cambiaDocumento = !cambiaDeCuenta
+    && (data.tipo_documento !== undefined || data.numero_documento !== undefined);
   if (!cambiaDocumento || !conductor.usuario_id) {
     if (!reactivando) return repo.update(id, data);
     return sequelize.transaction(async (transaction) => {

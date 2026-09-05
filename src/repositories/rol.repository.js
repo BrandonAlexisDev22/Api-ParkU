@@ -88,8 +88,8 @@ const update = async (id, data) => {
  * @param {number} id
  * @returns {Promise<boolean>}
  */
-const remove = async (id) => {
-  const filasEliminadas = await Rol.destroy({ where: { id } });
+const remove = async (id, { transaction } = {}) => {
+  const filasEliminadas = await Rol.destroy({ where: { id }, transaction });
   return filasEliminadas > 0;
 };
 
