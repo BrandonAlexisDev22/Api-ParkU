@@ -196,10 +196,16 @@ const getDatosVinculacion = async (id) => {
  * @param {number} [criterios.excluir_usuario_id] - Cuenta que se está editando: sus propios
  *   valores no se cuentan como ocupados (si no, editar sin tocar el correo lo marcaría
  *   siempre en rojo).
+ * @param {Object} [opciones]
+ * @param {boolean} [opciones.revelarDuenio=true] - Si se puede decir DE QUIÉN es el dato que
+ *   está ocupado. Solo para quien ya puede consultar cuentas o conductores: a los demás se
+ *   les dice que el documento (o el correo) está en uso, pero no a nombre de quién -- si no,
+ *   cualquiera con una sesión abierta podría averiguar el correo de alguien probando números
+ *   de documento hasta acertar.
  * @throws {Object} 400 si no se envía ningún criterio.
  * @returns {Promise<Object>} Un bloque por campo consultado y un `disponible` global.
  */
-const comprobarDisponibilidad = async (criterios = {}) => {
+const comprobarDisponibilidad = async (criterios = {}, { revelarDuenio = true } = {}) => {
   const correo = criterios.correo ? String(criterios.correo).trim().toLowerCase() : null;
   const telefono = criterios.numero_telefonico ? String(criterios.numero_telefonico).trim() : null;
   const numeroDocumento = criterios.numero_documento ? String(criterios.numero_documento).trim() : null;
@@ -225,8 +231,10 @@ const comprobarDisponibilidad = async (criterios = {}) => {
       if (cuenta && cuenta.id !== excluirId) {
         bloque.disponible = false;
         bloque.motivo = 'Ya existe una cuenta de acceso con ese correo';
-        bloque.usuario_id = cuenta.id;
-        bloque.nombre = cuenta.nombre;
+        if (revelarDuenio) {
+          bloque.usuario_id = cuenta.id;
+          bloque.nombre = cuenta.nombre;
+        }
       } else {
         // El correo puede estar ocupado por un conductor sin cuenta: conductor.correo tiene
         // su propia validación de duplicados, y el alta fallaría igual al guardar.
@@ -234,8 +242,10 @@ const comprobarDisponibilidad = async (criterios = {}) => {
           .filter((c) => !excluirId || c.usuario_id !== excluirId);
         if (conductores.length > 0) {
           bloque.disponible = false;
-          bloque.motivo = `Ese correo ya pertenece al conductor ${conductores[0].nombre_apellidos}`;
-          bloque.conductor_id = conductores[0].id;
+          bloque.motivo = revelarDuenio
+            ? `Ese correo ya pertenece al conductor ${conductores[0].nombre_apellidos}`
+            : 'Ese correo ya pertenece a otro conductor';
+          if (revelarDuenio) bloque.conductor_id = conductores[0].id;
         }
       }
     }
@@ -252,7 +262,7 @@ const comprobarDisponibilidad = async (criterios = {}) => {
       if (cuenta && cuenta.id !== excluirId) {
         bloque.disponible = false;
         bloque.motivo = 'Ese número de teléfono ya está registrado en otra cuenta';
-        bloque.usuario_id = cuenta.id;
+        if (revelarDuenio) bloque.usuario_id = cuenta.id;
       }
     }
     resultado.numero_telefonico = bloque;
@@ -270,16 +280,20 @@ const comprobarDisponibilidad = async (criterios = {}) => {
       const conductor = await conductorRepo.findByDocumento(tipoDocumento, numeroDocumento);
       if (cuenta && cuenta.id !== excluirId) {
         bloque.disponible = false;
-        bloque.motivo = `Ese documento ya está registrado en la cuenta ${cuenta.correo}`;
-        bloque.usuario_id = cuenta.id;
+        bloque.motivo = revelarDuenio
+          ? `Ese documento ya está registrado en la cuenta ${cuenta.correo}`
+          : 'Ese documento ya está registrado en otra cuenta';
+        if (revelarDuenio) bloque.usuario_id = cuenta.id;
       } else if (conductor && (!excluirId || conductor.usuario_id !== excluirId)) {
         bloque.disponible = false;
-        bloque.motivo = `Ese documento ya pertenece al conductor ${conductor.nombre_apellidos}`;
-        bloque.conductor_id = conductor.id;
+        bloque.motivo = revelarDuenio
+          ? `Ese documento ya pertenece al conductor ${conductor.nombre_apellidos}`
+          : 'Ese documento ya pertenece a otro conductor';
       }
       // El conductor encontrado se devuelve aunque el documento esté "ocupado" por él
-      // mismo: el formulario de vinculación lo usa para ofrecer "es esta persona".
-      if (conductor) bloque.conductor_id = conductor.id;
+      // mismo: el formulario de vinculación lo usa para ofrecer "es esta persona". Solo a
+      // quien ya puede consultar conductores: para los demás es el dato de un tercero.
+      if (conductor && revelarDuenio) bloque.conductor_id = conductor.id;
     }
     resultado.documento = bloque;
   }
@@ -420,7 +434,7 @@ const create = async (data) => {
  *   teléfono/documento duplicado.
  * @returns {Promise<Object>}
  */
-const update = async (id, data) => {
+const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
   const usuario = await getById(id);
 
   // Si se actualiza el correo, verificar formato y que no esté en uso por otro usuario
@@ -480,8 +494,12 @@ const update = async (id, data) => {
     if (otraCuenta && otraCuenta.id !== Number(id)) {
       throw {
         status: 409,
-        message: `El documento ${tipoDocumentoNormalizado} ${numeroDocumento} ya está registrado en la cuenta ${otraCuenta.correo}`,
-        data: { usuario_id: otraCuenta.id, correo: otraCuenta.correo },
+        // Ver comprobarDisponibilidad: a quien no puede consultar cuentas no se le dice de
+        // quién es el documento, solo que ya está tomado.
+        message: revelarDuenioDelDocumento
+          ? `El documento ${tipoDocumentoNormalizado} ${numeroDocumento} ya está registrado en la cuenta ${otraCuenta.correo}`
+          : `El documento ${tipoDocumentoNormalizado} ${numeroDocumento} ya está registrado en otra cuenta`,
+        data: revelarDuenioDelDocumento ? { usuario_id: otraCuenta.id, correo: otraCuenta.correo } : {},
       };
     }
     updateData.tipo_documento = tipoDocumentoNormalizado;
@@ -574,7 +592,9 @@ const actualizarPerfil = async (id, data = {}) => {
     throw { status: 400, message: 'El nombre no puede quedar vacío' };
   }
 
-  return update(id, cambios);
+  // Nadie necesita saber de quién es el documento que chocó para corregir el suyo, y quien
+  // edita su perfil no tiene por qué poder consultar cuentas ajenas.
+  return update(id, cambios, { revelarDuenioDelDocumento: false });
 };
 
 /**

@@ -1,5 +1,22 @@
 const svc = require('../services/usuario.service');
 const { handleError } = require('../helpers/errorHandler');
+const { permisosDelRol } = require('../middlewares/auth.middleware');
+const { ROLES } = require('../config/roles');
+
+/**
+ * ¿Puede quien pregunta saber DE QUIÉN es un correo o un documento ya ocupado?
+ *
+ * Solo si su rol ya le permite consultar cuentas o conductores: para esa persona no es
+ * información nueva, la tiene a un clic en su propio listado. Para cualquier otra sesión
+ * -- alguien mirando su propio perfil, por ejemplo -- decir "ese documento es de fulano@..."
+ * convertiría la comprobación en vivo en un buscador de datos ajenos.
+ */
+const _puedeVerDuenios = async (usuario) => {
+  if (!usuario) return false;
+  if (Number(usuario.rol) === ROLES.ADMIN) return true;
+  const permisos = await permisosDelRol(usuario.rol);
+  return permisos.has('usuarios.consultar') || permisos.has('conductores.consultar');
+};
 
 const getAll = async (req, res) => {
   try {
@@ -34,7 +51,7 @@ const disponibilidad = async (req, res) => {
       tipo_documento: req.query.tipo_documento ?? req.query.tipoDocumento,
       numero_documento: req.query.numero_documento ?? req.query.numeroDocumento,
       excluir_usuario_id: req.query.excluir_usuario_id ?? req.query.excluirUsuarioId,
-    });
+    }, { revelarDuenio: await _puedeVerDuenios(req.usuario) });
     res.json(data);
   } catch (e) {
     handleError(res, e);
