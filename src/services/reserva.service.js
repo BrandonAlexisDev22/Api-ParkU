@@ -19,6 +19,10 @@ const conductorRepo = require('../repositories/conductor.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { validarHorarioOperacion } = require('../config/horarioOperacion');
+const {
+  ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, MARGEN_CANCELACION_MINUTOS,
+  MINUTO_MS, _enPalabras,
+} = require('../config/reglasReserva');
 const { ROLES } = require('../config/roles');
 const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
 
@@ -85,6 +89,23 @@ const _validarFechas = (inicio, fin) => {
   if (isNaN(i) || isNaN(f)) throw { status: 400, message: 'Fechas inválidas' };
   if (i >= f) throw { status: 400, message: 'fecha_hora_inicio debe ser anterior a fecha_hora_fin' };
   if (i < new Date()) throw { status: 400, message: 'No se puede reservar en una fecha/hora pasada' };
+
+  // Ver config/reglasReserva.js: con qué antelación se pide y cuánto dura como mínimo.
+  const faltan = (i.getTime() - Date.now()) / MINUTO_MS;
+  if (faltan < ANTICIPACION_MINIMA_MINUTOS) {
+    throw {
+      status: 400,
+      message: `La reserva debe pedirse con al menos ${_enPalabras(ANTICIPACION_MINIMA_MINUTOS)} de anticipación: para reservar a esa hora tendrías que hacerlo antes`,
+    };
+  }
+
+  const dura = (f.getTime() - i.getTime()) / MINUTO_MS;
+  if (dura < DURACION_MINIMA_MINUTOS) {
+    throw {
+      status: 400,
+      message: `La reserva debe durar al menos ${_enPalabras(DURACION_MINIMA_MINUTOS)}`,
+    };
+  }
 };
 
 /**
@@ -345,6 +366,17 @@ const cancelar = async (id, usuarioId, usuarioRol) => {
       || Number(reserva.usuario_registra_id) === Number(usuarioId);
     if (!esSuya) {
       throw { status: 403, message: 'Solo puedes cancelar tus propias reservas' };
+    }
+
+    // Cancelar sobre la hora deja la celda vacía sin tiempo de que otra persona la
+    // aproveche (ver config/reglasReserva.js). Quien gestiona el parqueadero sí puede
+    // hacerlo a cualquier hora: para eso atiende el mostrador.
+    const faltan = (new Date(reserva.fecha_hora_inicio).getTime() - Date.now()) / MINUTO_MS;
+    if (faltan < MARGEN_CANCELACION_MINUTOS) {
+      throw {
+        status: 409,
+        message: `Solo puedes cancelar hasta ${_enPalabras(MARGEN_CANCELACION_MINUTOS)} antes de la hora de inicio. Acércate al parqueadero para que te ayuden.`,
+      };
     }
   }
 
