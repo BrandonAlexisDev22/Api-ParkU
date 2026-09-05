@@ -313,6 +313,9 @@ const remove = async (id, usuarioId) => {
     id,
     sujeto: `el vehículo ${vehiculo.placa || vehiculo.id}`,
     alternativa: 'Deshabilítalo en vez de borrarlo.',
+    // Sin desglose: a quien borra un vehículo no le sirve saber si son 3 ingresos o 2
+    // reservas, solo que hay historial que depende de él. El detalle sigue en data.bloqueos.
+    detallar: false,
   });
 
   try {

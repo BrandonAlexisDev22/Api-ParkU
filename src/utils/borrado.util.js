@@ -24,10 +24,14 @@ const { sequelize } = require('../config/database');
  * @param {string} opciones.sujeto - Cómo nombrarla en el mensaje ("a Ana Martínez",
  *   "el vehículo ABC123"…).
  * @param {string} opciones.alternativa - Qué puede hacer en su lugar.
+ * @param {boolean} [opciones.detallar=true] - Enumerar qué registros lo impiden. Se apaga
+ *   cuando ese desglose no le dice nada a quien está mirando la pantalla: para un vehículo,
+ *   saber que "hay información que lo necesita" basta, y el detalle sigue viajando en
+ *   `data.bloqueos` por si hace falta.
  * @throws {Object} 409 con `data.bloqueos` para que el frontend pueda detallarlo.
  * @returns {Promise<void>}
  */
-const exigirSinOperaciones = async ({ referencias, id, sujeto, alternativa }) => {
+const exigirSinOperaciones = async ({ referencias, id, sujeto, alternativa, detallar = true }) => {
   const bloqueos = [];
 
   for (const referencia of referencias) {
@@ -43,7 +47,9 @@ const exigirSinOperaciones = async ({ referencias, id, sujeto, alternativa }) =>
   const detalle = bloqueos.map((b) => `${b.cantidad} ${b.registro}`).join(', ');
   throw {
     status: 409,
-    message: `No se puede eliminar ${sujeto}: tiene ${detalle}. Ese historial es el registro de operación del parqueadero. ${alternativa}`,
+    message: detallar
+      ? `No se puede eliminar ${sujeto}: tiene ${detalle}. Ese historial es el registro de operación del parqueadero. ${alternativa}`
+      : `No se puede eliminar ${sujeto}: hay información en los registros del parqueadero que lo necesita. ${alternativa}`,
     data: { bloqueos },
   };
 };
