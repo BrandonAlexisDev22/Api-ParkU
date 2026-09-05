@@ -15,6 +15,7 @@ const { CAMPOS_DE_LA_CUENTA } = repo;
 const usuarioRepo = require('../repositories/usuario.repository');
 const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
 const { traducirErrorTrigger } = require('../utils/dbContext.util');
+const { exigirSinOperaciones } = require('../utils/borrado.util');
 const { ROLES } = require('../config/roles');
 const PasswordUtil = require('../utils/password.util');
 
@@ -656,13 +657,43 @@ const update = async (id, datosEnviados) => {
 };
 
 /**
- * Elimina un conductor (borrado físico).
+ * Las operaciones del parqueadero de este conductor. Son las únicas que impiden borrarlo
+ * (ON DELETE RESTRICT desde la migración 005).
+ * @private
+ */
+const OPERACIONES_DEL_CONDUCTOR = [
+  { tabla: 'registro_acceso', columna: 'conductor_id', que_es: 'entradas o salidas' },
+  { tabla: 'reserva', columna: 'conductor_id', que_es: 'reservas' },
+];
+
+/**
+ * Elimina un conductor de verdad: la fila desaparece de la tabla.
+ *
+ * Lo que NO se lleva por delante:
+ *   - su cuenta de acceso, si la tenía. La clave foránea va del conductor a la cuenta, no al
+ *     revés: la cuenta sigue existiendo y puede vincularse a otra ficha.
+ *   - sus vehículos. Solo se borra el vínculo de propiedad (detalle_propiedad, en cascada);
+ *     el vehículo queda registrado y sin dueño, listo para reasignarse.
+ *   - la auditoría y los historiales.
+ *
+ * Lo único que lo impide son sus operaciones: entradas, salidas y reservas. Ese es el
+ * registro de lo que pasó en el parqueadero; para esos casos se deshabilita el conductor
+ * (estado = false) en vez de borrarlo.
+ *
  * @param {number} id
- * @throws {Object} 404 si no existe; 409 si tiene vehículos, reservas o ingresos asociados.
+ * @throws {Object} 404 si no existe; 409 si tiene entradas, salidas o reservas.
  * @returns {Promise<boolean>}
  */
 const remove = async (id) => {
-  await getById(id);
+  const conductor = await getById(id);
+
+  await exigirSinOperaciones({
+    referencias: OPERACIONES_DEL_CONDUCTOR,
+    id,
+    sujeto: `a ${conductor.nombre_apellidos}`,
+    alternativa: 'Deshabilítalo en vez de borrarlo.',
+  });
+
   try {
     return await repo.remove(id);
   } catch (error) {

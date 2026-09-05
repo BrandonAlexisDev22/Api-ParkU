@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/usuario.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { exigirSinOperaciones } = require('../utils/borrado.util');
 const { ROLES, ALIAS_ROL } = require('../config/roles');
 const rolRepo = require('../repositories/rol.repository');
 const { eliminarArchivoSiExiste } = require('../middlewares/upload.middleware');
@@ -558,75 +559,36 @@ const actualizarFoto = async (id, nuevaRutaPublica) => {
 };
 
 /**
- * Datos que existen SOLO por la cuenta y no significan nada sin ella: se borran con ella.
+ * Las operaciones del parqueadero hechas POR esta cuenta. Son las únicas que impiden
+ * borrarla: la base de datos las protege con ON DELETE RESTRICT (migración 005) y aquí se
+ * comprueban antes para poder decir cuáles son, en vez de soltar el error de Postgres.
+ *
+ * El resto de lo que cuelga de un usuario ya no hace falta tocarlo: la migración 005 dejó
+ * cada clave foránea con su regla. La auditoría y los historiales pasan a SET NULL (el
+ * rastro del cambio sobre la celda o el parqueadero se conserva, solo pierde el nombre de
+ * quien lo hizo); las notificaciones, tokens, turnos y valoraciones se van en CASCADE; y el
+ * conductor se desvincula solo, con su documento, sus vehículos y su historial intactos.
  * @private
  */
-const DATOS_DE_LA_CUENTA = [
-  { tabla: 'verificacion_correo', columna: 'usuario_id' },
-  { tabla: 'recuperacion_password', columna: 'usuario_id' },
-  { tabla: 'notificacion', columna: 'usuario_id' },
-];
-
-/**
- * Registros que SOBREVIVEN a la cuenta y solo pierden el vínculo con ella (su columna
- * admite NULL). El caso importante es `conductor`: la persona, su documento, sus vehículos
- * y su historial siguen existiendo aunque se le quite el acceso -- es el mismo estado en el
- * que queda al cancelar la vinculación a mano (DELETE /api/conductores/:id/usuario).
- * @private
- */
-const REFERENCIAS_QUE_SE_SUELTAN = [
-  // El correo era de la cuenta: se libera con ella, o quedaría reservado para nadie.
-  { tabla: 'conductor', sentencia: 'UPDATE conductor SET usuario_id = NULL, correo = NULL WHERE usuario_id = :id' },
-  { tabla: 'autorizacion_acceso', sentencia: 'UPDATE autorizacion_acceso SET usuario_id = NULL WHERE usuario_id = :id' },
-  { tabla: 'captura_placa', sentencia: 'UPDATE captura_placa SET usuario_verifica_id = NULL WHERE usuario_verifica_id = :id' },
-  { tabla: 'novedad', sentencia: 'UPDATE novedad SET usuario_asignado_id = NULL WHERE usuario_asignado_id = :id' },
-  { tabla: 'registro_acceso', sentencia: 'UPDATE registro_acceso SET usuario_salida_id = NULL WHERE usuario_salida_id = :id' },
-  { tabla: 'reserva', sentencia: 'UPDATE reserva SET usuario_gestiona_id = NULL WHERE usuario_gestiona_id = :id' },
-];
-
-/**
- * Historia que NO puede quedarse sin autor: su columna es NOT NULL, así que borrar la cuenta
- * exigiría borrar también el registro. Son el log de operación del parqueadero y la
- * auditoría; se prefiere no poder borrar la cuenta antes que perderlos.
- * @private
- */
-const REFERENCIAS_QUE_BLOQUEAN = [
-  { tabla: 'auditoria', columna: 'usuario_id', que_es: 'movimientos en la auditoría' },
+const OPERACIONES_DEL_USUARIO = [
   { tabla: 'registro_acceso', columna: 'usuario_ingreso_id', que_es: 'ingresos registrados' },
-  { tabla: 'ocupacion_celda', columna: 'usuario_asigna_id', que_es: 'celdas asignadas' },
   { tabla: 'reserva', columna: 'usuario_registra_id', que_es: 'reservas registradas' },
   { tabla: 'novedad', columna: 'usuario_reporta_id', que_es: 'novedades reportadas' },
-  { tabla: 'asignacion_vigilante', columna: 'usuario_id', que_es: 'asignaciones de vigilancia' },
-  { tabla: 'disponibilidad_celda', columna: 'usuario_id', que_es: 'cambios de disponibilidad de celdas' },
-  { tabla: 'historial_celda', columna: 'usuario_id', que_es: 'cambios en celdas' },
-  { tabla: 'historial_disponibilidad_celda', columna: 'usuario_id', que_es: 'cambios de disponibilidad' },
-  { tabla: 'historial_novedad', columna: 'usuario_id', que_es: 'cambios en novedades' },
-  { tabla: 'historial_parqueadero', columna: 'usuario_id', que_es: 'cambios en parqueaderos' },
-  { tabla: 'historial_reserva', columna: 'usuario_id', que_es: 'cambios en reservas' },
-  { tabla: 'valoracion', columna: 'usuario_id', que_es: 'valoraciones' },
 ];
 
 /**
  * Elimina un usuario DE VERDAD: la fila desaparece de la tabla `usuario`, no se marca como
  * inactiva.
  *
- * Antes esto fallaba en cuanto la cuenta tuviera cualquier cosa colgando, porque las 21
- * claves foráneas que apuntan a `usuario` son NO ACTION y nadie limpiaba nada. Ahora, en una
- * sola transacción:
- *   1. borra lo que solo existe por la cuenta (verificaciones, tokens, notificaciones),
- *   2. suelta las referencias que admiten NULL -- el conductor y el historial sobreviven,
- *   3. borra la cuenta.
- *
- * Si queda actividad que no puede quedarse sin autor (ingresos, reservas, novedades,
- * auditoría…), NO se borra nada y se responde 409 diciendo exactamente qué lo impide: ese
- * historial es el registro de operación del parqueadero, y perderlo por borrar una cuenta
- * sería peor que no poder borrarla. Para esos casos está desactivar la cuenta.
+ * Solo lo impiden las operaciones del parqueadero (entradas y salidas, reservas, novedades):
+ * son el registro de lo que pasó, y perderlas por borrar una cuenta sería peor que no poder
+ * borrarla. Para esos casos está desactivar la cuenta.
  *
  * @param {number} id
  * @param {number} [solicitanteId] - Quién pide el borrado (para la auditoría y para no
  *   dejarle borrarse a sí mismo).
  * @throws {Object} 404 si no existe; 409 si es su propia cuenta, si es el último
- *   administrador activo, o si tiene actividad que quedaría sin autor.
+ *   administrador activo, o si tiene operaciones registradas.
  * @returns {Promise<boolean>}
  */
 const remove = async (id, solicitanteId) => {
@@ -648,35 +610,26 @@ const remove = async (id, solicitanteId) => {
     }
   }
 
-  const bloqueos = [];
-  for (const ref of REFERENCIAS_QUE_BLOQUEAN) {
-    const [filas] = await sequelize.query(
-      `SELECT count(*)::int AS n FROM ${ref.tabla} WHERE ${ref.columna} = :id`,
-      { replacements: { id } },
-    );
-    if (filas[0].n > 0) bloqueos.push({ ...ref, cantidad: filas[0].n });
-  }
-
-  if (bloqueos.length) {
-    const detalle = bloqueos.map((b) => `${b.cantidad} ${b.que_es}`).join(', ');
-    throw {
-      status: 409,
-      message: `No se puede eliminar a ${usuario.nombre}: su actividad quedaría sin autor (${detalle}). Ese historial es el registro de operación del parqueadero. Desactiva la cuenta en vez de borrarla.`,
-      data: { bloqueos: bloqueos.map((b) => ({ registro: b.que_es, cantidad: b.cantidad })) },
-    };
-  }
+  await exigirSinOperaciones({
+    referencias: OPERACIONES_DEL_USUARIO,
+    id,
+    sujeto: `a ${usuario.nombre}`,
+    alternativa: 'Desactiva la cuenta en vez de borrarla.',
+  });
 
   try {
     return await runWithUsuario(solicitanteId ?? ROLES.ADMIN, async (transaction) => {
-      for (const dato of DATOS_DE_LA_CUENTA) {
-        await sequelize.query(
-          `DELETE FROM ${dato.tabla} WHERE ${dato.columna} = :id`,
-          { replacements: { id }, transaction },
-        );
-      }
-      for (const referencia of REFERENCIAS_QUE_SE_SUELTAN) {
-        await sequelize.query(referencia.sentencia, { replacements: { id }, transaction });
-      }
+      // verificacion_correo no tiene clave foránea declarada, así que la cascada de la base
+      // de datos no la alcanza: se limpia a mano para no dejar tokens de una cuenta que ya
+      // no existe.
+      await sequelize.query('DELETE FROM verificacion_correo WHERE usuario_id = :id', {
+        replacements: { id }, transaction,
+      });
+      // El conductor se desvincula solo (ON DELETE SET NULL), pero el correo era de la
+      // cuenta: si se queda puesto, esa dirección seguiría reservada para nadie.
+      await sequelize.query('UPDATE conductor SET correo = NULL WHERE usuario_id = :id', {
+        replacements: { id }, transaction,
+      });
       return repo.remove(id, { transaction });
     });
   } catch (error) {

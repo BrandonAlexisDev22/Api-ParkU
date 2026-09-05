@@ -359,12 +359,17 @@ class AuthController {
       // pueda rehacer su menú al recargar la página sin volver a iniciar sesión -- y para
       // que un permiso otorgado hace un momento se refleje en la siguiente carga.
       const permisos = [...(await permisosDelRol(req.usuario.rol))];
+      // Y el NOMBRE del rol: el token solo lleva su id, así que sin esto la pantalla de
+      // Perfil solo podía traducirlo con la tabla fija de los tres roles del sistema y
+      // mostraba "Desconocido" para cualquier rol creado a medida. Al venir aquí, se
+      // refresca en cada carga: si al rol lo renombran, el perfil lo refleja sin salir.
+      const publico = await usuarioRepo.findById(req.usuario.id);
 
       return res.status(200).json({
         success: true,
         message: 'Token válido',
         data: {
-          usuario: { ...req.usuario, permisos }
+          usuario: { ...req.usuario, rol_nombre: publico?.rol_nombre ?? null, permisos }
         }
       });
     } catch (error) {

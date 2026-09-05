@@ -15,6 +15,7 @@ const conductorRepo = require('../repositories/conductor.repository');
 const conductorSvc = require('../services/conductor.service');
 const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { exigirSinOperaciones } = require('../utils/borrado.util');
 const { validarTipoSegunPlaca, validarCompatibilidadCelda, esCompatible } = require('../utils/compatibilidadVehiculo.util');
 
 // Tipos que ParkU admite HOY al dar de alta o editar un vehículo. El parqueadero solo
@@ -278,14 +279,42 @@ const update = async (id, data, usuarioId) => {
 };
 
 /**
- * Elimina un vehículo del sistema.
+ * Las operaciones en las que ha participado el vehículo. Son las únicas que impiden
+ * borrarlo (ON DELETE RESTRICT desde la migración 005).
+ * @private
+ */
+const OPERACIONES_DEL_VEHICULO = [
+  { tabla: 'registro_acceso', columna: 'vehiculo_id', que_es: 'entradas o salidas' },
+  { tabla: 'ocupacion_celda', columna: 'vehiculo_id', que_es: 'parqueos' },
+  { tabla: 'novedad', columna: 'vehiculo_id', que_es: 'novedades' },
+  { tabla: 'reserva', columna: 'vehiculo_id', que_es: 'reservas' },
+];
+
+/**
+ * Elimina un vehículo de verdad: la fila desaparece de la tabla.
+ *
+ * Sus vínculos de propiedad se van con él (detalle_propiedad, en cascada), pero los
+ * conductores no: siguen registrados con el resto de sus vehículos.
+ *
+ * Solo lo impiden sus operaciones -- entradas, salidas, parqueos, novedades y reservas --,
+ * que son el registro de lo que pasó en el parqueadero. Para esos casos se deshabilita el
+ * vehículo (estado = false) en vez de borrarlo.
+ *
  * @param {number} id
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
- * @throws {Object} 404 si no existe, 409 si está en uso en reservas o movimientos.
+ * @throws {Object} 404 si no existe; 409 si tiene entradas, salidas, parqueos, novedades o reservas.
  * @returns {Promise<boolean>}
  */
 const remove = async (id, usuarioId) => {
-  await getById(id);
+  const vehiculo = await getById(id);
+
+  await exigirSinOperaciones({
+    referencias: OPERACIONES_DEL_VEHICULO,
+    id,
+    sujeto: `el vehículo ${vehiculo.placa || vehiculo.id}`,
+    alternativa: 'Deshabilítalo en vez de borrarlo.',
+  });
+
   try {
     return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
   } catch (error) {
