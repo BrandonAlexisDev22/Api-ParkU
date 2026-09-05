@@ -625,11 +625,27 @@ const remove = async (id, solicitanteId) => {
       await sequelize.query('DELETE FROM verificacion_correo WHERE usuario_id = :id', {
         replacements: { id }, transaction,
       });
-      // El conductor se desvincula solo (ON DELETE SET NULL), pero el correo era de la
-      // cuenta: si se queda puesto, esa dirección seguiría reservada para nadie.
-      await sequelize.query('UPDATE conductor SET correo = NULL WHERE usuario_id = :id', {
-        replacements: { id }, transaction,
-      });
+      // Los vehículos del conductor se deshabilitan ANTES de tocar el conductor: después de
+      // desvincularlo ya no habría forma de llegar a ellos desde la cuenta. Sin esto, quien
+      // se quedó sin acceso podría seguir apareciendo en reservas e ingresos a través de sus
+      // vehículos, que sí siguen habilitados.
+      await sequelize.query(
+        `UPDATE vehiculo SET estado = FALSE
+          WHERE id IN (SELECT dp.vehiculo_id
+                         FROM detalle_propiedad dp
+                         JOIN conductor c ON c.id = dp.conductor_id
+                        WHERE c.usuario_id = :id)`,
+        { replacements: { id }, transaction },
+      );
+      // El conductor se desvincula solo (ON DELETE SET NULL), pero aquí se le quitan además
+      // dos cosas: el correo, que era de la cuenta (si se queda puesto, esa dirección sigue
+      // reservada para nadie), y el estado activo. Queda como una ficha en pausa: existe con
+      // su documento y su historial, pero no puede operar hasta que se le vincule otra
+      // cuenta -- ver conductor.service.update, que es quien lo vuelve a activar.
+      await sequelize.query(
+        'UPDATE conductor SET correo = NULL, estado = FALSE WHERE usuario_id = :id',
+        { replacements: { id }, transaction },
+      );
       return repo.remove(id, { transaction });
     });
   } catch (error) {

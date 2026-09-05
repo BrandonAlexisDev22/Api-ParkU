@@ -458,7 +458,7 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
     res.json(updated);
   } catch (e) {
     handleError(res, e);

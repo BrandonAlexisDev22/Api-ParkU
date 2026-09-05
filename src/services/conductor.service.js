@@ -21,6 +21,28 @@ const PasswordUtil = require('../utils/password.util');
 
 const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
 
+/**
+ * ¿Ese tipo de usuario es "Visitante"? Se resuelve por NOMBRE contra el catálogo, no por un
+ * id fijo: el catálogo es una tabla y sus ids pueden no ser los mismos en otra instalación.
+ *
+ * Es la única excepción a "todo conductor tiene cuenta": alguien que entra una vez no va a
+ * abrirse una cuenta en el sistema, y obligarlo dejaría al vigilante sin forma de
+ * registrarlo en la barrera.
+ * @private
+ * @param {number|null|undefined} tipoUsuarioId
+ * @returns {Promise<boolean>}
+ */
+const _idTipoVisitante = async () => {
+  const tipos = await tipoUsuarioRepo.findAll();
+  return tipos.find((t) => (t.nombre || '').trim().toLowerCase() === 'visitante')?.id ?? null;
+};
+
+const _esVisitante = async (tipoUsuarioId) => {
+  if (!tipoUsuarioId) return false;
+  const tipo = await tipoUsuarioRepo.findById(tipoUsuarioId);
+  return (tipo?.nombre || '').trim().toLowerCase() === 'visitante';
+};
+
 const validarCorreo = (correo) => {
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
     throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
@@ -320,6 +342,16 @@ const create = async (data) => {
   // Se decide ANTES de validar nada más: de él depende qué campos son obligatorios.
   const modoCuenta = _resolverModoCuenta(data);
 
+  // Todo conductor necesita una cuenta de acceso, salvo los visitantes: sin ella no puede
+  // consultar sus reservas ni sus vehículos, y la ficha queda a medias desde el primer día.
+  // Un visitante es la excepción deliberada: entra una vez y no va a abrirse una cuenta.
+  if (modoCuenta === 'SIN_CUENTA' && !(await _esVisitante(tipo_usuario_id))) {
+    throw {
+      status: 400,
+      message: 'Un conductor necesita una cuenta de acceso: selecciona una existente, o marca "no tengo usuario" para crearla. Solo los visitantes pueden quedar sin cuenta.',
+    };
+  }
+
   if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
   if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
   // tipo_usuario_id es OPCIONAL. El alta que ocurre en medio de asignar una celda (panel
@@ -535,10 +567,10 @@ const resolverOCrear = async (datos = {}, { transaction } = {}) => {
     correo,
     numero_telefonico: telefono,
     direccion: datos.direccion || null,
-    // Perfil formativo (Aprendiz/Instructor/Administrativo): opcional. No aporta nada a
-    // estacionar un vehículo, así que si el panel no lo pregunta queda sin resolver y se
-    // completa después vía PUT /api/conductores/:id.
-    tipo_usuario_id: datos.tipo_usuario_id || null,
+    // Quien se registra en la barrera sin cuenta es, por definición, un visitante: es la
+    // única figura que el sistema admite sin acceso propio (ver el _esVisitante de arriba).
+    // Si el panel sí pregunta el perfil, manda lo que haya elegido.
+    tipo_usuario_id: datos.tipo_usuario_id || (usuarioId ? null : await _idTipoVisitante()),
     movilidad_reducida: datos.movilidad_reducida === true,
     tipo_discapacidad: datos.tipo_discapacidad || null,
   }, { transaction });
@@ -588,7 +620,7 @@ const desvincularUsuario = async (id) => {
  * @throws {Object} 409 si el nuevo documento o correo ya están en uso.
  * @returns {Promise<Object>} Conductor actualizado.
  */
-const update = async (id, datosEnviados) => {
+const update = async (id, datosEnviados, usuarioId) => {
   const conductor = await getById(id);
 
   // Los datos de formación salieron de los formularios (ver create): si llegan, se
@@ -603,20 +635,26 @@ const update = async (id, datosEnviados) => {
   }
   if (data.correo !== undefined) validarCorreo(data.correo);
 
-  // Los datos de contacto de un conductor CON cuenta vinculada son de solo lectura:
-  // pertenecen a la cuenta. Editarlos aquí dejaba al conductor y a su usuario con valores
-  // distintos, sin ninguna señal de cuál era el bueno. Para cambiarlos se edita la cuenta,
-  // o se cancela la vinculación primero.
+  // Los datos de contacto de un conductor CON cuenta vinculada pertenecen a la cuenta: se
+  // muestran, pero no se editan desde aquí. Si llegan en la petición se IGNORAN, en vez de
+  // rechazar el guardado entero: el formulario los pinta en solo lectura y los reenvía tal
+  // cual, así que un 409 ahí solo servía para que no se pudiera guardar ningún otro cambio.
+  // Para cambiarlos de verdad se edita la cuenta (PUT /api/usuarios/:id).
   if (conductor.usuario_id) {
-    for (const campo of CAMPOS_DE_LA_CUENTA) {
-      if (data[campo] !== undefined && data[campo] !== conductor[campo]) {
-        throw {
-          status: 409,
-          message: `El campo "${campo}" no se puede editar desde el conductor porque proviene de su cuenta de usuario vinculada. Cámbialo en la cuenta (PUT /api/usuarios/${conductor.usuario_id}) o cancela la vinculación primero.`,
-          data: { usuario_id: conductor.usuario_id, campo, valor_actual: conductor[campo], campos_solo_lectura: CAMPOS_DE_LA_CUENTA },
-        };
-      }
-    }
+    for (const campo of CAMPOS_DE_LA_CUENTA) delete data[campo];
+  }
+
+  // Reactivar exige tener cuenta. Es el caso de un conductor cuya cuenta fue eliminada: se
+  // quedó en pausa a propósito (ver usuario.service.remove) y volver a activarlo sin darle
+  // acceso lo dejaría operando sin nadie detrás. Los visitantes no cuentan: nunca tuvieron.
+  const usuarioFinal = data.usuario_id !== undefined ? data.usuario_id : conductor.usuario_id;
+  const tipoUsuarioFinal = data.tipo_usuario_id !== undefined ? data.tipo_usuario_id : conductor.tipo_usuario_id;
+  if (data.estado === true && !conductor.estado && !usuarioFinal && !(await _esVisitante(tipoUsuarioFinal))) {
+    throw {
+      status: 409,
+      message: 'Este conductor no tiene cuenta de acceso: la que tenía fue eliminada. Vincúlale una cuenta para poder activarlo.',
+      data: { requiere_cuenta: true, conductor_id: conductor.id },
+    };
   }
 
   const movilidadReducidaFinal = data.movilidad_reducida !== undefined ? data.movilidad_reducida : conductor.movilidad_reducida;
@@ -643,15 +681,40 @@ const update = async (id, datosEnviados) => {
   // duplicada.
   await validarReferencias(data, id);
 
+  // Volver a activarlo devuelve también sus vehículos: se deshabilitaron con él al
+  // eliminarse su cuenta (usuario.service.remove), así que dejarlos apagados haría que el
+  // conductor volviera "activo" pero sin poder parquear nada.
+  const reactivando = data.estado === true && conductor.estado === false;
+  const devolverVehiculos = async (transaction) => {
+    // La tabla vehiculo lleva trigger de auditoría y exige saber quién escribe, en la misma
+    // transacción (ver utils/dbContext.util.js). Aquí no se puede usar runWithUsuario porque
+    // ya estamos dentro de una transacción, así que se fija la variable a mano.
+    await sequelize.query('SET LOCAL app.usuario_id = :usuarioId', {
+      replacements: { usuarioId: String(usuarioId ?? usuarioFinal ?? conductor.usuario_id ?? 1) },
+      transaction,
+    });
+    await sequelize.query(
+      `UPDATE vehiculo SET estado = TRUE
+        WHERE id IN (SELECT vehiculo_id FROM detalle_propiedad WHERE conductor_id = :id)`,
+      { replacements: { id }, transaction },
+    );
+  };
+
   // Si cambia el documento y el conductor tiene cuenta, ambos se escriben juntos: o se
   // actualizan los dos, o no se actualiza ninguno.
   const cambiaDocumento = data.tipo_documento !== undefined || data.numero_documento !== undefined;
   if (!cambiaDocumento || !conductor.usuario_id) {
-    return repo.update(id, data);
+    if (!reactivando) return repo.update(id, data);
+    return sequelize.transaction(async (transaction) => {
+      await devolverVehiculos(transaction);
+      return repo.update(id, data, { transaction });
+    });
   }
+
 
   return sequelize.transaction(async (transaction) => {
     await _propagarDocumentoALaCuenta(conductor.usuario_id, tipoDocumentoFinal, numeroDocumentoFinal, transaction);
+    if (reactivando) await devolverVehiculos(transaction);
     return repo.update(id, data, { transaction });
   });
 };
