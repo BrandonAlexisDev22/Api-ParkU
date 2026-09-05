@@ -25,6 +25,25 @@ const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.
 const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
 
 /**
+ * A qué estado puede pasar una reserva según el que ya tiene. RECHAZADA, TERMINADA y
+ * CANCELADA son finales: son el registro de lo que pasó.
+ *
+ * Sin esta tabla, cualquier reserva podía volver a ACEPTADA desde cualquier estado -- y al
+ * hacerlo volvía a bloquear la celda (fn_reserva_bloquea_celda), así que una reserva
+ * cancelada hace tres semanas podía dejar una celda retenida sin que nadie la esperara.
+ */
+const TRANSICIONES = {
+  PENDIENTE: ['ACEPTADA', 'RECHAZADA', 'CANCELADA'],
+  ACEPTADA: ['TERMINADA', 'CANCELADA'],
+  RECHAZADA: [],
+  TERMINADA: [],
+  CANCELADA: [],
+};
+
+/** Estados en los que una reserva todavía se puede editar (los demás son historial). */
+const ESTADOS_EDITABLES = ['PENDIENTE', 'ACEPTADA'];
+
+/**
  * Obtiene el listado de todas las reservas.
  * @returns {Promise<Array>}
  */
@@ -205,6 +224,12 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
  */
 const update = async (id, datos, usuarioId) => {
   const reservaActual = await getById(id);
+  if (!ESTADOS_EDITABLES.includes(reservaActual.estado)) {
+    throw {
+      status: 409,
+      message: `Una reserva ${reservaActual.estado.toLowerCase()} ya no se puede editar: forma parte del histórico`,
+    };
+  }
 
   if (datos.celda_id !== undefined || datos.vehiculo_id !== undefined) {
     await _validarEntidades(
@@ -225,8 +250,29 @@ const update = async (id, datos, usuarioId) => {
     throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
   }
 
+  // Mover una reserva ACEPTADA a otra celda dejaba las dos celdas mal: el trigger
+  // fn_reserva_bloquea_celda solo reacciona a los cambios de ESTADO, no a los de celda, así
+  // que la celda abandonada se quedaba RESERVADA para siempre (sin ninguna reserva que lo
+  // explicara) y la nueva no se retenía. Se corrigen las dos aquí, en la misma transacción.
+  const cambiaDeCelda = datos.celda_id !== undefined
+    && Number(datos.celda_id) !== Number(reservaActual.celda_id);
+  const mueveUnaAceptada = reservaActual.estado === 'ACEPTADA' && cambiaDeCelda;
+
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.update(id, datos, { transaction }));
+    return await runWithUsuario(usuarioId, async (transaction) => {
+      const actualizada = await repo.update(id, datos, { transaction });
+
+      if (mueveUnaAceptada) {
+        // La anterior solo se suelta si no queda ninguna otra reserva aceptada esperándola.
+        const otraQueBloquea = await repo.findReservaQueBloquea(reservaActual.celda_id, new Date(), { transaction });
+        if (!otraQueBloquea) {
+          await celdaRepo.liberarSiEstaReservada(reservaActual.celda_id, { transaction });
+        }
+        await celdaRepo.reservarSiEstaDisponible(datos.celda_id, { transaction });
+      }
+
+      return actualizada;
+    });
   } catch (error) {
     traducirErrorTrigger(error);
   }
@@ -242,9 +288,19 @@ const update = async (id, datos, usuarioId) => {
  * @returns {Promise<Object>}
  */
 const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
-  await getById(id);
+  const reserva = await getById(id);
   if (!ESTADOS_GESTIONABLES.includes(estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(', ')}` };
+  }
+
+  const permitidos = TRANSICIONES[reserva.estado] ?? [];
+  if (!permitidos.includes(estado)) {
+    throw {
+      status: 409,
+      message: permitidos.length
+        ? `Una reserva ${reserva.estado.toLowerCase()} solo puede pasar a: ${permitidos.join(', ')}`
+        : `La reserva ya está ${reserva.estado.toLowerCase()} y no admite más cambios de estado`,
+    };
   }
   if (estado === 'RECHAZADA' && !motivoRechazo?.trim()) {
     throw { status: 400, message: 'El motivo de rechazo es obligatorio para rechazar una reserva' };
@@ -262,6 +318,37 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   } catch (error) {
     traducirErrorTrigger(error);
   }
+};
+
+/**
+ * Cancela una reserva propia.
+ *
+ * Existe aparte de `cambiarEstado` porque esa ruta es de quien gestiona el parqueadero
+ * (Admin/Vigilante): un Conductor no puede aceptar ni rechazar nada, pero sí tiene que poder
+ * echarse atrás de lo que él mismo pidió. Sin esto, una solicitud suya solo la podía retirar
+ * un administrador, y la celda se quedaba retenida hasta que alguien se acordara.
+ *
+ * @param {number} id
+ * @param {number} usuarioId - Quien cancela.
+ * @param {number} usuarioRol - Su rol (ver src/config/roles.js).
+ * @throws {Object} 403 si la reserva no es suya, 404 si no existe, 409 si ya no se puede cancelar.
+ * @returns {Promise<Object>}
+ */
+const cancelar = async (id, usuarioId, usuarioRol) => {
+  const reserva = await getById(id);
+
+  if (usuarioRol !== ROLES.ADMIN && usuarioRol !== ROLES.VIGILANTE) {
+    const propioConductor = await conductorRepo.findByUsuarioId(usuarioId);
+    // Vale tanto si la reserva está a su nombre como si fue él quien la registró: son las
+    // dos formas en que una reserva puede ser "suya".
+    const esSuya = (propioConductor && Number(reserva.conductor_id) === Number(propioConductor.id))
+      || Number(reserva.usuario_registra_id) === Number(usuarioId);
+    if (!esSuya) {
+      throw { status: 403, message: 'Solo puedes cancelar tus propias reservas' };
+    }
+  }
+
+  return cambiarEstado(id, 'CANCELADA', usuarioId);
 };
 
 /**
@@ -293,5 +380,6 @@ module.exports = {
   create,
   update,
   cambiarEstado,
+  cancelar,
   remove,
 };

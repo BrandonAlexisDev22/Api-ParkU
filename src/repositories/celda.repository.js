@@ -164,6 +164,38 @@ const cambiarEstado = async (id, estado, { transaction } = {}) => {
 };
 
 /**
+ * Retiene una celda para una reserva aceptada. Como en `liberarSiEstaReservada`, la
+ * condición viaja en el UPDATE: si la celda no está libre (hay un vehículo dentro, o está
+ * en mantenimiento) no se toca, exactamente igual que hace el trigger al aceptar.
+ * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<boolean>} true si de verdad quedó reservada.
+ */
+const reservarSiEstaDisponible = async (id, { transaction } = {}) => {
+  const [filas] = await Celda.update(
+    { estado: 'RESERVADA' },
+    { where: { id, estado: 'DISPONIBLE' }, transaction },
+  );
+  return filas > 0;
+};
+
+/**
+ * Suelta una celda que estaba retenida por una reserva. La condición `estado = 'RESERVADA'`
+ * va en el propio UPDATE, igual que en el trigger fn_reserva_bloquea_celda: si mientras
+ * tanto la celda pasó a OCUPADA (llegó un vehículo) o a MANTENIMIENTO, no se toca.
+ * @param {number} id
+ * @param {import('sequelize').Transaction} [opciones.transaction]
+ * @returns {Promise<boolean>} true si de verdad se liberó.
+ */
+const liberarSiEstaReservada = async (id, { transaction } = {}) => {
+  const [filas] = await Celda.update(
+    { estado: 'DISPONIBLE' },
+    { where: { id, estado: 'RESERVADA' }, transaction },
+  );
+  return filas > 0;
+};
+
+/**
  * Calcula, dentro de una lista de números ya usados, el mayor consecutivo de un
  * prefijo dado (numero = "PREFIJO-NN"). Devuelve 0 si el prefijo no se ha usado.
  * @private
@@ -301,6 +333,8 @@ module.exports = {
   create,
   update,
   cambiarEstado,
+  reservarSiEstaDisponible,
+  liberarSiEstaReservada,
   generarLote,
   contarPorGrupoTipo,
   contarVigentesPorGrupoTipo,

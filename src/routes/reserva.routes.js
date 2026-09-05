@@ -250,6 +250,11 @@ router.put('/:id',
  *       404:
  *         description: Reserva no encontrada
  */
+router.patch('/:id/cancelar',
+  verificarToken, // Sin permiso de gestión: el servicio comprueba que la reserva sea suya
+  ctrl.cancelar
+);
+
 router.patch('/:id/estado',
   verificarToken,
   verificarAcceso({ permisos: ['reservas.gestionar'], roles: [1,2] }), // o quien tenga el permiso

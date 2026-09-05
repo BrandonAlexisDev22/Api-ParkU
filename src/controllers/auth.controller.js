@@ -331,6 +331,11 @@ class AuthController {
             numero: user.numero_telefonico,
             rol: user.rol_id,
             rol_nombre: publico?.rol_nombre ?? null,
+            // El documento va desde el login: si solo viajara en /auth/verificar (que corre
+            // al cargar la página), quien acababa de entrar veía su propio perfil sin
+            // documento hasta recargar.
+            tipo_documento: publico?.tipo_documento ?? null,
+            numero_documento: publico?.numero_documento ?? null,
             estado: user.estado,
             foto_perfil_url: user.foto_perfil_url,
             permisos,

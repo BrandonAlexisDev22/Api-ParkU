@@ -350,8 +350,48 @@ const update = async (req, res) => {
  */
 const cambiarEstado = async (req, res) => {
   try {
-    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.usuario?.id, req.body.motivoRechazo);
+    // El motivo llega como motivo_rechazo (el nombre de la columna, que es el que manda el
+    // frontend) o como motivoRechazo. Aceptando solo el segundo, rechazar una reserva desde
+    // la aplicación respondía siempre 400 "El motivo de rechazo es obligatorio".
+    const motivoRechazo = req.body.motivo_rechazo ?? req.body.motivoRechazo;
+    const updated = await svc.cambiarEstado(req.params.id, req.body.estado, req.usuario?.id, motivoRechazo);
     res.json(updated);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
+/**
+ * @swagger
+ * /reservas/{id}/cancelar:
+ *   patch:
+ *     summary: Cancelar una reserva propia
+ *     description: >
+ *       Para quien la pidió. Un Admin o Vigilante puede cancelar cualquiera; los demás
+ *       roles, solo las suyas. Aceptar o rechazar sigue siendo PATCH /{id}/estado.
+ *     tags: [Reservas]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Reserva cancelada
+ *       403:
+ *         description: La reserva no es suya
+ *       404:
+ *         description: Reserva no encontrada
+ *       409:
+ *         description: La reserva ya no se puede cancelar
+ */
+const cancelar = async (req, res) => {
+  try {
+    const actualizada = await svc.cancelar(req.params.id, req.usuario?.id, req.usuario?.rol);
+    res.json(actualizada);
   } catch (e) {
     handleError(res, e);
   }
@@ -395,5 +435,6 @@ module.exports = {
   create,
   update,
   cambiarEstado,
+  cancelar,
   remove,
 };

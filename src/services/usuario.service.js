@@ -588,8 +588,19 @@ const actualizarPerfil = async (id, data = {}) => {
   if (!Object.keys(cambios).length) {
     throw { status: 400, message: 'No se envió ningún dato que se pueda editar desde el perfil' };
   }
+  // Nombre, correo y documento identifican a la persona en el parqueadero: se pueden
+  // corregir, pero no borrar. (El teléfono sí es opcional, ver arriba.)
   if (cambios.nombre === '') {
     throw { status: 400, message: 'El nombre no puede quedar vacío' };
+  }
+  if (cambios.correo === '') {
+    throw { status: 400, message: 'El correo no puede quedar vacío' };
+  }
+  if (cambios.numero_documento !== undefined && !String(cambios.numero_documento).trim()) {
+    throw { status: 400, message: 'El número de documento es obligatorio' };
+  }
+  if (cambios.tipo_documento !== undefined && !String(cambios.tipo_documento).trim()) {
+    throw { status: 400, message: 'El tipo de documento es obligatorio' };
   }
 
   // Nadie necesita saber de quién es el documento que chocó para corregir el suyo, y quien

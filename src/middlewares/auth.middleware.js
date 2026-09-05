@@ -109,7 +109,9 @@ const verificarRol = (rolesRequeridos) => {
       if (!rolesArray.includes(req.usuario.rol)) {
         return res.status(403).json({
           status: 403,
-          message: 'No tienes permiso para acceder a este recurso'
+          // Genérico a propósito: enumerar el permiso o el rol que falta le dice a quien
+          // no debería tenerlo cómo está montado el control de acceso.
+          message: 'No tienes los permisos requeridos'
         });
       }
 
@@ -194,10 +196,8 @@ const verificarPermiso = (...permisosRequeridos) => {
       const permisos = await permisosDelRol(req.usuario.rol);
       if (requeridos.some((p) => permisos.has(p))) return next();
 
-      return res.status(403).json({
-        status: 403,
-        message: `No tienes el permiso requerido: ${requeridos.join(' o ')}`,
-      });
+      // Ver verificarRol: el mensaje no nombra el permiso que falta.
+      return res.status(403).json({ status: 403, message: 'No tienes los permisos requeridos' });
     } catch (error) {
       console.error('Error en verificarPermiso:', error);
       return res.status(500).json({ status: 500, message: 'Error en la verificación de permisos' });
@@ -227,10 +227,7 @@ const verificarAcceso = ({ permisos = [], roles = [] }) => async (req, res, next
     const delRol = await permisosDelRol(req.usuario.rol);
     if (permisos.some((p) => delRol.has(p))) return next();
 
-    return res.status(403).json({
-      status: 403,
-      message: `No tienes el permiso requerido: ${permisos.join(' o ')}`,
-    });
+    return res.status(403).json({ status: 403, message: 'No tienes los permisos requeridos' });
   } catch (error) {
     console.error('Error en verificarAcceso:', error);
     return res.status(500).json({ status: 500, message: 'Error en la verificación de permisos' });

@@ -126,7 +126,7 @@ const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
  * @param {Date} [momento] - Referencia temporal; por defecto, ahora.
  * @returns {Promise<Object|null>}
  */
-const findReservaQueBloquea = async (celdaId, momento = new Date()) => {
+const findReservaQueBloquea = async (celdaId, momento = new Date(), { transaction } = {}) => {
   const row = await Reserva.findOne({
     where: {
       celda_id: celdaId,
@@ -134,6 +134,7 @@ const findReservaQueBloquea = async (celdaId, momento = new Date()) => {
       fecha_hora_fin: { [Op.gt]: momento },
     },
     order: [['fecha_hora_inicio', 'ASC']],
+    transaction,
   });
   return row ? row.toJSON() : null;
 };
