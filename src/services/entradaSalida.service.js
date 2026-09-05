@@ -20,38 +20,60 @@ const parqRepo = require('../repositories/parqueadero.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
-const { validarHorarioOperacion } = require('../config/horarioOperacion');
+const { validarHorarioOperacion, horaEnBogotaTexto } = require('../config/horarioOperacion');
+const { MARGEN_ESTACIONAR_ANTES_MINUTOS, MINUTO_MS, _enPalabras } = require('../config/reglasReserva');
 const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
 
 /**
- * Si la celda está reservada en este momento, exige que quien entra sea EXACTAMENTE la
- * reserva: mismo vehículo y mismo conductor.
+ * Decide si este vehículo puede ocupar esta celda ahora mismo, mirando su AGENDA.
  *
- * El trigger fn_validar_ocupacion_celda (punto 3.3) ya comparaba el vehículo, pero ignora
- * al conductor: con la reserva de "Vehículo A + Conductor A", entrar con "Vehículo A +
- * Conductor B" pasaba sin problema y el registro quedaba a nombre de quien no reservó.
+ * Una reserva aparta una franja, no la celda entera (ver la migración 006). Así que hay dos
+ * cosas que comprobar, y solo dos:
+ *
+ *  1. **Reserva vigente ahora**: entra exactamente quien reservó — mismo vehículo y mismo
+ *     conductor. El trigger de la base compara el vehículo pero ignora al conductor: con la
+ *     reserva de "Vehículo A + Conductor A", entrar con "Vehículo A + Conductor B" pasaba sin
+ *     problema y el registro quedaba a nombre de quien no reservó.
+ *  2. **Reserva próxima**: si la siguiente empieza dentro de menos del margen para
+ *     estacionar, no se admite a nadie más — no da tiempo a usar la celda y desalojarla con
+ *     orden. Quien SÍ tiene esa reserva puede entrar antes: es suya.
  *
  * @private
  * @param {Object} celda
  * @param {number} vehiculoId
  * @param {number} [conductorId]
- * @throws {Object} 409 si el vehículo o el conductor no son los de la reserva vigente.
+ * @throws {Object} 409 si la celda está reservada ahora para otro, o si la próxima reserva
+ *   está demasiado cerca.
  */
 const _validarReservaDeCelda = async (celda, vehiculoId, conductorId) => {
-  if (celda.estado !== 'RESERVADA') return;
+  const ahora = new Date();
 
-  const reserva = await reservaRepo.findReservaQueBloquea(celda.id);
-  if (!reserva) return; // Estado RESERVADA sin reserva que lo justifique: nadie a quien proteger.
-
-  if (reserva.vehiculo_id && reserva.vehiculo_id !== vehiculoId) {
-    throw { status: 409, message: `La celda ${celda.numero} está reservada para otro vehículo` };
+  const vigente = await reservaRepo.findVigenteEnCelda(celda.id, ahora);
+  if (vigente) {
+    if (vigente.vehiculo_id && vigente.vehiculo_id !== vehiculoId) {
+      throw { status: 409, message: `La celda ${celda.numero} está reservada en este horario para otro vehículo` };
+    }
+    if (vigente.conductor_id && vigente.conductor_id !== conductorId) {
+      throw {
+        status: 409,
+        message: conductorId
+          ? `La celda ${celda.numero} está reservada en este horario para otro conductor`
+          : `La celda ${celda.numero} está reservada: debes identificar al conductor de la reserva para registrar el ingreso`,
+      };
+    }
+    return;
   }
-  if (reserva.conductor_id && reserva.conductor_id !== conductorId) {
+
+  const proxima = await reservaRepo.findProximaEnCelda(celda.id, ahora);
+  if (!proxima) return;
+  // Quien tiene la próxima reserva puede llegar antes de su hora: la celda es suya.
+  if (proxima.vehiculo_id === vehiculoId) return;
+
+  const faltan = (new Date(proxima.fecha_hora_inicio).getTime() - ahora.getTime()) / MINUTO_MS;
+  if (faltan < MARGEN_ESTACIONAR_ANTES_MINUTOS) {
     throw {
       status: 409,
-      message: conductorId
-        ? `La celda ${celda.numero} está reservada para otro conductor`
-        : `La celda ${celda.numero} está reservada: debes identificar al conductor de la reserva para registrar el ingreso`,
+      message: `La celda ${celda.numero} tiene una reserva a las ${horaEnBogotaTexto(new Date(proxima.fecha_hora_inicio))} y falta menos de ${_enPalabras(MARGEN_ESTACIONAR_ANTES_MINUTOS)}: no da tiempo a usarla y desalojarla. Elige otra celda.`,
     };
   }
 };
@@ -150,8 +172,8 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
     }
   }
 
-  // Celda reservada: solo entra la pareja vehículo+conductor de la reserva. Va después de
-  // resolver el conductor para poder compararlo.
+  // Agenda de la celda: quién puede entrar ahora y con cuánto margen (ver la función). Va
+  // después de resolver el conductor para poder compararlo.
   if (celda) await _validarReservaDeCelda(celda, vehiculo_id, conductor_id);
 
   const ingresoAbierto = await repo.findIngresoAbierto(vehiculo_id);

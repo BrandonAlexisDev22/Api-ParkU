@@ -18,6 +18,7 @@ const disponibilidadRepo = require('../repositories/disponibilidadCelda.reposito
 const vehRepo = require('../repositories/vehiculo.repository');
 const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { MARGEN_ESTACIONAR_ANTES_MINUTOS, MINUTO_MS } = require('../config/reglasReserva');
 
 const MOTIVO_AJUSTE_CANTIDADES = 'AJUSTE_OPERATIVO';
 
@@ -95,17 +96,33 @@ const getDisponibles = async (parqueaderoId, { tipo, vehiculo_id } = {}) => {
   }
 
   const disponibles = await repo.findDisponibles(parqueaderoId, tipoFiltro);
-  if (!vehiculo_id) return disponibles;
 
-  // Un vehículo con reserva aceptada tiene que poder estacionar EN SU celda, y esa celda
-  // está en estado RESERVADA -- justamente el estado que este listado excluye. Sin esto,
-  // reservar dejaba al conductor sin ninguna celda que elegir al llegar: la suya no
-  // aparecía por estar reservada, y las demás lo rechazaban al intentar el ingreso.
-  // Se marca con reservada_para_este_vehiculo para que el frontend la destaque.
+  // Una reserva aparta una FRANJA, no la celda entera: la celda sigue DISPONIBLE aunque
+  // tenga dueño a las tres de la tarde. Así que "disponible" ya no basta para ofrecerla --
+  // hay que mirar la agenda y descartar las que están reservadas ahora mismo, y las que
+  // tienen una reserva tan cerca que no daría tiempo a usarlas y desalojarlas. Es la misma
+  // regla que aplica el ingreso (_validarReservaDeCelda): sin esto, el listado ofrecería
+  // celdas que el registro va a rechazar un minuto después.
+  const limite = new Date(Date.now() + MARGEN_ESTACIONAR_ANTES_MINUTOS * MINUTO_MS);
+  const retenciones = await reservaRepo.findQueRetienen(disponibles.map((c) => c.id), limite);
+  const libres = disponibles.filter((c) => !retenciones.some(
+    (r) => Number(r.celda_id) === Number(c.id) && Number(r.vehiculo_id) !== Number(vehiculo_id),
+  ));
+
+  if (!vehiculo_id) return libres;
+
+  // Un vehículo con reserva aceptada tiene que poder estacionar EN SU celda. Se marca con
+  // reservada_para_este_vehiculo para que el frontend la destaque: es la que le corresponde,
+  // aunque el resto del listado sean celdas libres cualesquiera.
   const suya = await _celdaReservadaPara(vehiculo_id, parqueaderoId);
-  if (!suya || disponibles.some((c) => c.id === suya.id)) return disponibles;
+  if (!suya) return libres;
 
-  return [{ ...suya, reservada_para_este_vehiculo: true }, ...disponibles];
+  // De primera y marcada: es la que le corresponde, y quien llega a estacionar no debería
+  // tener que buscarla entre las demás.
+  return [
+    { ...suya, reservada_para_este_vehiculo: true },
+    ...libres.filter((c) => Number(c.id) !== Number(suya.id)),
+  ];
 };
 
 /**

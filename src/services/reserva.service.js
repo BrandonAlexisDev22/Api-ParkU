@@ -22,7 +22,7 @@ const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto, esDomingoEnBogota } = req
 const {
   ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, HORA_MAXIMA_INICIO,
   MARGEN_CANCELACION_MINUTOS, MARGEN_CONFIRMACION_MINUTOS,
-  MARGEN_LLEGADA_MINUTOS, MOTIVO_VENCIMIENTO_ACEPTADA, MOTIVO_SIN_CONFIRMAR,
+  MARGEN_LLEGADA_MINUTOS, MOTIVO_VENCIMIENTO_ACEPTADA, MOTIVO_SIN_CONFIRMAR, MOTIVO_FRANJA_TOMADA,
   MINUTO_MS, _enPalabras,
 } = require('../config/reglasReserva');
 
@@ -358,10 +358,10 @@ const update = async (id, datos, usuarioId) => {
     throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
   }
 
-  // Mover una reserva ACEPTADA a otra celda dejaba las dos celdas mal: el trigger
-  // fn_reserva_bloquea_celda solo reacciona a los cambios de ESTADO, no a los de celda, así
-  // que la celda abandonada se quedaba RESERVADA para siempre (sin ninguna reserva que lo
-  // explicara) y la nueva no se retenía. Se corrigen las dos aquí, en la misma transacción.
+  // Mover una reserva ACEPTADA a otra celda ya no exige retener la nueva: una reserva aparta
+  // una franja de la agenda, no la celda entera. Lo único que queda por hacer es soltar la
+  // celda que abandona SI había quedado marcada por el modelo anterior — si no, se quedaría
+  // en RESERVADA para siempre, sin ninguna reserva que lo explicara.
   const cambiaDeCelda = datos.celda_id !== undefined
     && Number(datos.celda_id) !== Number(reservaActual.celda_id);
   const mueveUnaAceptada = reservaActual.estado === 'ACEPTADA' && cambiaDeCelda;
@@ -371,12 +371,11 @@ const update = async (id, datos, usuarioId) => {
       const actualizada = await repo.update(id, datos, { transaction });
 
       if (mueveUnaAceptada) {
-        // La anterior solo se suelta si no queda ninguna otra reserva aceptada esperándola.
+        // Solo se suelta si no queda ninguna otra reserva aceptada esperándola.
         const otraQueBloquea = await repo.findReservaQueBloquea(reservaActual.celda_id, new Date(), { transaction });
         if (!otraQueBloquea) {
           await celdaRepo.liberarSiEstaReservada(reservaActual.celda_id, { transaction });
         }
-        await celdaRepo.reservarSiEstaDisponible(datos.celda_id, { transaction });
       }
 
       return actualizada;
@@ -401,6 +400,17 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(', ')}` };
   }
 
+  // Aceptar es lo que compromete la franja: se comprueba aquí, con un mensaje que se
+  // entiende, antes de que lo haga el trigger con su excepción de Postgres.
+  if (estado === 'ACEPTADA') {
+    const yaTomada = await repo.findConflictos(
+      reserva.celda_id, reserva.fecha_hora_inicio, reserva.fecha_hora_fin, reserva.id,
+    );
+    if (yaTomada.length) {
+      throw { status: 409, message: 'Esa celda ya tiene otra reserva aceptada en esa franja horaria' };
+    }
+  }
+
   const permitidos = TRANSICIONES[reserva.estado] ?? [];
   if (!permitidos.includes(estado)) {
     throw {
@@ -422,13 +432,47 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
     // Se pasa el motivo de rechazo como `app.motivo` para que fn_historial_reserva lo
     // registre en historial_reserva.motivo (antes se perdía: quedaba solo en
     // reserva.motivo_rechazo y nunca llegaba al historial).
-    return await runWithUsuario(
+    const actualizada = await runWithUsuario(
       usuarioId,
       (transaction) => repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, { transaction }),
       { motivo: motivoRechazo },
     );
+
+    // Aceptar una reserva resuelve la competencia por esa franja: las demás solicitudes que
+    // se solapaban con ella ya no pueden cumplirse, así que se cancelan solas con el motivo
+    // escrito, en vez de quedarse pendientes esperando algo que nunca va a poder pasar.
+    if (estado === 'ACEPTADA') await _cancelarCompetidoras(reserva, usuarioId);
+
+    return actualizada;
   } catch (error) {
     traducirErrorTrigger(error);
+  }
+};
+
+/**
+ * Cancela las solicitudes pendientes que competían por la misma celda y franja que la
+ * reserva recién aceptada.
+ * @private
+ * @param {Object} reserva - La que se acaba de aceptar.
+ * @param {number} usuarioId - Quien la aceptó (queda como gestor de las cancelaciones).
+ * @returns {Promise<void>}
+ */
+const _cancelarCompetidoras = async (reserva, usuarioId) => {
+  const competidoras = await repo.findPendientesQueChocan(
+    reserva.celda_id, reserva.fecha_hora_inicio, reserva.fecha_hora_fin, reserva.id,
+  );
+  for (const otra of competidoras) {
+    try {
+      await runWithUsuario(
+        usuarioId,
+        (transaction) => repo.cambiarEstado(otra.id, 'CANCELADA', usuarioId, MOTIVO_FRANJA_TOMADA, { transaction }),
+        { motivo: MOTIVO_FRANJA_TOMADA },
+      );
+    } catch (error) {
+      // Que una competidora no se pueda cancelar (alguien la gestionó en este mismo
+      // instante) no debe deshacer la aceptación que sí funcionó.
+      console.error(`No se pudo cancelar la reserva ${otra.id} al aceptar la ${reserva.id}:`, error.message || error);
+    }
   }
 };
 

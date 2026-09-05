@@ -112,7 +112,12 @@ const findCaducadas = async (limiteConfirmacion, limiteLlegada) => {
 };
 
 /**
- * Detecta conflictos de horario para una celda (solo reservas PENDIENTE/ACEPTADA).
+ * Detecta conflictos de horario para una celda: solo cuentan las reservas ACEPTADAS.
+ *
+ * Una solicitud PENDIENTE no compromete la franja — dos personas pueden pedir la misma hora
+ * y que decida quien gestiona el parqueadero (al aceptar una, las demás se cancelan solas).
+ * Antes también chocaban entre ellas, así que la reserva se resolvía por orden de llegada y
+ * la segunda persona recibía un rechazo por algo que nadie había aprobado todavía.
  * @param {number} celdaId
  * @param {string|Date} inicio
  * @param {string|Date} fin
@@ -122,7 +127,7 @@ const findCaducadas = async (limiteConfirmacion, limiteLlegada) => {
 const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
   const where = {
     celda_id: celdaId,
-    estado: { [Op.in]: ['PENDIENTE', 'ACEPTADA'] },
+    estado: 'ACEPTADA',
     fecha_hora_inicio: { [Op.lt]: fin },
     fecha_hora_fin: { [Op.gt]: inicio },
   };
@@ -133,15 +138,105 @@ const findConflictos = async (celdaId, inicio, fin, excludeId = null) => {
 };
 
 /**
- * Reserva que está reteniendo una celda: la ACEPTADA más próxima que todavía no ha
- * terminado. Es la que explica por qué celda.estado vale RESERVADA.
+ * La reserva que está VIGENTE en una celda en un momento dado: la aceptada cuyo rango
+ * contiene ese instante. Es la única que impide que otro vehículo ocupe la celda — las de
+ * más tarde no estorban, para eso la celda tiene agenda.
+ * @param {number} celdaId
+ * @param {Date} [momento]
+ * @returns {Promise<Object|null>}
+ */
+const findVigenteEnCelda = async (celdaId, momento = new Date()) => {
+  const row = await Reserva.findOne({
+    where: {
+      celda_id: celdaId,
+      estado: 'ACEPTADA',
+      fecha_hora_inicio: { [Op.lte]: momento },
+      fecha_hora_fin: { [Op.gt]: momento },
+    },
+    include: includeContexto,
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
+ * La siguiente reserva aceptada de una celda a partir de un momento: la que marca hasta
+ * cuándo puede quedarse quien ocupe la celda ahora.
+ * @param {number} celdaId
+ * @param {Date} [desde]
+ * @returns {Promise<Object|null>}
+ */
+const findProximaEnCelda = async (celdaId, desde = new Date()) => {
+  const row = await Reserva.findOne({
+    where: {
+      celda_id: celdaId,
+      estado: 'ACEPTADA',
+      fecha_hora_inicio: { [Op.gt]: desde },
+    },
+    include: includeContexto,
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
+ * Solicitudes PENDIENTES que compiten por la misma celda y franja que otra reserva. Al
+ * aceptar una, estas dejan de tener sentido: la franja ya está tomada.
+ * @param {number} celdaId
+ * @param {Date|string} inicio
+ * @param {Date|string} fin
+ * @param {number} excluirId
+ * @returns {Promise<Array>}
+ */
+const findPendientesQueChocan = async (celdaId, inicio, fin, excluirId) => {
+  const rows = await Reserva.findAll({
+    where: {
+      celda_id: celdaId,
+      estado: 'PENDIENTE',
+      id: { [Op.ne]: excluirId },
+      fecha_hora_inicio: { [Op.lt]: fin },
+      fecha_hora_fin: { [Op.gt]: inicio },
+    },
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
+ * Reservas que hacen inservible una celda para OTRO vehículo en este momento: las aceptadas
+ * que siguen vivas y empiezan antes de `limite`.
  *
- * No se filtra por "que contenga este instante" a propósito. El trigger
- * fn_reserva_bloquea_celda pone la celda en RESERVADA en cuanto la reserva se acepta,
- * aunque sea para dentro de tres horas; si aquí solo se miraran las reservas vigentes
- * ahora mismo, la celda quedaría retenida pero sin dueño identificable, y cualquier otro
- * vehículo podría ocuparla o un administrador liberarla sin enterarse de que hay alguien
- * esperándola.
+ * Son dos casos en una sola consulta, los mismos que aplica _validarReservaDeCelda: la que
+ * está en curso ahora, y la que viene tan pronto que no daría tiempo a ocupar la celda y
+ * desalojarla. Se resuelve para todas las celdas de una vez porque el listado de celdas
+ * disponibles lo necesita para el parqueadero entero.
+ *
+ * @param {number[]} celdaIds
+ * @param {Date} limite - Hasta cuándo mirar hacia adelante (ahora + margen para estacionar).
+ * @param {Date} [momento] - Referencia de "ahora".
+ * @returns {Promise<Array>} Reservas con celda_id y vehiculo_id.
+ */
+const findQueRetienen = async (celdaIds, limite, momento = new Date()) => {
+  if (!celdaIds.length) return [];
+  const rows = await Reserva.findAll({
+    where: {
+      celda_id: { [Op.in]: celdaIds },
+      estado: 'ACEPTADA',
+      fecha_hora_fin: { [Op.gt]: momento },
+      fecha_hora_inicio: { [Op.lt]: limite },
+    },
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
+ * Reserva que tiene apalabrada una celda: la ACEPTADA más próxima que todavía no ha
+ * terminado.
+ *
+ * No se filtra por "que contenga este instante" a propósito: sirve para saber si alguien
+ * está esperando esa celda, no si la está usando ahora. Una reserva de dentro de tres horas
+ * cuenta — es justo la que no hay que perder de vista al mover o soltar la celda.
  *
  * @param {number} celdaId
  * @param {Date} [momento] - Referencia temporal; por defecto, ahora.
@@ -242,7 +337,11 @@ module.exports = {
   findActivasPorParqueadero,
   findCaducadas,
   findConflictos,
+  findVigenteEnCelda,
+  findProximaEnCelda,
+  findPendientesQueChocan,
   findReservaQueBloquea,
+  findQueRetienen,
   create,
   update,
   cambiarEstado,

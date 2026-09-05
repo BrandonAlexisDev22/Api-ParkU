@@ -43,6 +43,27 @@ const MARGEN_CANCELACION_MINUTOS = 30;
 const MARGEN_CONFIRMACION_MINUTOS = 30;
 
 /**
+ * Con cuánta antelación a la próxima reserva se puede ocupar una celda que tiene agenda.
+ * Menos de esto no da tiempo a usarla y desalojar con orden, así que no se admite el ingreso.
+ */
+const MARGEN_ESTACIONAR_ANTES_MINUTOS = 120;
+
+/**
+ * A qué hora, como muy tarde, tiene que haber salido quien ocupó una celda con reserva
+ * próxima: media hora antes de que empiece, para que la celda esté libre y limpia a tiempo.
+ */
+const MARGEN_SALIDA_ANTES_MINUTOS = 30;
+
+/**
+ * Cuándo se avisa al vigilante de que hay que desalojar: veinte minutos antes del plazo
+ * máximo de salida, para que dé tiempo a localizar al conductor y que mueva el vehículo.
+ */
+const AVISO_DESALOJO_MINUTOS = MARGEN_SALIDA_ANTES_MINUTOS + 20;
+
+/** Cuándo se avisa de que se acerca la siguiente reserva de una celda ya reservada. */
+const AVISO_PROXIMA_RESERVA_MINUTOS = 30;
+
+/**
  * Minutos que se le esperan al vehículo desde la hora de inicio. Pasados estos, la reserva se
  * cancela sola y la celda vuelve a estar disponible: una celda apartada para alguien que no
  * llegó es una celda que nadie puede usar.
@@ -52,6 +73,9 @@ const MARGEN_LLEGADA_MINUTOS = 20;
 /** Lo que queda escrito en la reserva cuando cambia sola, para que se sepa por qué. */
 const MOTIVO_VENCIMIENTO_ACEPTADA = `Cancelada automáticamente: pasaron ${MARGEN_LLEGADA_MINUTOS} minutos desde la hora de inicio sin que el vehículo llegara, y la celda se liberó.`;
 const MOTIVO_SIN_CONFIRMAR = `Rechazada automáticamente: la solicitud no se aprobó a ${MARGEN_CONFIRMACION_MINUTOS} minutos de la hora de inicio.`;
+
+/** Cuando se acepta una reserva, las que competían por esa misma franja se cancelan con esto. */
+const MOTIVO_FRANJA_TOMADA = 'Cancelada automáticamente: se aceptó otra reserva para esa misma celda y franja horaria.';
 
 const MINUTO_MS = 60 * 1000;
 
@@ -74,8 +98,13 @@ module.exports = {
   MARGEN_CANCELACION_MINUTOS,
   MARGEN_CONFIRMACION_MINUTOS,
   MARGEN_LLEGADA_MINUTOS,
+  MARGEN_ESTACIONAR_ANTES_MINUTOS,
+  MARGEN_SALIDA_ANTES_MINUTOS,
+  AVISO_DESALOJO_MINUTOS,
+  AVISO_PROXIMA_RESERVA_MINUTOS,
   MOTIVO_VENCIMIENTO_ACEPTADA,
   MOTIVO_SIN_CONFIRMAR,
+  MOTIVO_FRANJA_TOMADA,
   MINUTO_MS,
   _enPalabras,
 };

@@ -9,7 +9,7 @@
  */
 
 const { Celda, Parqueadero } = require('../models');
-const { Op } = require('sequelize');
+const { Op, literal } = require('sequelize');
 
 /**
  * Aplana el resultado de Sequelize para mantener el mismo shape
@@ -164,25 +164,12 @@ const cambiarEstado = async (id, estado, { transaction } = {}) => {
 };
 
 /**
- * Retiene una celda para una reserva aceptada. Como en `liberarSiEstaReservada`, la
- * condición viaja en el UPDATE: si la celda no está libre (hay un vehículo dentro, o está
- * en mantenimiento) no se toca, exactamente igual que hace el trigger al aceptar.
- * @param {number} id
- * @param {import('sequelize').Transaction} [opciones.transaction]
- * @returns {Promise<boolean>} true si de verdad quedó reservada.
- */
-const reservarSiEstaDisponible = async (id, { transaction } = {}) => {
-  const [filas] = await Celda.update(
-    { estado: 'RESERVADA' },
-    { where: { id, estado: 'DISPONIBLE' }, transaction },
-  );
-  return filas > 0;
-};
-
-/**
- * Suelta una celda que estaba retenida por una reserva. La condición `estado = 'RESERVADA'`
- * va en el propio UPDATE, igual que en el trigger fn_reserva_bloquea_celda: si mientras
- * tanto la celda pasó a OCUPADA (llegó un vehículo) o a MANTENIMIENTO, no se toca.
+ * Suelta una celda que quedó retenida por una reserva. Ya no existe la operación contraria:
+ * aceptar una reserva no marca la celda, porque una reserva aparta una FRANJA y no el día
+ * entero (ver la migración 006). Esto sigue aquí para soltar las que el modelo anterior dejó
+ * marcadas. La condición `estado = 'RESERVADA'` va en el propio UPDATE, igual que en el
+ * trigger fn_reserva_bloquea_celda: si mientras tanto la celda pasó a OCUPADA (llegó un
+ * vehículo) o a MANTENIMIENTO, no se toca.
  * @param {number} id
  * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<boolean>} true si de verdad se liberó.
@@ -303,7 +290,19 @@ const contarVigentesPorGrupoTipo = (parqueaderoId, tipo, usabilidad) =>
  */
 const findDesactivables = async (parqueaderoId, tipo, usabilidad, limite, { transaction } = {}) => {
   const rows = await Celda.findAll({
-    where: { parqueadero: parqueaderoId, tipo, usabilidad, estado: 'DISPONIBLE' },
+    where: {
+      parqueadero: parqueaderoId, tipo, usabilidad, estado: 'DISPONIBLE',
+      // Una celda con una reserva aceptada por delante no es "libre" aunque su estado diga
+      // DISPONIBLE: desde que las reservas apartan una franja en vez de la celda entera (ver
+      // la migración 006), el estado ya no delata a la que tiene dueño esta tarde. Retirarla
+      // dejaría a esa persona con una reserva sobre una celda que ya no existe.
+      id: {
+        [Op.notIn]: literal(
+          '(SELECT r.celda_id FROM reserva r '
+          + "WHERE r.estado = 'ACEPTADA' AND r.fecha_hora_fin > CURRENT_TIMESTAMP)"
+        ),
+      },
+    },
     order: [['numero', 'DESC']],
     limit: limite,
     transaction,
@@ -333,7 +332,6 @@ module.exports = {
   create,
   update,
   cambiarEstado,
-  reservarSiEstaDisponible,
   liberarSiEstaReservada,
   generarLote,
   contarPorGrupoTipo,
