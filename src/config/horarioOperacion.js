@@ -92,9 +92,23 @@ const minutosFueraDeHorario = (fecha = new Date()) => {
   return Math.max(0, Math.round((fecha - referencia) / 60000));
 };
 
+/**
+ * "HH:MM" en hora de Bogotá para un instante dado. Sirve para comparar la hora de una
+ * reserva con las de la ventana de operación sin depender de la zona horaria del proceso.
+ * @param {Date} fecha
+ * @returns {string}
+ */
+const horaEnBogotaTexto = (fecha) => {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: ZONA_HORARIA, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(fecha);
+  return partes === '24:00' ? '00:00' : partes;
+};
+
 module.exports = {
   HORA_APERTURA,
   HORA_CIERRE,
+  horaEnBogotaTexto,
   estaDentroDeHorarioOperacion,
   validarHorarioOperacion,
   minutosFueraDeHorario,

@@ -18,11 +18,16 @@ const vehRepo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
-const { validarHorarioOperacion } = require('../config/horarioOperacion');
+const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto } = require('../config/horarioOperacion');
 const {
-  ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, MARGEN_CANCELACION_MINUTOS,
+  ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, HORA_MAXIMA_INICIO,
+  MARGEN_CANCELACION_MINUTOS, MARGEN_CONFIRMACION_MINUTOS,
+  MARGEN_LLEGADA_MINUTOS, MOTIVO_VENCIMIENTO_ACEPTADA, MOTIVO_SIN_CONFIRMAR,
   MINUTO_MS, _enPalabras,
 } = require('../config/reglasReserva');
+
+const APERTURA = `${String(HORA_APERTURA).padStart(2, '0')}:00`;
+const CIERRE = `${String(HORA_CIERRE).padStart(2, '0')}:00`;
 const { ROLES } = require('../config/roles');
 const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
 
@@ -48,10 +53,60 @@ const TRANSICIONES = {
 const ESTADOS_EDITABLES = ['PENDIENTE', 'ACEPTADA'];
 
 /**
+ * Cancela las reservas que se quedaron sin sentido, y con ellas suelta las celdas que
+ * estaban reteniendo:
+ *
+ * - **Aceptadas** a las que ya se les pasó el margen de llegada: la celda estaba apartada
+ *   para un vehículo que no llegó, y mientras siga apartada nadie más puede usarla. Se
+ *   CANCELAN.
+ * - **Pendientes** que llegaron al margen de confirmación sin que nadie las aprobara: a
+ *   media hora del inicio ya no da tiempo de organizarse. Se RECHAZAN.
+ *
+ * Cada cancelación pasa por `cambiarEstado`, así que la BD libera la celda con su propio
+ * trigger y queda el rastro en el historial, con el motivo escrito para que se entienda por
+ * qué cambió sola. Se atribuye al usuario indicado (por defecto la cuenta administradora):
+ * el historial exige un autor, y el motivo deja claro que fue automático.
+ *
+ * @param {number} [usuarioId=1] - A quién se le atribuye la cancelación automática.
+ * @returns {Promise<number>} Cuántas reservas se cancelaron.
+ */
+const vencerCaducadas = async (usuarioId = 1) => {
+  const ahora = new Date();
+  const limiteLlegada = new Date(ahora.getTime() - MARGEN_LLEGADA_MINUTOS * MINUTO_MS);
+  const limiteConfirmacion = new Date(ahora.getTime() + MARGEN_CONFIRMACION_MINUTOS * MINUTO_MS);
+
+  const caducadas = await repo.findCaducadas(limiteConfirmacion, limiteLlegada);
+  for (const reserva of caducadas) {
+    // La aceptada que nadie usó se CANCELA; la solicitud que nadie aprobó a tiempo se
+    // RECHAZA: no es lo mismo echarse atrás que no llegar a aprobarse.
+    const esPendiente = reserva.estado === 'PENDIENTE';
+    const nuevoEstado = esPendiente ? 'RECHAZADA' : 'CANCELADA';
+    const motivo = esPendiente ? MOTIVO_SIN_CONFIRMAR : MOTIVO_VENCIMIENTO_ACEPTADA;
+    try {
+      await cambiarEstado(reserva.id, nuevoEstado, usuarioId, motivo);
+    } catch (error) {
+      // Que una reserva no se pueda vencer (p. ej. alguien la gestionó en este mismo
+      // instante) no debe tumbar la consulta que disparó el barrido.
+      console.error(`No se pudo vencer la reserva ${reserva.id}:`, error.message || error);
+    }
+  }
+  return caducadas.length;
+};
+
+/**
  * Obtiene el listado de todas las reservas.
+ *
+ * Antes de responder vence las que ya caducaron: sin esto, la única forma de que una reserva
+ * abandonada soltara su celda era que un administrador tuviera la aplicación abierta (el
+ * vencimiento vivía solo en el navegador), así que un fin de semana sin nadie dentro dejaba
+ * celdas retenidas por reservas que nadie iba a usar.
+ * @param {number} [usuarioId] - Quien consulta; solo se usa para atribuir el vencimiento.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async (usuarioId) => {
+  await vencerCaducadas(usuarioId);
+  return repo.findAll();
+};
 
 /**
  * Busca una reserva por su ID.
@@ -104,6 +159,25 @@ const _validarFechas = (inicio, fin) => {
     throw {
       status: 400,
       message: `La reserva debe durar al menos ${_enPalabras(DURACION_MINIMA_MINUTOS)}`,
+    };
+  }
+
+  // La reserva vive dentro del horario en que el parqueadero opera. Esto mira las horas DE
+  // LA RESERVA, no la hora a la que se está pidiendo: se puede reservar de madrugada para
+  // el día siguiente, lo que no se puede es reservar para una hora en la que está cerrado.
+  const horaInicio = horaEnBogotaTexto(i);
+  const horaFin = horaEnBogotaTexto(f);
+  if (horaInicio < APERTURA || horaFin > CIERRE) {
+    throw {
+      status: 400,
+      message: `La reserva debe estar dentro del horario de operación (${APERTURA} a ${CIERRE})`,
+    };
+  }
+  // Empezar pegado al cierre no tiene coherencia; terminar cerca del cierre sí.
+  if (horaInicio > HORA_MAXIMA_INICIO) {
+    throw {
+      status: 400,
+      message: `Una reserva no puede empezar después de las ${HORA_MAXIMA_INICIO}: está muy cerca de la hora de cierre (${CIERRE})`,
     };
   }
 };
@@ -196,8 +270,15 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
   if (!tipo_reserva || !celda_id || !fecha_hora_inicio || !fecha_hora_fin) {
     throw { status: 400, message: 'tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos' };
   }
+  // El motivo es lo que permite a quien aprueba decidir con criterio, y lo que explica la
+  // reserva cuando alguien la revisa semanas después.
+  if (!motivo || !String(motivo).trim()) {
+    throw { status: 400, message: 'El motivo de la reserva es obligatorio' };
+  }
 
-  validarHorarioOperacion();
+  // A propósito NO se mira la hora actual: reservar es planear, y planear se hace a
+  // cualquier hora. Lo que sí tiene que caber en el horario es la reserva misma
+  // (_validarFechas), y estacionar de verdad sigue exigiendo estar en horario.
   _validarFechas(fecha_hora_inicio, fecha_hora_fin);
   const { celda } = await _validarEntidades(celda_id, vehiculo_id);
   const parq = await parqRepo.findById(celda.parqueadero);
@@ -323,8 +404,12 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
         : `La reserva ya está ${reserva.estado.toLowerCase()} y no admite más cambios de estado`,
     };
   }
-  if (estado === 'RECHAZADA' && !motivoRechazo?.trim()) {
-    throw { status: 400, message: 'El motivo de rechazo es obligatorio para rechazar una reserva' };
+  // Rechazar y cancelar cambian los planes de alguien: tiene que quedar escrito por qué.
+  if ((estado === 'RECHAZADA' || estado === 'CANCELADA') && !motivoRechazo?.trim()) {
+    throw {
+      status: 400,
+      message: `El motivo es obligatorio para ${estado === 'RECHAZADA' ? 'rechazar' : 'cancelar'} una reserva`,
+    };
   }
 
   try {
@@ -352,10 +437,11 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
  * @param {number} id
  * @param {number} usuarioId - Quien cancela.
  * @param {number} usuarioRol - Su rol (ver src/config/roles.js).
- * @throws {Object} 403 si la reserva no es suya, 404 si no existe, 409 si ya no se puede cancelar.
+ * @param {string} motivo - Por qué se cancela. Obligatorio, como en cualquier cancelación.
+ * @throws {Object} 400 sin motivo, 403 si la reserva no es suya, 404 si no existe, 409 si ya no se puede cancelar.
  * @returns {Promise<Object>}
  */
-const cancelar = async (id, usuarioId, usuarioRol) => {
+const cancelar = async (id, usuarioId, usuarioRol, motivo) => {
   const reserva = await getById(id);
 
   if (usuarioRol !== ROLES.ADMIN && usuarioRol !== ROLES.VIGILANTE) {
@@ -380,7 +466,7 @@ const cancelar = async (id, usuarioId, usuarioRol) => {
     }
   }
 
-  return cambiarEstado(id, 'CANCELADA', usuarioId);
+  return cambiarEstado(id, 'CANCELADA', usuarioId, motivo);
 };
 
 /**
@@ -413,5 +499,6 @@ module.exports = {
   update,
   cambiarEstado,
   cancelar,
+  vencerCaducadas,
   remove,
 };

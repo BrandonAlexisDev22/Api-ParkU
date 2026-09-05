@@ -91,6 +91,27 @@ const findActivasPorParqueadero = async (parqueaderoId, { transaction, lock } = 
 };
 
 /**
+ * Reservas que ya no tienen sentido (ver vencerCaducadas en el service): las ACEPTADAS a las
+ * que se les pasó el margen de llegada, y las PENDIENTES que llegaron al margen de
+ * confirmación sin que nadie las aprobara.
+ * @param {Date} limiteConfirmacion - `ahora` más el margen de confirmación.
+ * @param {Date} limiteLlegada - `ahora` menos el margen de llegada.
+ * @returns {Promise<Array>}
+ */
+const findCaducadas = async (limiteConfirmacion, limiteLlegada) => {
+  const rows = await Reserva.findAll({
+    where: {
+      [Op.or]: [
+        { estado: 'ACEPTADA', fecha_hora_inicio: { [Op.lt]: limiteLlegada } },
+        { estado: 'PENDIENTE', fecha_hora_inicio: { [Op.lt]: limiteConfirmacion } },
+      ],
+    },
+    order: [['fecha_hora_inicio', 'ASC']],
+  });
+  return rows.map((r) => r.toJSON());
+};
+
+/**
  * Detecta conflictos de horario para una celda (solo reservas PENDIENTE/ACEPTADA).
  * @param {number} celdaId
  * @param {string|Date} inicio
@@ -219,6 +240,7 @@ module.exports = {
   findByVehiculo,
   findByCelda,
   findActivasPorParqueadero,
+  findCaducadas,
   findConflictos,
   findReservaQueBloquea,
   create,

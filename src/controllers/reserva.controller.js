@@ -136,7 +136,7 @@ const { handleError } = require('../helpers/errorHandler');
  */
 const getAll = async (req, res) => {
   try {
-    const data = await svc.getAll();
+    const data = await svc.getAll(req.usuario?.id);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -390,7 +390,8 @@ const cambiarEstado = async (req, res) => {
  */
 const cancelar = async (req, res) => {
   try {
-    const actualizada = await svc.cancelar(req.params.id, req.usuario?.id, req.usuario?.rol);
+    const motivo = req.body?.motivo_rechazo ?? req.body?.motivoRechazo ?? req.body?.motivo;
+    const actualizada = await svc.cancelar(req.params.id, req.usuario?.id, req.usuario?.rol, motivo);
     res.json(actualizada);
   } catch (e) {
     handleError(res, e);
