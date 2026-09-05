@@ -369,7 +369,16 @@ class AuthController {
         success: true,
         message: 'Token válido',
         data: {
-          usuario: { ...req.usuario, rol_nombre: publico?.rol_nombre ?? null, permisos }
+          usuario: {
+            ...req.usuario,
+            rol_nombre: publico?.rol_nombre ?? null,
+            // El documento es de la cuenta desde la migración 002. Va aquí para que la
+            // pantalla de Perfil pueda mostrar quién es la persona en vez de su id interno,
+            // que no le dice nada a nadie.
+            tipo_documento: publico?.tipo_documento ?? null,
+            numero_documento: publico?.numero_documento ?? null,
+            permisos,
+          }
         }
       });
     } catch (error) {
