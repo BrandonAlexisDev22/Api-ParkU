@@ -492,25 +492,34 @@ const update = async (id, data) => {
     return await sequelize.transaction(async (transaction) => {
       const actualizado = await repo.update(id, updateData, { transaction });
 
+      // El Conductor guarda una copia de estos datos de su cuenta (nombre, correo,
+      // teléfono y documento). Si la cuenta cambia y la copia no, las dos pantallas se
+      // contradicen: el módulo de Conductores seguía mostrando el nombre o el correo
+      // viejos después de editar la cuenta. Se sincroniza en la MISMA transacción, así
+      // que o cambian las dos o no cambia ninguna.
+      const copiaDeLaCuenta = {};
+      if (updateData.nombre !== undefined) copiaDeLaCuenta.nombre_apellidos = updateData.nombre;
+      if (updateData.correo !== undefined) copiaDeLaCuenta.correo = updateData.correo;
+      if (updateData.numero_telefonico !== undefined) copiaDeLaCuenta.numero_telefonico = updateData.numero_telefonico;
+
+      // Solo se sincroniza el Conductor que YA existe. Editar una cuenta no crea uno:
+      // el documento vive en la cuenta desde la migración 002, así que no hace falta un
+      // perfil de conductor para guardarlo. Antes se creaba aquí, y por eso a una cuenta
+      // a la que solo se le corregía el documento le aparecía de la nada un conductor
+      // que nadie pidió -- y esa cuenta quedaba marcada como "ya vinculada".
+      const conductorVinculado = await conductorRepo.findByUsuarioId(id, { transaction });
+
       if (tipoDocumentoNormalizado && numeroDocumento) {
-        const conductorVinculado = await conductorRepo.findByUsuarioId(id, { transaction });
         const otroConDocumento = await conductorRepo.findByDocumento(tipoDocumentoNormalizado, numeroDocumento);
         if (otroConDocumento && (!conductorVinculado || otroConDocumento.id !== conductorVinculado.id)) {
           throw { status: 409, message: 'Ya existe un conductor registrado con ese documento' };
         }
+        copiaDeLaCuenta.tipo_documento = tipoDocumentoNormalizado;
+        copiaDeLaCuenta.numero_documento = numeroDocumento;
+      }
 
-        // Solo se sincroniza el Conductor que YA existe. Editar una cuenta no crea uno:
-        // el documento vive en la cuenta desde la migración 002, así que no hace falta un
-        // perfil de conductor para guardarlo. Antes se creaba aquí, y por eso a una cuenta
-        // a la que solo se le corregía el documento le aparecía de la nada un conductor
-        // que nadie pidió -- y esa cuenta quedaba marcada como "ya vinculada".
-        if (conductorVinculado) {
-          await conductorRepo.update(
-            conductorVinculado.id,
-            { tipo_documento: tipoDocumentoNormalizado, numero_documento: numeroDocumento },
-            { transaction },
-          );
-        }
+      if (conductorVinculado && Object.keys(copiaDeLaCuenta).length) {
+        await conductorRepo.update(conductorVinculado.id, copiaDeLaCuenta, { transaction });
       }
 
       return actualizado;
@@ -518,6 +527,54 @@ const update = async (id, data) => {
   } catch (error) {
     traducirErrorTrigger(error);
   }
+};
+
+/**
+ * Campos que una persona puede cambiar en SU propia cuenta desde la pantalla de Perfil.
+ * Fuera de esta lista quedan a propósito el rol, el estado y la contraseña: cambiarse el
+ * rol sería escalar privilegios, desactivarse deja la cuenta inservible, y la contraseña
+ * tiene su endpoint aparte (PATCH /usuarios/:id/contrasena) porque exige la actual.
+ */
+const CAMPOS_EDITABLES_EN_EL_PERFIL = ['nombre', 'correo', 'numero_telefonico', 'tipo_documento', 'numero_documento'];
+
+/**
+ * Actualiza la cuenta de quien está autenticado, limitada a los campos de arriba.
+ *
+ * Reutiliza update() en vez de escribir directo al repositorio: así el perfil hereda las
+ * mismas comprobaciones que ya tenía la edición hecha por un administrador (correo y
+ * teléfono no repetidos, documento válido y libre) y la sincronización con el Conductor
+ * vinculado, sin duplicar ninguna regla.
+ *
+ * @param {number} id - Del token, nunca del cuerpo de la petición.
+ * @param {Object} data - Acepta tanto snake_case como el camelCase del frontend.
+ * @throws {Object} 400 si no llega ningún campo editable.
+ * @returns {Promise<Object>}
+ */
+const actualizarPerfil = async (id, data = {}) => {
+  const cambios = {};
+  for (const campo of CAMPOS_EDITABLES_EN_EL_PERFIL) {
+    if (data[campo] !== undefined) cambios[campo] = data[campo];
+  }
+  // El frontend nombra estos tres a su manera; se aceptan los dos nombres.
+  if (data.tipoDocumento !== undefined) cambios.tipo_documento = data.tipoDocumento;
+  if (data.numeroDocumento !== undefined) cambios.numero_documento = data.numeroDocumento;
+  if (data.numero !== undefined) cambios.numero_telefonico = data.numero;
+
+  // El teléfono es opcional: vaciarlo debe borrarlo, no guardar una cadena vacía.
+  if (cambios.numero_telefonico !== undefined) {
+    cambios.numero_telefonico = String(cambios.numero_telefonico).trim() || null;
+  }
+  if (typeof cambios.nombre === 'string') cambios.nombre = cambios.nombre.trim();
+  if (typeof cambios.correo === 'string') cambios.correo = cambios.correo.trim().toLowerCase();
+
+  if (!Object.keys(cambios).length) {
+    throw { status: 400, message: 'No se envió ningún dato que se pueda editar desde el perfil' };
+  }
+  if (cambios.nombre === '') {
+    throw { status: 400, message: 'El nombre no puede quedar vacío' };
+  }
+
+  return update(id, cambios);
 };
 
 /**
@@ -658,5 +715,6 @@ const remove = async (id, solicitanteId) => {
 // Este service no debe tener una segunda implementación de login.
 
 module.exports = {
-  getAll, getById, getDatosVinculacion, comprobarDisponibilidad, create, update, cambiarContrasena, actualizarFoto, remove,
+  getAll, getById, getDatosVinculacion, comprobarDisponibilidad, create, update, actualizarPerfil,
+  cambiarContrasena, actualizarFoto, remove, CAMPOS_EDITABLES_EN_EL_PERFIL,
 };

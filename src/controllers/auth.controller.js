@@ -371,6 +371,13 @@ class AuthController {
         data: {
           usuario: {
             ...req.usuario,
+            // Estos tres salen de la base, no del token: el token se emitió al iniciar
+            // sesión y no se entera de que la persona editó su perfil (o de que un
+            // administrador editó su cuenta) después. Al venir aquí, recargar la página
+            // basta para ver los datos al día.
+            nombre: publico?.nombre ?? req.usuario.nombre,
+            correo: publico?.correo ?? req.usuario.correo,
+            numero: publico?.numero_telefonico ?? null,
             rol_nombre: publico?.rol_nombre ?? null,
             // El documento es de la cuenta desde la migración 002. Va aquí para que la
             // pantalla de Perfil pueda mostrar quién es la persona en vez de su id interno,

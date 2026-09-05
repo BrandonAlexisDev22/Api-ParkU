@@ -433,6 +433,51 @@ router.put('/foto',
 
 /**
  * @swagger
+ * /api/usuarios/perfil:
+ *   put:
+ *     summary: Actualizar la propia cuenta desde la pantalla de Perfil
+ *     description: >
+ *       Autoservicio - el id sale del token, no de la URL. Solo admite nombre, correo,
+ *       telefono y documento; el rol, el estado y la contrasena quedan fuera a proposito.
+ *       Si la cuenta tiene un conductor vinculado, sus datos se actualizan con ella.
+ *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *               correo:
+ *                 type: string
+ *               numero_telefonico:
+ *                 type: string
+ *                 nullable: true
+ *               tipo_documento:
+ *                 type: string
+ *               numero_documento:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cuenta actualizada
+ *       400:
+ *         description: Datos invalidos o ningun campo editable
+ *       401:
+ *         description: No autorizado - Token requerido
+ *       409:
+ *         description: El correo, el telefono o el documento ya estan en uso
+ */
+router.put('/perfil',
+  verificarToken,
+  ctrl.actualizarPerfil
+);
+
+/**
+ * @swagger
  * /api/usuarios/{id}:
  *   put:
  *     summary: Actualizar datos de perfil (parcial o total)

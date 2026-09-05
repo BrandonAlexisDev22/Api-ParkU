@@ -68,6 +68,16 @@ const update = async (req, res) => {
   }
 };
 
+/** El id sale del token: nadie puede editar la cuenta de otro por esta vía. */
+const actualizarPerfil = async (req, res) => {
+  try {
+    const actualizado = await svc.actualizarPerfil(req.usuario.id, req.body);
+    res.json(actualizado);
+  } catch (e) {
+    handleError(res, e);
+  }
+};
+
 const actualizarFoto = async (req, res) => {
   try {
     if (!req.file) {
@@ -106,6 +116,7 @@ module.exports = {
   disponibilidad,
   create,
   update,
+  actualizarPerfil,
   actualizarFoto,
   cambiarContrasena,
   remove,
