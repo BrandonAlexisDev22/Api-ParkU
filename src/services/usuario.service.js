@@ -506,9 +506,17 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
     updateData.numero_documento = numeroDocumento;
   }
 
+  // Un cambio de estado arrastra al conductor y a sus vehículos (ver _propagarEstadoAlConductor).
+  const estadoNuevo = updateData.estado !== undefined ? String(updateData.estado).toUpperCase() : null;
+  const cambiaEstado = estadoNuevo !== null && estadoNuevo !== String(usuario.estado).toUpperCase();
+
   try {
     return await sequelize.transaction(async (transaction) => {
       const actualizado = await repo.update(id, updateData, { transaction });
+
+      if (cambiaEstado) {
+        await _propagarEstadoAlConductor(id, estadoNuevo === 'ACTIVO', transaction);
+      }
 
       // El Conductor guarda una copia de estos datos de su cuenta (nombre, correo,
       // teléfono y documento). Si la cuenta cambia y la copia no, las dos pantallas se
@@ -545,6 +553,63 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
   } catch (error) {
     traducirErrorTrigger(error);
   }
+};
+
+/**
+ * Apaga (o vuelve a encender) al conductor de una cuenta y los vehículos que solo dependen
+ * de él, en la misma transacción que el cambio de estado de la cuenta.
+ *
+ * La regla: una cuenta desactivada no puede seguir operando por la puerta de atrás. Su ficha
+ * de conductor deja de estar activa y sus vehículos dejan de poder parquear, porque cada
+ * vehículo responde a una persona.
+ *
+ * La excepción importante: un vehículo con OTRO propietario activo NO se apaga. Es de los
+ * dos, y el que sigue habilitado tiene derecho a usarlo -- apagarlo castigaría a quien no
+ * tiene nada que ver.
+ *
+ * @private
+ * @param {number} usuarioId - Cuenta cuyo estado cambió.
+ * @param {boolean} activando - true al reactivar la cuenta, false al desactivarla.
+ * @param {import('sequelize').Transaction} transaction
+ * @returns {Promise<void>}
+ */
+const _propagarEstadoAlConductor = async (usuarioId, activando, transaction) => {
+  // La tabla vehiculo lleva trigger de auditoría y exige saber quién escribe, dentro de esta
+  // misma transacción (ver utils/dbContext.util.js).
+  await sequelize.query('SET LOCAL app.usuario_id = :usuarioId', {
+    replacements: { usuarioId: String(usuarioId) }, transaction,
+  });
+
+  if (activando) {
+    // Al reactivar se devuelven los vehículos que se habían apagado con la cuenta.
+    await sequelize.query(
+      `UPDATE vehiculo SET estado = TRUE
+        WHERE id IN (SELECT dp.vehiculo_id
+                       FROM detalle_propiedad dp
+                       JOIN conductor c ON c.id = dp.conductor_id
+                      WHERE c.usuario_id = :id)`,
+      { replacements: { id: usuarioId }, transaction },
+    );
+  } else {
+    await sequelize.query(
+      `UPDATE vehiculo SET estado = FALSE
+        WHERE id IN (SELECT dp.vehiculo_id
+                       FROM detalle_propiedad dp
+                       JOIN conductor c ON c.id = dp.conductor_id
+                      WHERE c.usuario_id = :id)
+          AND id NOT IN (SELECT dp2.vehiculo_id
+                           FROM detalle_propiedad dp2
+                           JOIN conductor c2 ON c2.id = dp2.conductor_id
+                          WHERE dp2.estado = TRUE AND c2.estado = TRUE
+                            AND (c2.usuario_id IS NULL OR c2.usuario_id <> :id))`,
+      { replacements: { id: usuarioId }, transaction },
+    );
+  }
+
+  await sequelize.query(
+    'UPDATE conductor SET estado = :estado WHERE usuario_id = :id',
+    { replacements: { estado: activando, id: usuarioId }, transaction },
+  );
 };
 
 /**
@@ -717,12 +782,19 @@ const remove = async (id, solicitanteId) => {
       // desvincularlo ya no habría forma de llegar a ellos desde la cuenta. Sin esto, quien
       // se quedó sin acceso podría seguir apareciendo en reservas e ingresos a través de sus
       // vehículos, que sí siguen habilitados.
+      // Mismo criterio que al desactivar (_propagarEstadoAlConductor): un vehículo que
+      // comparte con otro propietario activo no se apaga, porque también es de esa persona.
       await sequelize.query(
         `UPDATE vehiculo SET estado = FALSE
           WHERE id IN (SELECT dp.vehiculo_id
                          FROM detalle_propiedad dp
                          JOIN conductor c ON c.id = dp.conductor_id
-                        WHERE c.usuario_id = :id)`,
+                        WHERE c.usuario_id = :id)
+            AND id NOT IN (SELECT dp2.vehiculo_id
+                             FROM detalle_propiedad dp2
+                             JOIN conductor c2 ON c2.id = dp2.conductor_id
+                            WHERE dp2.estado = TRUE AND c2.estado = TRUE
+                              AND (c2.usuario_id IS NULL OR c2.usuario_id <> :id))`,
         { replacements: { id }, transaction },
       );
       // El conductor se desvincula solo (ON DELETE SET NULL), pero aquí se le quitan además

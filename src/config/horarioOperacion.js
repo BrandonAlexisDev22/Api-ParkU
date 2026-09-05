@@ -1,7 +1,7 @@
 /**
  * @module HorarioOperacion
- * @description Ventana horaria global en la que el sistema acepta operaciones de
- * parqueo (reservar, ingresar, salir): 05:00–21:00, hora de Bogotá.
+ * @description Ventana en la que el sistema acepta operaciones de parqueo (ingresar,
+ * salir): de lunes a sábado, 05:00–21:00, hora de Bogotá. **Los domingos no se opera**.
  *
  * La hora se calcula explícitamente en America/Bogota con Intl (UTC-5, sin horario de
  * verano) en vez de depender de la zona horaria del proceso de Node -- así el chequeo
@@ -39,11 +39,22 @@ const _horaEnBogota = (fecha) => {
 };
 
 /**
+ * ¿Ese instante cae en domingo, en Bogotá? El día se calcula en la zona horaria del
+ * parqueadero, no en la del servidor: un sábado a las 20:00 en Bogotá ya es domingo en UTC.
+ * @param {Date} [fecha] - Por defecto, el momento actual.
+ * @returns {boolean}
+ */
+const esDomingoEnBogota = (fecha = new Date()) => (
+  new Intl.DateTimeFormat('en-US', { timeZone: ZONA_HORARIA, weekday: 'short' }).format(fecha) === 'Sun'
+);
+
+/**
  * Indica si un momento dado cae dentro de la ventana de operación (hora de Bogotá).
  * @param {Date} [fecha] - Por defecto, el momento actual.
  * @returns {boolean}
  */
 const estaDentroDeHorarioOperacion = (fecha = new Date()) => {
+  if (esDomingoEnBogota(fecha)) return false;
   const hora = _horaEnBogota(fecha);
   return hora >= HORA_APERTURA && hora < HORA_CIERRE;
 };
@@ -53,6 +64,9 @@ const estaDentroDeHorarioOperacion = (fecha = new Date()) => {
  * @throws {Object} 400 si está fuera de horario.
  */
 const validarHorarioOperacion = () => {
+  if (esDomingoEnBogota()) {
+    throw { status: 400, message: 'El parqueadero no opera los domingos' };
+  }
   if (!estaDentroDeHorarioOperacion()) {
     throw {
       status: 400,
@@ -109,6 +123,7 @@ module.exports = {
   HORA_APERTURA,
   HORA_CIERRE,
   horaEnBogotaTexto,
+  esDomingoEnBogota,
   estaDentroDeHorarioOperacion,
   validarHorarioOperacion,
   minutosFueraDeHorario,

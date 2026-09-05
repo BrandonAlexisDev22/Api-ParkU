@@ -755,6 +755,9 @@ const remove = async (id) => {
     id,
     sujeto: `a ${conductor.nombre_apellidos}`,
     alternativa: 'Deshabilítalo en vez de borrarlo.',
+    // Sin desglose: a quien intenta borrar no le sirve saber si son 3 ingresos o 2 reservas,
+    // solo que hay historial que depende de esta persona. El detalle sigue en data.bloqueos.
+    detallar: false,
   });
 
   try {

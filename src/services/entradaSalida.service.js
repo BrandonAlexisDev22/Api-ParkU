@@ -12,6 +12,7 @@
  * Postgres y se traducen a 409 con traducirErrorTrigger.
  */
 
+const { sequelize } = require('../config/database');
 const repo = require('../repositories/entradaSalida.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
@@ -195,14 +196,65 @@ const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_sal
   }
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.registrarSalida(
-      ingresoAbierto.id,
-      { usuario_salida_id: usuarioId, descripcion_salida, fecha_hora_salida },
-      { transaction },
-    ));
+    return await runWithUsuario(usuarioId, async (transaction) => {
+      const registro = await repo.registrarSalida(
+        ingresoAbierto.id,
+        { usuario_salida_id: usuarioId, descripcion_salida, fecha_hora_salida },
+        { transaction },
+      );
+
+      // Si este ingreso venía de una reserva, su hora de fin pasa a ser la salida real: el
+      // historial decía "hasta las 12:00" aunque el vehículo se hubiera ido a las 10:20, y
+      // esa hora es la que se lee después para saber cuánto estuvo ocupada la celda.
+      await cerrarReservaDelIngreso(ingresoAbierto, transaction);
+
+      return registro;
+    });
   } catch (error) {
     traducirErrorTrigger(error);
   }
+};
+
+/**
+ * Cierra la reserva que respaldaba un ingreso: le pone como hora de fin la salida real, para
+ * que el historial no diga "hasta las 12:00" cuando el vehículo se fue a las 10:20.
+ *
+ * Solo toca la reserva que de verdad se usó — la que el ingreso tiene apuntada, o en su
+ * defecto la de esa celda y ese vehículo que cubría el momento de la salida — y solo si la
+ * salida es ANTES de la hora que tenía: alargar una reserva por una salida tardía pisaría la
+ * franja de quien viniera después.
+ *
+ * La hora de salida se toma de la propia fila de `registro_acceso` en vez de mandarla desde
+ * JavaScript: las dos columnas son `timestamp` sin zona horaria, así que comparándolas entre
+ * sí no hay forma de que una llegue en hora local y la otra en UTC (que es justo lo que
+ * pasaba, y hacía que la condición nunca se cumpliera).
+ *
+ * @private
+ * @param {Object} ingreso - El registro de acceso que se acaba de cerrar.
+ * @param {import('sequelize').Transaction} transaction
+ * @returns {Promise<void>}
+ */
+const cerrarReservaDelIngreso = async (ingreso, transaction) => {
+  const reservaId = ingreso.reserva_id ?? null;
+  const celdaId = ingreso.celda_id ?? null;
+  if (!reservaId && (!celdaId || !ingreso.vehiculo_id)) return;
+
+  const condicion = reservaId
+    ? { sql: 'r.id = :reserva', datos: { reserva: reservaId } }
+    : { sql: 'r.celda_id = :celda AND r.vehiculo_id = :vehiculo', datos: { celda: celdaId, vehiculo: ingreso.vehiculo_id } };
+
+  await sequelize.query(
+    `UPDATE reserva r
+        SET fecha_hora_fin = ra.fecha_hora_salida
+       FROM registro_acceso ra
+      WHERE ra.id = :ingreso
+        AND ra.fecha_hora_salida IS NOT NULL
+        AND ${condicion.sql}
+        AND r.estado IN ('TERMINADA', 'ACEPTADA')
+        AND r.fecha_hora_fin > ra.fecha_hora_salida
+        AND r.fecha_hora_inicio <= ra.fecha_hora_salida`,
+    { replacements: { ingreso: ingreso.id, ...condicion.datos }, transaction },
+  );
 };
 
 /**

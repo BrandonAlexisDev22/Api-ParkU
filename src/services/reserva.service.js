@@ -18,7 +18,7 @@ const vehRepo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
-const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto } = require('../config/horarioOperacion');
+const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto, esDomingoEnBogota } = require('../config/horarioOperacion');
 const {
   ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, HORA_MAXIMA_INICIO,
   MARGEN_CANCELACION_MINUTOS, MARGEN_CONFIRMACION_MINUTOS,
@@ -173,6 +173,11 @@ const _validarFechas = (inicio, fin) => {
       message: `La reserva debe estar dentro del horario de operación (${APERTURA} a ${CIERRE})`,
     };
   }
+  // El parqueadero no abre los domingos, así que tampoco hay nada que reservar ese día.
+  if (esDomingoEnBogota(i) || esDomingoEnBogota(f)) {
+    throw { status: 400, message: 'El parqueadero no opera los domingos: elige otro día' };
+  }
+
   // Empezar pegado al cierre no tiene coherencia; terminar cerca del cierre sí.
   if (horaInicio > HORA_MAXIMA_INICIO) {
     throw {
@@ -276,9 +281,10 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
     throw { status: 400, message: 'El motivo de la reserva es obligatorio' };
   }
 
-  // A propósito NO se mira la hora actual: reservar es planear, y planear se hace a
-  // cualquier hora. Lo que sí tiene que caber en el horario es la reserva misma
-  // (_validarFechas), y estacionar de verdad sigue exigiendo estar en horario.
+  // A propósito NO se mira NADA del momento en que se pide: reservar es planear, y planear
+  // se hace a cualquier hora y cualquier día — también un domingo, que es justo cuando a
+  // alguien le da por organizar su semana. Lo que tiene que caber en los días y horas de
+  // operación es la reserva misma, y de eso se encarga _validarFechas.
   _validarFechas(fecha_hora_inicio, fecha_hora_fin);
   const { celda } = await _validarEntidades(celda_id, vehiculo_id);
   const parq = await parqRepo.findById(celda.parqueadero);
