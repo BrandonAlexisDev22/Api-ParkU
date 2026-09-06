@@ -28,14 +28,24 @@ const ESTADOS_PERMITIDOS = ['PENDIENTE', 'EN_PROCESO', 'RESUELTA', 'CERRADA', 'C
  * terminales: una novedad cerrada no puede reabrirse ni "inactivarse" desde el switch del
  * frontend. Antes update() aceptaba cualquier estado del enum viniera de donde viniera, así
  * que bastaba un PUT directo por HTTP para revivir un incidente ya cerrado.
+ *
+ * CERRADA es el desenlace "no procede" (el frontend lo llama RECHAZADO) y se puede llegar a
+ * él desde cualquier estado abierto: un reporte que no corresponde se descarta cuando se
+ * detecta, no hay que resolverlo antes para poder decir que no procedía.
  */
 const TRANSICIONES_VALIDAS = {
-  PENDIENTE: ['EN_PROCESO', 'CANCELADA'],
-  EN_PROCESO: ['RESUELTA', 'CANCELADA'],
+  PENDIENTE: ['EN_PROCESO', 'RESUELTA', 'CERRADA', 'CANCELADA'],
+  EN_PROCESO: ['RESUELTA', 'CERRADA', 'CANCELADA'],
   RESUELTA: ['CERRADA'],
   CERRADA: [],
   CANCELADA: [],
 };
+
+/** Estados que exigen tener un encargado: alguien tiene que responder por el incidente. */
+const ESTADOS_CON_ENCARGADO = ['EN_PROCESO', 'RESUELTA'];
+
+/** Desenlaces negativos: hay que decir por qué, porque lo lee quien reportó. */
+const ESTADOS_CON_MOTIVO = ['CERRADA', 'CANCELADA'];
 
 /**
  * Rechaza un cambio de estado que no siga el ciclo de vida.
@@ -151,8 +161,11 @@ const _validarReferencias = async ({ vehiculo_id, celda_id, parqueadero_id, regi
   if (usuario_asignado_id) {
     const user = await usuarioRepo.findById(usuario_asignado_id);
     if (!user) throw { status: 404, message: 'Usuario asignado no encontrado' };
-    if (user.rol_id !== ROLES.VIGILANTE) {
-      throw { status: 400, message: 'El usuario asignado debe tener rol Vigilante' };
+    // Administrador o Vigilante: son los dos roles que gestionan el parqueadero. Antes solo
+    // se admitía Vigilante, así que un administrador no podía quedar como responsable de un
+    // incidente que estaba atendiendo él mismo.
+    if (user.rol_id !== ROLES.VIGILANTE && user.rol_id !== ROLES.ADMIN) {
+      throw { status: 400, message: 'El encargado debe tener rol Administrador o Vigilante' };
     }
   }
 };
@@ -296,6 +309,29 @@ const update = async (id, data, usuarioId) => {
   // El switch de activar/inactivar del frontend llega aquí como un PUT con `estado`; no
   // basta con que el frontend lo deshabilite.
   if (data.estado) _validarTransicion(actual.estado, data.estado);
+
+  /* Un incidente no avanza sin alguien que responda por él: "en proceso" o "resuelta" sin
+     encargado deja el trabajo sin dueño, y nadie sabe a quién preguntarle. El encargado
+     puede venir en este mismo PUT o estar ya guardado. */
+  if (ESTADOS_CON_ENCARGADO.includes(data.estado)) {
+    const encargado = data.usuario_asignado_id ?? actual.usuario_asignado_id;
+    if (!encargado) {
+      throw {
+        status: 409,
+        message: 'Asigna un encargado (Administrador o Vigilante) antes de mover el incidente a ese estado',
+      };
+    }
+  }
+
+  /* Descartar un reporte exige decir por qué: ese texto es lo que ve quien lo reportó cuando
+     entra a mirar qué pasó con él. Sin esto, el reporte desaparecía sin explicación. */
+  if (ESTADOS_CON_MOTIVO.includes(data.estado)) {
+    const motivo = data.justificacion_cierre ?? actual.justificacion_cierre;
+    if (!motivo?.trim()) {
+      throw { status: 400, message: 'El motivo es obligatorio para rechazar o cancelar un incidente' };
+    }
+    if (!data.fecha_hora_cierre) data.fecha_hora_cierre = new Date();
+  }
 
   await _validarReferencias(data);
 
