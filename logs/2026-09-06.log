@@ -185,3 +185,32 @@
 {"timestamp":"2026-09-06T03:34:12.328Z","level":"INFO","message":"GET /api/auth/perfil 200 - 257ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T03:34:12.649Z","level":"WARN","message":"POST /api/auth/login 401 - 318ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T03:34:12.907Z","level":"INFO","message":"GET /api/auth/perfil 200 - 255ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:47.366Z","level":"INFO","message":"GET / 200 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:49.046Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-06T03:56:49.047Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3992","environment":"development"}}
+{"timestamp":"2026-09-06T03:56:49.449Z","level":"INFO","message":"POST /api/roles 201 - 318ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.329Z","level":"INFO","message":"POST /api/usuarios 201 - 874ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.527Z","level":"WARN","message":"GET /api/ocupaciones 403 - 193ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.628Z","level":"WARN","message":"GET /api/entradas-salidas 403 - 99ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.726Z","level":"WARN","message":"GET /api/reservas 403 - 96ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.827Z","level":"WARN","message":"GET /api/novedades 403 - 98ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:50.928Z","level":"WARN","message":"GET /api/auditoria 403 - 98ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:51.027Z","level":"WARN","message":"GET /api/monitoreo/celdas 403 - 95ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:51.860Z","level":"INFO","message":"PUT /api/roles/223/permisos 200 - 829ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:52.124Z","level":"INFO","message":"GET /api/ocupaciones 200 - 261ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:52.306Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 180ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:52.578Z","level":"INFO","message":"GET /api/reservas 200 - 270ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:52.761Z","level":"INFO","message":"GET /api/novedades 200 - 180ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:53.657Z","level":"INFO","message":"GET /api/auditoria 200 - 894ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:53.887Z","level":"INFO","message":"GET /api/monitoreo/celdas 200 - 199ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:53.995Z","level":"WARN","message":"POST /api/parqueaderos 403 - 105ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:54.812Z","level":"INFO","message":"PUT /api/roles/223/permisos 200 - 815ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:55.657Z","level":"INFO","message":"POST /api/parqueaderos 201 - 843ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:56.362Z","level":"INFO","message":"GET /api/entradas-salidas 200 - 205ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:56.690Z","level":"INFO","message":"GET /api/reservas 200 - 326ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:56.906Z","level":"INFO","message":"GET /api/novedades 200 - 214ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:57.110Z","level":"INFO","message":"GET /api/ocupaciones 200 - 202ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:57.317Z","level":"INFO","message":"GET /api/monitoreo/celdas 200 - 205ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:57.519Z","level":"WARN","message":"GET /api/auditoria 403 - 200ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:58.556Z","level":"INFO","message":"GET /api/auditoria 200 - 1035ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T03:56:58.588Z","level":"WARN","message":"GET /api/reservas 401 - 1ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
