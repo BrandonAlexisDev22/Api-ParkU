@@ -190,11 +190,16 @@ const uploadFoto = crearUploadMiddleware({
  *       401:
  *         description: No autorizado - Token requerido
  *       403:
- *         description: Prohibido - Solo administradores
+ *         description: Prohibido - Solo Administrador o Vigilante
  */
+/* LEER el listado también lo puede hacer un Vigilante. Lo necesita para dos cosas del día a
+   día que antes no podía resolver: saber quién levantó un incidente (la novedad solo guarda
+   el id) y dejar un reporte a nombre de quien se acerca a portería a comunicarlo. Es solo
+   lectura: crear, editar y eliminar cuentas siguen siendo exclusivos del Administrador, y el
+   módulo de Usuarios sigue sin aparecerle en el menú. */
 router.get('/',
   verificarToken,
-  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),
+  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1, 2] }),
   ctrl.getAll
 );
 
@@ -354,7 +359,7 @@ router.get('/disponibilidad',
 
 router.get('/:id',
   verificarToken,
-  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1] }),
+  verificarAcceso({ permisos: ['usuarios.consultar'], roles: [1, 2] }),
   ctrl.getById
 );
 

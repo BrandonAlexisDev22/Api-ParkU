@@ -214,3 +214,21 @@
 {"timestamp":"2026-09-06T03:56:57.519Z","level":"WARN","message":"GET /api/auditoria 403 - 200ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T03:56:58.556Z","level":"INFO","message":"GET /api/auditoria 200 - 1035ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T03:56:58.588Z","level":"WARN","message":"GET /api/reservas 401 - 1ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:29:50.931Z","level":"INFO","message":"SMTP configurado: Gmail (smtp.gmail.com:587, STARTTLS)","data":{"usuario":"parku22211@gmail.com"}}
+{"timestamp":"2026-09-06T04:29:50.932Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-06T04:29:51.655Z","level":"ERROR","message":"No se pudo verificar la conexión SMTP","data":{"host":"smtp.gmail.com","port":587,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-5c7ec3b2cb1sm5278094e0c.16 - gsmtp"}}
+{"timestamp":"2026-09-06T04:39:39.808Z","level":"INFO","message":"SMTP configurado: Gmail (smtp.gmail.com:587, STARTTLS)","data":{"usuario":"parku22211@gmail.com"}}
+{"timestamp":"2026-09-06T04:39:39.810Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-06T04:39:40.544Z","level":"ERROR","message":"No se pudo verificar la conexión SMTP","data":{"host":"smtp.gmail.com","port":587,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials ada2fe7eead31-78a47b32678sm4876586137.10 - gsmtp"}}
+{"timestamp":"2026-09-06T04:39:51.818Z","level":"INFO","message":"POST /api/auth/login 200 - 1183ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:39:52.025Z","level":"INFO","message":"GET /api/usuarios 200 - 198ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:39:52.124Z","level":"WARN","message":"POST /api/usuarios 403 - 96ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:39:52.573Z","level":"INFO","message":"POST /api/auth/login 200 - 446ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:39:52.671Z","level":"WARN","message":"GET /api/usuarios 403 - 97ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:45:14.541Z","level":"INFO","message":"GET / 200 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:45:16.397Z","level":"WARN","message":"SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log."}
+{"timestamp":"2026-09-06T04:45:16.398Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3998","environment":"development"}}
+{"timestamp":"2026-09-06T04:45:18.475Z","level":"WARN","message":"POST /api/auth/registro 400 - 3ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:45:19.128Z","level":"INFO","message":"POST /api/auth/registro 201 - 552ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T04:45:19.337Z","level":"INFO","message":"[correo omitido, SMTP no configurado] Para: m1.ok.914056@parku.test · Asunto: 930498 es tu código de verificación — ParkU"}
+{"timestamp":"2026-09-06T04:45:19.337Z","level":"INFO","message":"[dev] Verificación para m1.ok.914056@parku.test · código: 930498 · enlace: https://park-u.vercel.app/verificar-correo?token=203ca2e50c7af004e523623cea2a3168bfe800abe564772b9dbd2bf9f7c8935e"}
