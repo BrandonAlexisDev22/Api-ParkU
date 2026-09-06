@@ -16,6 +16,7 @@ const usuarioRepo = require('../repositories/usuario.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const evidenciaRepo = require('../repositories/evidenciaNovedad.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { enviarCorreoReporteDescartado, enviarSinBloquear } = require('../utils/mailer.util');
 const { ROLES } = require('../config/roles');
 const { LIMITE_ESTADIA_MINUTOS } = require('../config/estadia');
 
@@ -371,7 +372,28 @@ const update = async (id, data, usuarioId) => {
 
   await _validarReferencias(data);
 
-  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+  const actualizada = await runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+
+  /* Quien reportó algo tiene derecho a saber que se descartó y por qué: el motivo se guarda
+     precisamente para que lo lea, y hasta ahora solo lo veía si volvía a entrar a mirar.
+     No bloquea: el cambio de estado ya está guardado. */
+  if (ESTADOS_CON_MOTIVO.includes(data.estado)) {
+    const reportante = actual.usuario_reporta_id
+      ? await usuarioRepo.findById(actual.usuario_reporta_id)
+      : null;
+    if (reportante?.correo) {
+      await enviarSinBloquear(
+        enviarCorreoReporteDescartado(reportante.correo, reportante.nombre, {
+          descripcion: actual.descripcion,
+          desenlace: data.estado,
+          motivo: data.justificacion_cierre ?? actual.justificacion_cierre,
+        }),
+        `novedad ${id} ${data.estado}`,
+      );
+    }
+  }
+
+  return actualizada;
 };
 
 /**

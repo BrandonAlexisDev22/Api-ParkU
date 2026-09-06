@@ -40,7 +40,10 @@ const solicitar = async (correo) => {
   const fecha_expiracion = new Date(Date.now() + TTL_MINUTOS * 60 * 1000);
   await repo.create({ usuario_id: usuario.id, token_hash: _hash(token), fecha_expiracion });
 
-  const link = `${process.env.FRONTEND_URL || ''}/restablecer-password?token=${token}`;
+  /* La ruta del enlace tiene que ser la que existe en el frontend (/reset-password, ver
+     src/routes/index.tsx): con "/restablecer-password" el correo llevaba a una pantalla de
+     ruta no encontrada, justo cuando la persona no puede entrar de otra forma. */
+  const link = `${process.env.FRONTEND_URL || ''}/reset-password?token=${token}`;
   await enviarCorreoRecuperacion(usuario.correo, usuario.nombre, link);
 };
 

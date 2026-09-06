@@ -18,6 +18,7 @@ const vehRepo = require('../repositories/vehiculo.repository');
 const conductorRepo = require('../repositories/conductor.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { enviarCorreoReserva, enviarSinBloquear } = require('../utils/mailer.util');
 const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto, esDomingoEnBogota } = require('../config/horarioOperacion');
 const {
   ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, HORA_MAXIMA_INICIO,
@@ -394,6 +395,38 @@ const update = async (id, datos, usuarioId) => {
  * @throws {Object} 404 si no existe, 400 si el estado no es válido.
  * @returns {Promise<Object>}
  */
+/**
+ * Avisa por correo del desenlace de una reserva a quien la pidió.
+ *
+ * El correo sale del conductor de la reserva; si no tiene uno registrado no hay a quién
+ * escribir y no pasa nada — el aviso es un extra, no parte de la operación.
+ * @private
+ */
+const _avisarPorCorreo = async (reserva, estado, motivo) => {
+  if (!['ACEPTADA', 'RECHAZADA', 'CANCELADA'].includes(estado)) return;
+
+  const conductor = reserva.conductor_id ? await conductorRepo.findById(reserva.conductor_id) : null;
+  const correo = conductor?.correo;
+  if (!correo) return;
+
+  const celda = reserva.celda_id ? await celdaRepo.findById(reserva.celda_id) : null;
+  const parqueadero = celda?.parqueadero ? await parqRepo.findById(celda.parqueadero) : null;
+  const inicio = new Date(reserva.fecha_hora_inicio);
+  const fin = new Date(reserva.fecha_hora_fin);
+  const hhmm = (d) => d.toTimeString().slice(0, 5);
+
+  await enviarSinBloquear(
+    enviarCorreoReserva(correo, conductor.nombre_apellidos, estado, {
+      fecha: inicio.toLocaleDateString('es-CO', { dateStyle: 'full' }),
+      hora: `${hhmm(inicio)} a ${hhmm(fin)}`,
+      parqueadero: parqueadero?.nombre,
+      celda: celda?.numero,
+      motivo,
+    }),
+    `reserva ${reserva.id} ${estado}`,
+  );
+};
+
 const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   const reserva = await getById(id);
   if (!ESTADOS_GESTIONABLES.includes(estado)) {
@@ -443,6 +476,11 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
     // escrito, en vez de quedarse pendientes esperando algo que nunca va a poder pasar.
     if (estado === 'ACEPTADA') await _cancelarCompetidoras(reserva, usuarioId);
 
+    /* Quien reservó se entera por correo, con los datos que necesita: cuándo, dónde y en qué
+       celda. Sin esto tenía que entrar a la aplicación a comprobar si le habían aceptado la
+       solicitud. No bloquea: la reserva ya cambió de estado. */
+    await _avisarPorCorreo(actualizada ?? reserva, estado, motivoRechazo);
+
     return actualizada;
   } catch (error) {
     traducirErrorTrigger(error);
@@ -468,6 +506,11 @@ const _cancelarCompetidoras = async (reserva, usuarioId) => {
         (transaction) => repo.cambiarEstado(otra.id, 'CANCELADA', usuarioId, MOTIVO_FRANJA_TOMADA, { transaction }),
         { motivo: MOTIVO_FRANJA_TOMADA },
       );
+
+      /* A quien pierde la franja también hay que decírselo, y por el mismo canal: su
+         solicitud se canceló sola, sin que nadie la rechazara a mano, así que si no llega el
+         correo se entera solo si vuelve a mirar la aplicación. */
+      await _avisarPorCorreo(otra, 'CANCELADA', MOTIVO_FRANJA_TOMADA);
     } catch (error) {
       // Que una competidora no se pueda cancelar (alguien la gestionó en este mismo
       // instante) no debe deshacer la aceptación que sí funcionó.

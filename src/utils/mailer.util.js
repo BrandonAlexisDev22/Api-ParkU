@@ -176,7 +176,10 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
 
   try {
     await t.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      /* El nombre visible del remitente. La DIRECCIÓN la impone la cuenta SMTP (Gmail
+         reescribe cualquier otra), así que lo que se puede fijar es el nombre: quien recibe
+         ve "ParkU (no responder)" y entiende que no debe contestar a ese correo. */
+      from: process.env.MAIL_FROM || (process.env.SMTP_USER ? `"ParkU (no responder)" <${process.env.SMTP_USER}>` : undefined),
       to: destino,
       subject: asunto,
       html,
@@ -189,15 +192,96 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
   }
 };
 
+/* Los colores de la aplicación (src/styles/theme.ts del frontend). Van repetidos aquí a
+   propósito: un correo no puede importar nada del frontend, y los clientes de correo ignoran
+   las hojas de estilo — todo tiene que ir en línea y en hexadecimal. */
+const MARCA = {
+  verde: '#39A900',
+  verdeOscuro: '#2D7D00',
+  verdePalido: '#EAF7E6',
+  texto: '#0F172A',
+  textoSuave: '#64748B',
+  borde: '#E2E8F0',
+  fondo: '#F5F7F8',
+};
+
+/**
+ * La estructura común de todos los correos de ParkU: cabecera verde con el logo, el contenido
+ * sobre blanco y un pie discreto.
+ *
+ * El "logo" es la P de ParkU dibujada con un círculo y una letra, no una imagen: casi todos
+ * los clientes de correo bloquean las imágenes externas por defecto, y una cabecera que
+ * aparece vacía la primera vez es peor que ninguna.
+ * @private
+ */
 const _plantillaBase = (titulo, cuerpoHtml) => `
-  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-    <h2>${titulo}</h2>
-    ${cuerpoHtml}
-    <p style="color:#888; font-size:12px; margin-top:24px;">ParkU · Sistema de gestión de parqueaderos SENA</p>
+  <div style="margin:0; padding:24px 12px; background:${MARCA.fondo}; font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:14px; overflow:hidden; border:1px solid ${MARCA.borde};">
+      <tr>
+        <td style="background:linear-gradient(135deg,${MARCA.verde},${MARCA.verdeOscuro}); background-color:${MARCA.verde}; padding:22px 26px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="width:38px; height:38px; background:#ffffff; border-radius:11px; text-align:center; vertical-align:middle; font-size:20px; font-weight:bold; color:${MARCA.verde}; font-family:Arial,Helvetica,sans-serif;">P</td>
+              <td style="padding-left:12px; color:#ffffff; font-size:19px; font-weight:bold; letter-spacing:.3px;">ParkU</td>
+            </tr>
+          </table>
+          <div style="margin-top:14px; color:#ffffff; font-size:17px; font-weight:bold;">${titulo}</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px 26px; color:${MARCA.texto}; font-size:14px; line-height:1.6;">
+          ${cuerpoHtml}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 26px; background:${MARCA.verdePalido}; color:${MARCA.textoSuave}; font-size:11.5px; line-height:1.5;">
+          ParkU · Sistema de gestión de parqueaderos SENA<br>
+          Este mensaje es automático: no respondas a este correo.
+        </td>
+      </tr>
+    </table>
   </div>
 `;
 
-const _firmaTexto = '\n\nParkU · Sistema de gestión de parqueaderos SENA';
+/**
+ * El botón principal de un correo. Va como tabla y no como <button> porque los clientes de
+ * correo no ejecutan estilos complejos, y con relleno propio para que sea pulsable en móvil.
+ * @private
+ */
+const _boton = (texto, url) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;">
+    <tr>
+      <td style="background:${MARCA.verde}; border-radius:10px;">
+        <a href="${url}" target="_blank"
+           style="display:inline-block; padding:12px 26px; color:#ffffff; font-size:14px; font-weight:bold; text-decoration:none;">
+          ${texto}
+        </a>
+      </td>
+    </tr>
+  </table>
+  <p style="color:${MARCA.textoSuave}; font-size:11.5px; word-break:break-all;">
+    Si el botón no funciona, copia este enlace en tu navegador:<br>${url}
+  </p>
+`;
+
+/**
+ * Una ficha de datos (fecha, celda, parqueadero…). En dos columnas para que se lea de un
+ * vistazo sin depender de que el cliente respete el ancho.
+ * @private
+ */
+const _ficha = (filas) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+         style="margin:16px 0; border:1px solid ${MARCA.borde}; border-radius:10px; border-collapse:separate; overflow:hidden;">
+    ${filas.map(([etiqueta, valor], i) => `
+      <tr style="background:${i % 2 ? '#ffffff' : '#F8FAFC'};">
+        <td style="padding:9px 14px; color:${MARCA.textoSuave}; font-size:12px; width:42%;">${etiqueta}</td>
+        <td style="padding:9px 14px; color:${MARCA.texto}; font-size:13px; font-weight:bold;">${valor}</td>
+      </tr>
+    `).join('')}
+  </table>
+`;
+
+const _firmaTexto = '\n\nParkU · Sistema de gestión de parqueaderos SENA\nEste mensaje es automático: no respondas a este correo.';
 
 /**
  * Bloque destacado con el código de 6 dígitos. Va con estilos en línea y sin imágenes
@@ -235,7 +319,7 @@ const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
     ? `Tu código de verificación es: ${codigo}\nExpira en ${minutos} minutos.\n\nO verifica con este enlace:\n${link}`
     : `Confirma tu correo electrónico para activar tu cuenta ParkU:\n${link}`;
 
-  return enviarCorreo({
+  return correos.enviarCorreo({
     destino,
     asunto: codigo ? `${codigo} es tu código de verificación — ParkU` : 'Verifica tu correo — ParkU',
     html: _plantillaBase('Verifica tu correo', `
@@ -254,7 +338,7 @@ const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
  * @param {string} nombre
  * @param {string} link
  */
-const enviarCorreoRecuperacion = (destino, nombre, link) => enviarCorreo({
+const enviarCorreoRecuperacion = (destino, nombre, link) => correos.enviarCorreo({
   destino,
   asunto: 'Recupera tu contraseña — ParkU',
   html: _plantillaBase('Recupera tu contraseña', `
@@ -266,10 +350,124 @@ const enviarCorreoRecuperacion = (destino, nombre, link) => enviarCorreo({
   texto: `Hola ${nombre || ''},\n\nRecibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:\n${link}\n\nSi no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.${_firmaTexto}`,
 });
 
-module.exports = {
+/**
+ * Avisa de en qué quedó una reserva.
+ *
+ * Con los datos concretos —cuándo, dónde y en qué celda— y no solo "tu reserva cambió": quien
+ * la pidió necesita saber a qué hora presentarse y a dónde ir, o por qué no la tiene.
+ *
+ * @param {string} destino
+ * @param {string} nombre
+ * @param {'ACEPTADA'|'RECHAZADA'|'CANCELADA'} desenlace
+ * @param {Object} datos - { fecha, hora, parqueadero, celda, placa, motivo }
+ */
+const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
+  const aceptada = desenlace === 'ACEPTADA';
+  const titulo = aceptada
+    ? 'Tu reserva fue aceptada'
+    : `Tu reserva fue ${desenlace === 'CANCELADA' ? 'cancelada' : 'rechazada'}`;
+
+  const filas = [
+    ['Fecha', datos.fecha || '—'],
+    ['Horario', datos.hora || '—'],
+    ['Parqueadero', datos.parqueadero || '—'],
+    ['Celda', datos.celda || '—'],
+  ];
+  if (datos.placa) filas.push(['Vehículo', datos.placa]);
+
+  const explicacion = aceptada
+    ? '<p>Tu celda queda apartada para ese horario. Preséntate dentro de los primeros 20 minutos: pasado ese tiempo la reserva se cancela y la celda vuelve a quedar libre.</p>'
+    : `<p>Esta reserva ya no está vigente y la celda quedó libre para otras personas.</p>${
+      datos.motivo ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${datos.motivo}</p>` : ''
+    }<p>Puedes solicitar otra desde la aplicación cuando lo necesites.</p>`;
+
+  const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join('\n');
+
+  return correos.enviarCorreo({
+    destino,
+    asunto: `${titulo} — ParkU`,
+    html: _plantillaBase(titulo, `
+      <p>Hola ${nombre || ''},</p>
+      ${_ficha(filas)}
+      ${explicacion}
+    `),
+    texto: `Hola ${nombre || ''},\n\n${titulo}.\n\n${textoFilas}${datos.motivo ? `\nMotivo: ${datos.motivo}` : ''}${_firmaTexto}`,
+  });
+};
+
+/**
+ * Avisa a quien reportó un incidente de que su reporte se descartó, con el motivo.
+ *
+ * El motivo es el punto del mensaje: sin él, quien se tomó el trabajo de reportar algo solo ve
+ * que su reporte desapareció.
+ */
+const enviarCorreoReporteDescartado = (destino, nombre, { descripcion, desenlace, motivo }) => {
+  const palabra = desenlace === 'CANCELADA' ? 'cancelado' : 'rechazado';
+  const titulo = `Tu reporte fue ${palabra}`;
+  return correos.enviarCorreo({
+    destino,
+    asunto: `${titulo} — ParkU`,
+    html: _plantillaBase(titulo, `
+      <p>Hola ${nombre || ''},</p>
+      <p>El reporte que registraste fue ${palabra} por el personal del parqueadero.</p>
+      ${_ficha([['Reporte', descripcion || '—']])}
+      <p style="background:#FEF3C7; border-radius:8px; padding:11px 13px;"><strong>Motivo:</strong> ${motivo || '—'}</p>
+      <p>Si crees que se trata de un error, puedes registrarlo de nuevo con más detalle.</p>
+    `),
+    texto: `Hola ${nombre || ''},\n\nTu reporte fue ${palabra}.\n\nReporte: ${descripcion || '—'}\nMotivo: ${motivo || '—'}${_firmaTexto}`,
+  });
+};
+
+/**
+ * Avisa de que una cuenta quedó activa o inactiva.
+ *
+ * Una cuenta desactivada deja de poder reservar o entrar al parqueadero: enterarse al llegar a
+ * la portería es la peor forma de saberlo.
+ */
+const enviarCorreoEstadoCuenta = (destino, nombre, activa, { motivo } = {}) => {
+  const titulo = activa ? 'Tu cuenta fue reactivada' : 'Tu cuenta fue desactivada';
+  const cuerpo = activa
+    ? '<p>Ya puedes volver a iniciar sesión, reservar celdas y usar el parqueadero con normalidad.</p>'
+    : `<p>Mientras esté desactivada no podrás reservar celdas ni registrar el ingreso de tus vehículos.</p>${
+      motivo ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${motivo}</p>` : ''
+    }<p>Si crees que se trata de un error, comunícate con la administración del parqueadero.</p>`;
+
+  return correos.enviarCorreo({
+    destino,
+    asunto: `${titulo} — ParkU`,
+    html: _plantillaBase(titulo, `<p>Hola ${nombre || ''},</p>${cuerpo}`),
+    texto: `Hola ${nombre || ''},\n\n${titulo}.${motivo ? `\nMotivo: ${motivo}` : ''}${_firmaTexto}`,
+  });
+};
+
+/**
+ * Envía sin dejar que un fallo del correo tumbe la operación que lo dispara.
+ *
+ * Aceptar una reserva o desactivar una cuenta son cambios que ya quedaron guardados: si el
+ * servidor de correo está caído o las credenciales caducaron, lo que NO puede pasar es que la
+ * petición falle y la persona crea que su acción no se hizo. Queda anotado en el log.
+ *
+ * @param {Promise} envio - La llamada a uno de los `enviarCorreo*` de este módulo.
+ * @param {string} contexto - Qué se estaba avisando, para poder buscarlo en el log.
+ */
+const enviarSinBloquear = (envio, contexto) => Promise.resolve(envio)
+  .catch((error) => {
+    console.error(`No se pudo enviar el correo (${contexto}):`, error?.message || error);
+  });
+
+/* Las funciones de abajo llaman al envío a través de este objeto y no por su nombre: así
+   se puede sustituir `enviarCorreo` desde fuera —una prueba comprueba QUÉ se habría
+   enviado sin necesitar un servidor de correo— sin cambiar en nada el comportamiento real. */
+const correos = {
   enviarCorreo,
+  enviarSinBloquear,
   enviarCorreoVerificacion,
   enviarCorreoRecuperacion,
+  enviarCorreoReserva,
+  enviarCorreoReporteDescartado,
+  enviarCorreoEstadoCuenta,
   verificarConexion,
   listarServicios,
 };
+
+module.exports = correos;

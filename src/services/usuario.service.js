@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/usuario.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
+const { enviarCorreoEstadoCuenta, enviarSinBloquear } = require('../utils/mailer.util');
 const { exigirSinOperaciones } = require('../utils/borrado.util');
 const { ROLES, ALIAS_ROL } = require('../config/roles');
 const rolRepo = require('../repositories/rol.repository');
@@ -509,14 +510,22 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
   // Un cambio de estado arrastra al conductor y a sus vehículos (ver _propagarEstadoAlConductor).
   const estadoNuevo = updateData.estado !== undefined ? String(updateData.estado).toUpperCase() : null;
   const cambiaEstado = estadoNuevo !== null && estadoNuevo !== String(usuario.estado).toUpperCase();
+  // Se rellena dentro de la transacción y se usa al salir: el correo no forma parte del cambio.
+  let avisarCambioDeEstado = null;
 
   try {
-    return await sequelize.transaction(async (transaction) => {
+    const resultadoActualizacion = await sequelize.transaction(async (transaction) => {
       const actualizado = await repo.update(id, updateData, { transaction });
 
       if (cambiaEstado) {
         await _propagarEstadoAlConductor(id, estadoNuevo === 'ACTIVO', transaction);
       }
+      /* Una cuenta desactivada no puede reservar ni entrar al parqueadero: enterarse al
+         llegar a la portería es la peor forma de saberlo. Se avisa fuera de la transacción
+         —no puede hacerla fallar— pero con los datos que ya se tienen aquí. */
+      avisarCambioDeEstado = cambiaEstado
+        ? { correo: actualizado?.correo ?? usuario.correo, nombre: actualizado?.nombre ?? usuario.nombre, activa: estadoNuevo === 'ACTIVO' }
+        : null;
 
       // El Conductor guarda una copia de estos datos de su cuenta (nombre, correo,
       // teléfono y documento). Si la cuenta cambia y la copia no, las dos pantallas se
@@ -550,6 +559,20 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
 
       return actualizado;
     });
+
+    // Ya guardado: el aviso sale ahora, y si el correo falla no deshace nada.
+    if (avisarCambioDeEstado?.correo) {
+      await enviarSinBloquear(
+        enviarCorreoEstadoCuenta(
+          avisarCambioDeEstado.correo,
+          avisarCambioDeEstado.nombre,
+          avisarCambioDeEstado.activa,
+        ),
+        `cuenta ${id} ${avisarCambioDeEstado.activa ? 'reactivada' : 'desactivada'}`,
+      );
+    }
+
+    return resultadoActualizacion;
   } catch (error) {
     traducirErrorTrigger(error);
   }
