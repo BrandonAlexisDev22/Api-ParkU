@@ -13,9 +13,24 @@ const Novedad = sequelize.define('Novedad', {
     primaryKey: true,
     autoIncrement: true,
   },
-  tipo_novedad: {
-    type: DataTypes.ENUM('DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'),
+  /* Un INCIDENTE es un daño, un choque o una problemática: ocurre sobre algo concreto y
+     necesita tipo y prioridad para poder atenderlo. Una NOVEDAD es una observación de la
+     operación, sin gravedad: no tiene celda ni vehículo detrás, y exigirle tipo y prioridad
+     solo obligaba a inventar datos. Ver la migración 007. */
+  clase: {
+    type: DataTypes.ENUM('INCIDENTE', 'NOVEDAD'),
     allowNull: false,
+    defaultValue: 'INCIDENTE',
+  },
+  tipo_novedad: {
+    // NULL en una NOVEDAD: no tiene tipo. Para un INCIDENTE lo exige el servicio.
+    type: DataTypes.ENUM('DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'),
+    allowNull: true,
+  },
+  /** En qué consiste, cuando el tipo es OTRO. */
+  tipo_otro: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
   },
   prioridad: {
     // NULL mientras el reporte sigue PENDIENTE: Comunidad SENA no elige prioridad, la

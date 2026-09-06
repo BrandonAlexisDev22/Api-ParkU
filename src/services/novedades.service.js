@@ -20,6 +20,7 @@ const { ROLES } = require('../config/roles');
 const { LIMITE_ESTADIA_MINUTOS } = require('../config/estadia');
 
 const TIPOS_PERMITIDOS = ['DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'];
+const CLASES_PERMITIDAS = ['INCIDENTE', 'NOVEDAD'];
 const PRIORIDADES_PERMITIDAS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 const ESTADOS_PERMITIDOS = ['PENDIENTE', 'EN_PROCESO', 'RESUELTA', 'CERRADA', 'CANCELADA'];
 
@@ -236,8 +237,9 @@ const _enriquecerContexto = (novedad) => {
  * @returns {Promise<Object>}
  */
 const create = async (data, usuarioId, usuarioRol) => {
-  const { tipo_novedad = 'OTRO', descripcion, celda_id, registro_acceso_id } = data;
-  let { vehiculo_id, parqueadero_id, usuario_asignado_id, prioridad } = data;
+  const { descripcion, celda_id, registro_acceso_id, tipo_otro } = data;
+  let { vehiculo_id, parqueadero_id, usuario_asignado_id, prioridad, tipo_novedad } = data;
+  const clase = data.clase || 'INCIDENTE';
 
   const esComunidadSena = usuarioRol === ROLES.CONDUCTOR;
   if (esComunidadSena) {
@@ -245,13 +247,54 @@ const create = async (data, usuarioId, usuarioRol) => {
       throw { status: 400, message: 'Un conductor no puede seleccionar prioridad ni usuario asignado; eso lo define el personal autorizado al aceptar el reporte' };
     }
   }
+
+  if (!CLASES_PERMITIDAS.includes(clase)) {
+    throw { status: 400, message: `Clase inválida. Permitidas: ${CLASES_PERMITIDAS.join(', ')}` };
+  }
+  /* Una novedad es un apunte de la operación del parqueadero: la escribe quien está en ella.
+     Comunidad SENA reporta incidentes —lo que le pasa a su vehículo o en la celda—, no
+     observaciones de turno. */
+  if (clase === 'NOVEDAD' && esComunidadSena) {
+    throw { status: 403, message: 'Solo el personal del parqueadero puede registrar novedades; tu reporte se registra como incidente' };
+  }
+
+  /* Quién reporta. Por defecto quien está usando la aplicación, que es el caso normal; el
+     personal autorizado puede dejarlo a nombre de otra persona (alguien que se acerca a
+     reportar en portería y no tiene la aplicación abierta). Comunidad SENA solo puede
+     reportar a su propio nombre. */
+  let usuarioReportaId = usuarioId;
+  if (data.usuario_reporta_id && Number(data.usuario_reporta_id) !== Number(usuarioId)) {
+    if (esComunidadSena) {
+      throw { status: 403, message: 'Solo puedes reportar a tu propio nombre' };
+    }
+    const reportante = await usuarioRepo.findById(data.usuario_reporta_id);
+    if (!reportante) throw { status: 404, message: 'El usuario que reporta no existe' };
+    usuarioReportaId = reportante.id;
+  }
+
+  /* Un incidente sin tipo no se puede clasificar ni atender; una novedad no tiene tipo que
+     dar. La prioridad de un incidente la pone el personal autorizado (Comunidad SENA no
+     elige, ver arriba), así que solo se le exige a quien sí puede elegirla. */
+  if (clase === 'INCIDENTE') {
+    if (!tipo_novedad) throw { status: 400, message: 'El tipo de incidente es requerido' };
+    if (!esComunidadSena && !prioridad) {
+      throw { status: 400, message: 'La prioridad es requerida para registrar un incidente' };
+    }
+    if (tipo_novedad === 'OTRO' && !tipo_otro?.trim()) {
+      throw { status: 400, message: 'Indica de qué tipo de incidente se trata' };
+    }
+  } else {
+    // Una novedad no arrastra tipo ni las referencias de un incidente.
+    tipo_novedad = null;
+    vehiculo_id = null;
+  }
   // Ni la prioridad ni el asignado son obligatorios al crear: un reporte nace PENDIENTE
   // con ambos en NULL y es al ACEPTARLO cuando se vuelven obligatorios (ver aceptar()).
   usuario_asignado_id = usuario_asignado_id ?? null;
   prioridad = prioridad ?? null;
 
   if (!descripcion) throw { status: 400, message: 'La descripción es requerida' };
-  if (!TIPOS_PERMITIDOS.includes(tipo_novedad)) {
+  if (tipo_novedad !== null && !TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
   }
   if (prioridad !== null && !PRIORIDADES_PERMITIDAS.includes(prioridad)) {
@@ -259,7 +302,9 @@ const create = async (data, usuarioId, usuarioRol) => {
   }
 
   let registroAccesoId = registro_acceso_id;
-  if (celda_id) {
+  // El contexto de una celda (parqueadero, vehículo estacionado) solo tiene sentido para un
+  // incidente: una novedad no ocurre "sobre" una celda.
+  if (celda_id && clase === 'INCIDENTE') {
     const celda = await celdaRepo.findById(celda_id);
     if (!celda) throw { status: 404, message: 'Celda no encontrada' };
     if (!parqueadero_id) parqueadero_id = celda.parqueadero;
@@ -279,8 +324,10 @@ const create = async (data, usuarioId, usuarioRol) => {
 
   return runWithUsuario(usuarioId, (transaction) => repo.create(
     {
-      tipo_novedad, prioridad, descripcion, usuario_reporta_id: usuarioId, usuario_asignado_id,
-      vehiculo_id, celda_id, parqueadero_id, registro_acceso_id: registroAccesoId,
+      clase, tipo_novedad, tipo_otro: tipo_novedad === 'OTRO' ? tipo_otro?.trim() : null,
+      prioridad, descripcion, usuario_reporta_id: usuarioReportaId, usuario_asignado_id,
+      vehiculo_id, celda_id: clase === 'INCIDENTE' ? celda_id : null,
+      parqueadero_id, registro_acceso_id: registroAccesoId,
     },
     { transaction },
   ));

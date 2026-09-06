@@ -125,13 +125,14 @@ const findByFiltros = async ({ tipo_novedad, prioridad, estado }) => {
  */
 const create = async (data, { transaction } = {}) => {
   const {
-    tipo_novedad = 'OTRO', prioridad = 'MEDIA', estado = 'PENDIENTE', descripcion,
+    clase = 'INCIDENTE', tipo_novedad = null, tipo_otro = null,
+    prioridad = 'MEDIA', estado = 'PENDIENTE', descripcion,
     usuario_reporta_id, usuario_asignado_id, vehiculo_id, celda_id, parqueadero_id, registro_acceso_id,
   } = data;
 
   const nueva = await Novedad.create(
     {
-      tipo_novedad, prioridad, estado, descripcion, usuario_reporta_id,
+      clase, tipo_novedad, tipo_otro, prioridad, estado, descripcion, usuario_reporta_id,
       usuario_asignado_id: usuario_asignado_id || null,
       vehiculo_id: vehiculo_id || null,
       celda_id: celda_id || null,
