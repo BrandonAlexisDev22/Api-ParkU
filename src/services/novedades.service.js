@@ -42,9 +42,6 @@ const TRANSICIONES_VALIDAS = {
   CANCELADA: [],
 };
 
-/** Estados que exigen tener un encargado: alguien tiene que responder por el incidente. */
-const ESTADOS_CON_ENCARGADO = ['EN_PROCESO', 'RESUELTA'];
-
 /** Desenlaces negativos: hay que decir por qué, porque lo lee quien reportó. */
 const ESTADOS_CON_MOTIVO = ['CERRADA', 'CANCELADA'];
 
@@ -357,21 +354,13 @@ const update = async (id, data, usuarioId) => {
   // basta con que el frontend lo deshabilite.
   if (data.estado) _validarTransicion(actual.estado, data.estado);
 
-  /* Un incidente no avanza sin alguien que responda por él: "en proceso" o "resuelta" sin
-     encargado deja el trabajo sin dueño, y nadie sabe a quién preguntarle. El encargado
-     puede venir en este mismo PUT o estar ya guardado. */
-  if (ESTADOS_CON_ENCARGADO.includes(data.estado)) {
-    const encargado = data.usuario_asignado_id ?? actual.usuario_asignado_id;
-    if (!encargado) {
-      throw {
-        status: 409,
-        message: 'Asigna un encargado (Administrador o Vigilante) antes de mover el incidente a ese estado',
-      };
-    }
-  }
+  /* Tener un encargado es lo deseable —deja claro a quién preguntarle— pero no se exige:
+     bloquear el avance por eso paraba el trabajo real por un dato administrativo. La
+     aplicación lo sugiere al cambiar de estado; la decisión es de quien gestiona.
 
-  /* Descartar un reporte exige decir por qué: ese texto es lo que ve quien lo reportó cuando
-     entra a mirar qué pasó con él. Sin esto, el reporte desaparecía sin explicación. */
+     Lo que sí es obligatorio es explicar un desenlace negativo: ese texto es lo que ve quien
+     reportó cuando entra a mirar qué pasó con su reporte. Sin él, desaparecía sin
+     explicación. */
   if (ESTADOS_CON_MOTIVO.includes(data.estado)) {
     const motivo = data.justificacion_cierre ?? actual.justificacion_cierre;
     if (!motivo?.trim()) {
