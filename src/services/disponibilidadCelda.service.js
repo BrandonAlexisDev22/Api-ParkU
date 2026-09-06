@@ -10,7 +10,6 @@
 const repo = require('../repositories/disponibilidadCelda.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const ocupacionRepo = require('../repositories/ocupacionCelda.repository');
-const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 
 const ESTADOS_PERMITIDOS = ['DISPONIBLE', 'OCUPADA', 'RESERVADA', 'MANTENIMIENTO', 'INACTIVA'];
@@ -42,13 +41,19 @@ const getHistorialPorCelda = (celdaId) => repo.findHistorialPorCelda(celdaId);
  * Bloquea el cambio manual solo cuando la celda está REALMENTE en uso, no cuando su campo
  * estado lo diga.
  *
- *   estado OCUPADA + ocupacion_celda ACTIVA        -> bloquear (hay un vehículo dentro)
- *   estado OCUPADA + sin ocupación activa          -> permitir (estado desincronizado)
- *   estado RESERVADA + reserva ACEPTADA vigente    -> bloquear (hay una reserva en curso)
- *   estado RESERVADA + sin reserva vigente         -> permitir (reserva vencida/borrada)
+ *   estado OCUPADA + ocupacion_celda ACTIVA -> bloquear (hay un vehículo dentro)
+ *   estado OCUPADA + sin ocupación activa   -> permitir (estado desincronizado)
  *
- * Reutiliza las consultas que ya existían (ocupacionCelda.findActivaPorCelda y
- * reserva.findConflictos) en vez de escribir queries nuevas.
+ * Lo único que impide corregir el estado a mano es un vehículo dentro de la celda: eso sí es
+ * un hecho físico que el estado no puede contradecir.
+ *
+ * Una reserva ya NO bloquea. Antes, una celda marcada RESERVADA no se podía devolver a
+ * DISPONIBLE mientras existiera una reserva aceptada por delante — pero desde que las
+ * reservas apartan una franja y no la celda entera (migración 006), el estado de la celda y
+ * la agenda son dos cosas distintas: poner la celda en DISPONIBLE no cancela ninguna reserva
+ * ni le quita su franja a nadie, y quien llegue seguirá teniendo su celda porque eso lo
+ * decide la agenda (fn_validar_ocupacion_celda). Bloquearlo solo dejaba celdas congeladas en
+ * un estado que ya no significa nada.
  * @private
  * @param {Object} celda
  * @throws {Object} 409 si la celda está efectivamente en uso.
@@ -60,20 +65,6 @@ const _validarUsoReal = async (celda) => {
       throw {
         status: 409,
         message: `La celda ${celda.numero} tiene un vehículo estacionado; registra su salida antes de cambiar el estado manualmente`,
-      };
-    }
-    return;
-  }
-
-  if (celda.estado === 'RESERVADA') {
-    // Misma consulta que usa el ingreso (reserva.repository.findReservaQueBloquea), para
-    // que "la celda está reservada para alguien" signifique exactamente lo mismo en los
-    // dos sitios.
-    const aceptada = await reservaRepo.findReservaQueBloquea(celda.id);
-    if (aceptada) {
-      throw {
-        status: 409,
-        message: `La celda ${celda.numero} tiene una reserva aceptada en curso (hasta ${new Date(aceptada.fecha_hora_fin).toISOString()}); cancélala o espera a que termine antes de cambiar el estado manualmente`,
       };
     }
   }
