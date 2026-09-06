@@ -281,3 +281,14 @@
 {"timestamp":"2026-09-06T05:03:49.171Z","level":"INFO","message":"GET /api/auth/perfil 200 - 308ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T05:03:49.538Z","level":"WARN","message":"POST /api/auth/login 401 - 364ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
 {"timestamp":"2026-09-06T05:03:49.843Z","level":"INFO","message":"GET /api/auth/perfil 200 - 302ms","data":{"ip":"::ffff:127.0.0.1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:46:32.093Z","level":"INFO","message":"SMTP configurado: Gmail (smtp.gmail.com:587, STARTTLS)","data":{"usuario":"parku22211@gmail.com"}}
+{"timestamp":"2026-09-06T05:46:32.095Z","level":"INFO","message":"Servidor iniciado correctamente","data":{"port":"3000","environment":"development"}}
+{"timestamp":"2026-09-06T05:46:32.824Z","level":"ERROR","message":"No se pudo verificar la conexión SMTP","data":{"host":"smtp.gmail.com","port":587,"error":"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 71dfb90a1353d-5c7ec1097e5sm5527877e0c.2 - gsmtp"}}
+{"timestamp":"2026-09-06T05:46:40.126Z","level":"WARN","message":"POST /api/auth/login 400 - 10ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:07.211Z","level":"INFO","message":"POST /api/auth/login 200 - 1170ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:09.163Z","level":"INFO","message":"POST /api/novedades/128/evidencias 201 - 702ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:09.835Z","level":"INFO","message":"POST /api/novedades/128/evidencias 201 - 668ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:10.511Z","level":"INFO","message":"POST /api/novedades/128/evidencias 201 - 674ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:10.803Z","level":"INFO","message":"GET /api/novedades/128/evidencias 200 - 290ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:11.295Z","level":"WARN","message":"POST /api/novedades/128/evidencias 409 - 489ms","data":{"ip":"::1","userAgent":"node"}}
+{"timestamp":"2026-09-06T05:47:11.944Z","level":"WARN","message":"POST /api/novedades/129/evidencias 400 - 95ms","data":{"ip":"::1","userAgent":"node"}}
