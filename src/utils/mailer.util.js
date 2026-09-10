@@ -17,10 +17,11 @@
  * realmente salga.
  */
 
-const nodemailer = require('nodemailer');
-const buscarServicio = require('nodemailer/lib/well-known');
-const catalogoServicios = require('nodemailer/lib/well-known/services.json');
-const Logger = require('./logger.util');
+const nodemailer = require("nodemailer");
+const buscarServicio = require("nodemailer/lib/well-known");
+const catalogoServicios = require("nodemailer/lib/well-known/services.json");
+const Logger = require("./logger.util");
+const { sendEmail: enviarCorreoResend } = require("./resend.util");
 
 let transporter = null;
 let transporterInicializado = false;
@@ -41,7 +42,8 @@ const listarServicios = () => {
   return [...nombres].sort((a, b) => a.localeCompare(b));
 };
 
-const _esVerdadero = (valor) => /^(true|1|si|sí|yes)$/i.test((valor || '').trim());
+const _esVerdadero = (valor) =>
+  /^(true|1|si|sí|yes)$/i.test((valor || "").trim());
 
 /**
  * Traduce las variables de entorno a las opciones concretas de nodemailer. Resuelve el
@@ -51,15 +53,22 @@ const _esVerdadero = (valor) => /^(true|1|si|sí|yes)$/i.test((valor || '').trim
  * @returns {Object|null} Opciones de transporte, o null si no hay proveedor configurado.
  */
 const _resolverConfig = () => {
-  const servicio = (process.env.MAIL_SERVICE || process.env.SMTP_SERVICE || '').trim();
+  const servicio = (
+    process.env.MAIL_SERVICE ||
+    process.env.SMTP_SERVICE ||
+    ""
+  ).trim();
   let config;
 
   if (servicio) {
     const preset = buscarServicio(servicio);
     if (!preset) {
-      Logger.error(`MAIL_SERVICE="${servicio}" no es un servicio de correo conocido -- no se enviarán correos.`, {
-        servicios_validos: listarServicios().join(', '),
-      });
+      Logger.error(
+        `MAIL_SERVICE="${servicio}" no es un servicio de correo conocido -- no se enviarán correos.`,
+        {
+          servicios_validos: listarServicios().join(", "),
+        },
+      );
       return null;
     }
     config = {
@@ -94,7 +103,10 @@ const _resolverConfig = () => {
   }
 
   if (process.env.SMTP_USER) {
-    config.auth = { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD };
+    config.auth = {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    };
   }
 
   return config;
@@ -114,8 +126,14 @@ const _getTransporter = () => {
   if (!config) {
     // Si venía un MAIL_SERVICE inválido, _resolverConfig ya explicó el porqué; no repetir
     // el genérico "falta configurar", que apuntaría al problema equivocado.
-    if (!process.env.MAIL_SERVICE && !process.env.SMTP_SERVICE && !process.env.SMTP_HOST) {
-      Logger.warn('SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log.');
+    if (
+      !process.env.MAIL_SERVICE &&
+      !process.env.SMTP_SERVICE &&
+      !process.env.SMTP_HOST
+    ) {
+      Logger.warn(
+        "SMTP no configurado (falta MAIL_SERVICE o SMTP_HOST) -- los correos transaccionales no se enviarán, solo se registrarán en el log.",
+      );
     }
     return null;
   }
@@ -124,9 +142,12 @@ const _getTransporter = () => {
   const { servicio, ...opciones } = config;
   transporter = nodemailer.createTransport(opciones);
 
-  Logger.info(`SMTP configurado: ${servicio || 'servidor personalizado'} (${config.host}:${config.port}, ${config.secure ? 'TLS directo' : 'STARTTLS'})`, {
-    usuario: config.auth ? config.auth.user : '(sin autenticación)',
-  });
+  Logger.info(
+    `SMTP configurado: ${servicio || "servidor personalizado"} (${config.host}:${config.port}, ${config.secure ? "TLS directo" : "STARTTLS"})`,
+    {
+      usuario: config.auth ? config.auth.user : "(sin autenticación)",
+    },
+  );
   return transporter;
 };
 
@@ -136,9 +157,23 @@ const _getTransporter = () => {
  * @returns {Promise<{configurado: boolean, ok: boolean, detalle: string}>}
  */
 const verificarConexion = async () => {
+  if (process.env.RESEND_API_KEY) {
+    return {
+      configurado: true,
+      ok: true,
+      detalle:
+        "Resend configurado correctamente. Se usará como proveedor principal de correos.",
+    };
+  }
+
   const t = _getTransporter();
   if (!t) {
-    return { configurado: false, ok: false, detalle: 'Sin proveedor SMTP configurado (MAIL_SERVICE / SMTP_HOST vacíos)' };
+    return {
+      configurado: false,
+      ok: false,
+      detalle:
+        "Sin proveedor SMTP configurado (MAIL_SERVICE / SMTP_HOST vacíos)",
+    };
   }
 
   try {
@@ -147,7 +182,7 @@ const verificarConexion = async () => {
     Logger.info(detalle);
     return { configurado: true, ok: true, detalle };
   } catch (error) {
-    Logger.error('No se pudo verificar la conexión SMTP', {
+    Logger.error("No se pudo verificar la conexión SMTP", {
       host: configuracionEfectiva.host,
       port: configuracionEfectiva.port,
       error: error.message,
@@ -168,10 +203,35 @@ const verificarConexion = async () => {
  * @returns {Promise<{enviado: boolean, motivo?: string}>}
  */
 const enviarCorreo = async ({ destino, asunto, html, texto }) => {
+  if (process.env.RESEND_API_KEY) {
+    const resultado = await enviarCorreoResend({
+      to: destino,
+      subject: asunto,
+      html,
+      text: texto,
+      from: process.env.RESEND_FROM || process.env.MAIL_FROM,
+    });
+
+    if (resultado.ok) {
+      return { enviado: true, id: resultado.id || null };
+    }
+
+    Logger.warn(
+      "Resend falló al enviar correo; se intenta SMTP como fallback",
+      {
+        destino,
+        asunto,
+        motivo: resultado.motivo,
+      },
+    );
+  }
+
   const t = _getTransporter();
   if (!t) {
-    Logger.info(`[correo omitido, SMTP no configurado] Para: ${destino} · Asunto: ${asunto}`);
-    return { enviado: false, motivo: 'SMTP no configurado' };
+    Logger.info(
+      `[correo omitido, SMTP no configurado] Para: ${destino} · Asunto: ${asunto}`,
+    );
+    return { enviado: false, motivo: "SMTP no configurado" };
   }
 
   try {
@@ -179,7 +239,11 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
       /* El nombre visible del remitente. La DIRECCIÓN la impone la cuenta SMTP (Gmail
          reescribe cualquier otra), así que lo que se puede fijar es el nombre: quien recibe
          ve "ParkU (no responder)" y entiende que no debe contestar a ese correo. */
-      from: process.env.MAIL_FROM || (process.env.SMTP_USER ? `"ParkU (no responder)" <${process.env.SMTP_USER}>` : undefined),
+      from:
+        process.env.MAIL_FROM ||
+        (process.env.SMTP_USER
+          ? `"ParkU (no responder)" <${process.env.SMTP_USER}>`
+          : undefined),
       to: destino,
       subject: asunto,
       html,
@@ -187,7 +251,11 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
     });
     return { enviado: true };
   } catch (error) {
-    Logger.error('Error enviando correo', { destino, asunto, error: error.message });
+    Logger.error("Error enviando correo", {
+      destino,
+      asunto,
+      error: error.message,
+    });
     return { enviado: false, motivo: error.message };
   }
 };
@@ -196,13 +264,13 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
    propósito: un correo no puede importar nada del frontend, y los clientes de correo ignoran
    las hojas de estilo — todo tiene que ir en línea y en hexadecimal. */
 const MARCA = {
-  verde: '#39A900',
-  verdeOscuro: '#2D7D00',
-  verdePalido: '#EAF7E6',
-  texto: '#0F172A',
-  textoSuave: '#64748B',
-  borde: '#E2E8F0',
-  fondo: '#F5F7F8',
+  verde: "#39A900",
+  verdeOscuro: "#2D7D00",
+  verdePalido: "#EAF7E6",
+  texto: "#0F172A",
+  textoSuave: "#64748B",
+  borde: "#E2E8F0",
+  fondo: "#F5F7F8",
 };
 
 /**
@@ -272,16 +340,21 @@ const _boton = (texto, url) => `
 const _ficha = (filas) => `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
          style="margin:16px 0; border:1px solid ${MARCA.borde}; border-radius:10px; border-collapse:separate; overflow:hidden;">
-    ${filas.map(([etiqueta, valor], i) => `
-      <tr style="background:${i % 2 ? '#ffffff' : '#F8FAFC'};">
+    ${filas
+      .map(
+        ([etiqueta, valor], i) => `
+      <tr style="background:${i % 2 ? "#ffffff" : "#F8FAFC"};">
         <td style="padding:9px 14px; color:${MARCA.textoSuave}; font-size:12px; width:42%;">${etiqueta}</td>
         <td style="padding:9px 14px; color:${MARCA.texto}; font-size:13px; font-weight:bold;">${valor}</td>
       </tr>
-    `).join('')}
+    `,
+      )
+      .join("")}
   </table>
 `;
 
-const _firmaTexto = '\n\nParkU · Sistema de gestión de parqueaderos SENA\nEste mensaje es automático: no respondas a este correo.';
+const _firmaTexto =
+  "\n\nParkU · Sistema de gestión de parqueaderos SENA\nEste mensaje es automático: no respondas a este correo.";
 
 /**
  * Bloque destacado con el código de 6 dígitos. Va con estilos en línea y sin imágenes
@@ -293,7 +366,7 @@ const _bloqueCodigo = (codigo, minutos) => `
   <p style="margin-bottom:8px;">Escribe este código en la aplicación:</p>
   <p style="font-family:'Courier New',monospace; font-size:32px; font-weight:bold;
             letter-spacing:8px; background:#f4f4f4; border-radius:6px;
-            padding:16px; text-align:center; margin:0;">${codigo.split('').join(' ')}</p>
+            padding:16px; text-align:center; margin:0;">${codigo.split("").join(" ")}</p>
   <p style="color:#888; font-size:13px;">El código expira en ${minutos} minutos.</p>
 `;
 
@@ -309,7 +382,7 @@ const _bloqueCodigo = (codigo, minutos) => `
 const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
   const { codigo, minutos = 60 } = opciones;
 
-  const htmlCodigo = codigo ? _bloqueCodigo(codigo, minutos) : '';
+  const htmlCodigo = codigo ? _bloqueCodigo(codigo, minutos) : "";
   const htmlEnlace = codigo
     ? `<p style="color:#666; font-size:14px;">O si prefieres, verifica con un clic:
          <a href="${link}" target="_blank">Verificar mi correo</a></p>`
@@ -321,15 +394,20 @@ const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
 
   return correos.enviarCorreo({
     destino,
-    asunto: codigo ? `${codigo} es tu código de verificación — ParkU` : 'Verifica tu correo — ParkU',
-    html: _plantillaBase('Verifica tu correo', `
-      <p>Hola ${nombre || ''},</p>
+    asunto: codigo
+      ? `${codigo} es tu código de verificación — ParkU`
+      : "Verifica tu correo — ParkU",
+    html: _plantillaBase(
+      "Verifica tu correo",
+      `
+      <p>Hola ${nombre || ""},</p>
       <p>Confirma tu correo electrónico para activar todas las funciones de tu cuenta ParkU.</p>
       ${htmlCodigo}
       ${htmlEnlace}
       <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
-    `),
-    texto: `Hola ${nombre || ''},\n\n${textoCodigo}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.${_firmaTexto}`,
+    `,
+    ),
+    texto: `Hola ${nombre || ""},\n\n${textoCodigo}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.${_firmaTexto}`,
   });
 };
 
@@ -338,17 +416,21 @@ const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
  * @param {string} nombre
  * @param {string} link
  */
-const enviarCorreoRecuperacion = (destino, nombre, link) => correos.enviarCorreo({
-  destino,
-  asunto: 'Recupera tu contraseña — ParkU',
-  html: _plantillaBase('Recupera tu contraseña', `
-    <p>Hola ${nombre || ''},</p>
+const enviarCorreoRecuperacion = (destino, nombre, link) =>
+  correos.enviarCorreo({
+    destino,
+    asunto: "Recupera tu contraseña — ParkU",
+    html: _plantillaBase(
+      "Recupera tu contraseña",
+      `
+    <p>Hola ${nombre || ""},</p>
     <p>Recibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:</p>
     <p><a href="${link}" target="_blank">Restablecer mi contraseña</a></p>
     <p>Si no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.</p>
-  `),
-  texto: `Hola ${nombre || ''},\n\nRecibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:\n${link}\n\nSi no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.${_firmaTexto}`,
-});
+  `,
+    ),
+    texto: `Hola ${nombre || ""},\n\nRecibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:\n${link}\n\nSi no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.${_firmaTexto}`,
+  });
 
 /**
  * Avisa de en qué quedó una reserva.
@@ -362,36 +444,41 @@ const enviarCorreoRecuperacion = (destino, nombre, link) => correos.enviarCorreo
  * @param {Object} datos - { fecha, hora, parqueadero, celda, placa, motivo }
  */
 const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
-  const aceptada = desenlace === 'ACEPTADA';
+  const aceptada = desenlace === "ACEPTADA";
   const titulo = aceptada
-    ? 'Tu reserva fue aceptada'
-    : `Tu reserva fue ${desenlace === 'CANCELADA' ? 'cancelada' : 'rechazada'}`;
+    ? "Tu reserva fue aceptada"
+    : `Tu reserva fue ${desenlace === "CANCELADA" ? "cancelada" : "rechazada"}`;
 
   const filas = [
-    ['Fecha', datos.fecha || '—'],
-    ['Horario', datos.hora || '—'],
-    ['Parqueadero', datos.parqueadero || '—'],
-    ['Celda', datos.celda || '—'],
+    ["Fecha", datos.fecha || "—"],
+    ["Horario", datos.hora || "—"],
+    ["Parqueadero", datos.parqueadero || "—"],
+    ["Celda", datos.celda || "—"],
   ];
-  if (datos.placa) filas.push(['Vehículo', datos.placa]);
+  if (datos.placa) filas.push(["Vehículo", datos.placa]);
 
   const explicacion = aceptada
-    ? '<p>Tu celda queda apartada para ese horario. Preséntate dentro de los primeros 20 minutos: pasado ese tiempo la reserva se cancela y la celda vuelve a quedar libre.</p>'
+    ? "<p>Tu celda queda apartada para ese horario. Preséntate dentro de los primeros 20 minutos: pasado ese tiempo la reserva se cancela y la celda vuelve a quedar libre.</p>"
     : `<p>Esta reserva ya no está vigente y la celda quedó libre para otras personas.</p>${
-      datos.motivo ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${datos.motivo}</p>` : ''
-    }<p>Puedes solicitar otra desde la aplicación cuando lo necesites.</p>`;
+        datos.motivo
+          ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${datos.motivo}</p>`
+          : ""
+      }<p>Puedes solicitar otra desde la aplicación cuando lo necesites.</p>`;
 
-  const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join('\n');
+  const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join("\n");
 
   return correos.enviarCorreo({
     destino,
     asunto: `${titulo} — ParkU`,
-    html: _plantillaBase(titulo, `
-      <p>Hola ${nombre || ''},</p>
+    html: _plantillaBase(
+      titulo,
+      `
+      <p>Hola ${nombre || ""},</p>
       ${_ficha(filas)}
       ${explicacion}
-    `),
-    texto: `Hola ${nombre || ''},\n\n${titulo}.\n\n${textoFilas}${datos.motivo ? `\nMotivo: ${datos.motivo}` : ''}${_firmaTexto}`,
+    `,
+    ),
+    texto: `Hola ${nombre || ""},\n\n${titulo}.\n\n${textoFilas}${datos.motivo ? `\nMotivo: ${datos.motivo}` : ""}${_firmaTexto}`,
   });
 };
 
@@ -401,20 +488,27 @@ const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
  * El motivo es el punto del mensaje: sin él, quien se tomó el trabajo de reportar algo solo ve
  * que su reporte desapareció.
  */
-const enviarCorreoReporteDescartado = (destino, nombre, { descripcion, desenlace, motivo }) => {
-  const palabra = desenlace === 'CANCELADA' ? 'cancelado' : 'rechazado';
+const enviarCorreoReporteDescartado = (
+  destino,
+  nombre,
+  { descripcion, desenlace, motivo },
+) => {
+  const palabra = desenlace === "CANCELADA" ? "cancelado" : "rechazado";
   const titulo = `Tu reporte fue ${palabra}`;
   return correos.enviarCorreo({
     destino,
     asunto: `${titulo} — ParkU`,
-    html: _plantillaBase(titulo, `
-      <p>Hola ${nombre || ''},</p>
+    html: _plantillaBase(
+      titulo,
+      `
+      <p>Hola ${nombre || ""},</p>
       <p>El reporte que registraste fue ${palabra} por el personal del parqueadero.</p>
-      ${_ficha([['Reporte', descripcion || '—']])}
-      <p style="background:#FEF3C7; border-radius:8px; padding:11px 13px;"><strong>Motivo:</strong> ${motivo || '—'}</p>
+      ${_ficha([["Reporte", descripcion || "—"]])}
+      <p style="background:#FEF3C7; border-radius:8px; padding:11px 13px;"><strong>Motivo:</strong> ${motivo || "—"}</p>
       <p>Si crees que se trata de un error, puedes registrarlo de nuevo con más detalle.</p>
-    `),
-    texto: `Hola ${nombre || ''},\n\nTu reporte fue ${palabra}.\n\nReporte: ${descripcion || '—'}\nMotivo: ${motivo || '—'}${_firmaTexto}`,
+    `,
+    ),
+    texto: `Hola ${nombre || ""},\n\nTu reporte fue ${palabra}.\n\nReporte: ${descripcion || "—"}\nMotivo: ${motivo || "—"}${_firmaTexto}`,
   });
 };
 
@@ -425,18 +519,22 @@ const enviarCorreoReporteDescartado = (destino, nombre, { descripcion, desenlace
  * la portería es la peor forma de saberlo.
  */
 const enviarCorreoEstadoCuenta = (destino, nombre, activa, { motivo } = {}) => {
-  const titulo = activa ? 'Tu cuenta fue reactivada' : 'Tu cuenta fue desactivada';
+  const titulo = activa
+    ? "Tu cuenta fue reactivada"
+    : "Tu cuenta fue desactivada";
   const cuerpo = activa
-    ? '<p>Ya puedes volver a iniciar sesión, reservar celdas y usar el parqueadero con normalidad.</p>'
+    ? "<p>Ya puedes volver a iniciar sesión, reservar celdas y usar el parqueadero con normalidad.</p>"
     : `<p>Mientras esté desactivada no podrás reservar celdas ni registrar el ingreso de tus vehículos.</p>${
-      motivo ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${motivo}</p>` : ''
-    }<p>Si crees que se trata de un error, comunícate con la administración del parqueadero.</p>`;
+        motivo
+          ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${motivo}</p>`
+          : ""
+      }<p>Si crees que se trata de un error, comunícate con la administración del parqueadero.</p>`;
 
   return correos.enviarCorreo({
     destino,
     asunto: `${titulo} — ParkU`,
-    html: _plantillaBase(titulo, `<p>Hola ${nombre || ''},</p>${cuerpo}`),
-    texto: `Hola ${nombre || ''},\n\n${titulo}.${motivo ? `\nMotivo: ${motivo}` : ''}${_firmaTexto}`,
+    html: _plantillaBase(titulo, `<p>Hola ${nombre || ""},</p>${cuerpo}`),
+    texto: `Hola ${nombre || ""},\n\n${titulo}.${motivo ? `\nMotivo: ${motivo}` : ""}${_firmaTexto}`,
   });
 };
 
@@ -450,9 +548,12 @@ const enviarCorreoEstadoCuenta = (destino, nombre, activa, { motivo } = {}) => {
  * @param {Promise} envio - La llamada a uno de los `enviarCorreo*` de este módulo.
  * @param {string} contexto - Qué se estaba avisando, para poder buscarlo en el log.
  */
-const enviarSinBloquear = (envio, contexto) => Promise.resolve(envio)
-  .catch((error) => {
-    console.error(`No se pudo enviar el correo (${contexto}):`, error?.message || error);
+const enviarSinBloquear = (envio, contexto) =>
+  Promise.resolve(envio).catch((error) => {
+    console.error(
+      `No se pudo enviar el correo (${contexto}):`,
+      error?.message || error,
+    );
   });
 
 /* Las funciones de abajo llaman al envío a través de este objeto y no por su nombre: así
