@@ -5,8 +5,8 @@
  *   description: Endpoints para gestionar conductores
  */
 
-const svc = require('../services/conductor.service');
-const { handleError } = require('../helpers/errorHandler');
+const svc = require("../services/conductor.service");
+const { handleError } = require("../helpers/errorHandler");
 
 /**
  * @swagger
@@ -46,20 +46,6 @@ const { handleError } = require('../helpers/errorHandler');
  *           nullable: true
  *         tipo_usuario_id:
  *           type: integer
- *         regional_formacion:
- *           type: string
- *           nullable: true
- *           description: >
- *             Solo lectura. Dato histórico de SOFIA Plus: ya no se pide en los formularios
- *             de alta ni de edición (se ignora si se envía), pero lo ya guardado se
- *             conserva y se sigue devolviendo. Igual para centro_formacion y
- *             programa_formacion.
- *         centro_formacion:
- *           type: string
- *           nullable: true
- *         programa_formacion:
- *           type: string
- *           nullable: true
  *         vigencia:
  *           type: string
  *           format: date
@@ -281,7 +267,9 @@ const getByDocumento = async (req, res) => {
   try {
     const { tipo_documento, numero_documento } = req.query;
     if (!tipo_documento || !numero_documento) {
-      return res.status(400).json({ message: 'tipo_documento y numero_documento son requeridos' });
+      return res
+        .status(400)
+        .json({ message: "tipo_documento y numero_documento son requeridos" });
     }
     const data = await svc.getByDocumento(tipo_documento, numero_documento);
     res.json(data);

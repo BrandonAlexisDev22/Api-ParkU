@@ -1,25 +1,23 @@
 /**
  * @module ConductorService
  * @description Lógica de negocio para la gestión de conductores.
- * Alineado con la tabla real 'conductor' (esquema Postgres/SENA):
- * usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
- * direccion, numero_telefonico, tipo_usuario_id, regional_formacion,
- * centro_formacion, programa_formacion (texto libre, dato de SOFIA Plus),
- * vigencia, movilidad_reducida, tipo_discapacidad, estado.
+ * Alineado con el contrato real que consume la app hoy: usuario_id, tipo_documento,
+ * numero_documento, nombre_apellidos, correo, direccion, numero_telefonico,
+ * tipo_usuario_id, vigencia, movilidad_reducida, tipo_discapacidad, estado.
  */
 
-const bcrypt = require('bcryptjs');
-const { sequelize } = require('../config/database');
-const repo = require('../repositories/conductor.repository');
+const bcrypt = require("bcryptjs");
+const { sequelize } = require("../config/database");
+const repo = require("../repositories/conductor.repository");
 const { CAMPOS_DE_LA_CUENTA } = repo;
-const usuarioRepo = require('../repositories/usuario.repository');
-const tipoUsuarioRepo = require('../repositories/tipoUsuario.repository');
-const { traducirErrorTrigger } = require('../utils/dbContext.util');
-const { exigirSinOperaciones } = require('../utils/borrado.util');
-const { ROLES } = require('../config/roles');
-const PasswordUtil = require('../utils/password.util');
+const usuarioRepo = require("../repositories/usuario.repository");
+const tipoUsuarioRepo = require("../repositories/tipoUsuario.repository");
+const { traducirErrorTrigger } = require("../utils/dbContext.util");
+const { exigirSinOperaciones } = require("../utils/borrado.util");
+const { ROLES } = require("../config/roles");
+const PasswordUtil = require("../utils/password.util");
 
-const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
+const TIPOS_DOCUMENTO = ["CC", "CE", "TI", "PASAPORTE", "PEP", "NIT"];
 
 /**
  * ¿Ese tipo de usuario es "Visitante"? Se resuelve por NOMBRE contra el catálogo, no por un
@@ -34,18 +32,24 @@ const TIPOS_DOCUMENTO = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
  */
 const _idTipoVisitante = async () => {
   const tipos = await tipoUsuarioRepo.findAll();
-  return tipos.find((t) => (t.nombre || '').trim().toLowerCase() === 'visitante')?.id ?? null;
+  return (
+    tipos.find((t) => (t.nombre || "").trim().toLowerCase() === "visitante")
+      ?.id ?? null
+  );
 };
 
 const _esVisitante = async (tipoUsuarioId) => {
   if (!tipoUsuarioId) return false;
   const tipo = await tipoUsuarioRepo.findById(tipoUsuarioId);
-  return (tipo?.nombre || '').trim().toLowerCase() === 'visitante';
+  return (tipo?.nombre || "").trim().toLowerCase() === "visitante";
 };
 
 const validarCorreo = (correo) => {
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-    throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
+    throw {
+      status: 400,
+      message: "El correo electrónico no tiene un formato válido",
+    };
   }
 };
 
@@ -55,7 +59,11 @@ const validarCorreo = (correo) => {
  */
 const validarDiscapacidad = (movilidadReducida, tipoDiscapacidad) => {
   if (tipoDiscapacidad && !movilidadReducida) {
-    throw { status: 400, message: 'tipo_discapacidad solo puede registrarse si movilidad_reducida es true' };
+    throw {
+      status: 400,
+      message:
+        "tipo_discapacidad solo puede registrarse si movilidad_reducida es true",
+    };
   }
 };
 
@@ -70,7 +78,8 @@ const validarDiscapacidad = (movilidadReducida, tipoDiscapacidad) => {
  */
 const _tomarDatosDeLaCuenta = (cuenta, enviados) => {
   const resultado = {};
-  const normaliza = (v) => (v === undefined || v === null ? null : String(v).trim().toLowerCase());
+  const normaliza = (v) =>
+    v === undefined || v === null ? null : String(v).trim().toLowerCase();
 
   for (const campo of CAMPOS_DE_LA_CUENTA) {
     const deLaCuenta = cuenta[campo] ?? null;
@@ -80,7 +89,11 @@ const _tomarDatosDeLaCuenta = (cuenta, enviados) => {
       throw {
         status: 409,
         message: `El campo "${campo}" lo define la cuenta vinculada (${deLaCuenta}) y no se puede cambiar desde el conductor`,
-        data: { campo, valor_de_la_cuenta: deLaCuenta, campos_solo_lectura: CAMPOS_DE_LA_CUENTA },
+        data: {
+          campo,
+          valor_de_la_cuenta: deLaCuenta,
+          campos_solo_lectura: CAMPOS_DE_LA_CUENTA,
+        },
       };
     }
     // La cuenta manda; si ella no lo tiene, vale lo enviado.
@@ -104,12 +117,21 @@ const _tomarDatosDeLaCuenta = (cuenta, enviados) => {
  * @param {import('sequelize').Transaction} transaction
  * @throws {Object} 409 si ese documento ya pertenece a otra cuenta.
  */
-const _propagarDocumentoALaCuenta = async (usuarioId, tipoDocumento, numeroDocumento, transaction) => {
+const _propagarDocumentoALaCuenta = async (
+  usuarioId,
+  tipoDocumento,
+  numeroDocumento,
+  transaction,
+) => {
   if (!usuarioId || !tipoDocumento || !numeroDocumento) return;
 
   // Hay un índice único parcial (usuario_documento_idx): sin esta comprobación previa, el
   // choque llegaría como error crudo de Postgres en vez de un 409 explicando con quién.
-  const otraCuenta = await usuarioRepo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
+  const otraCuenta = await usuarioRepo.findByDocumento(
+    tipoDocumento,
+    numeroDocumento,
+    { transaction },
+  );
   if (otraCuenta && otraCuenta.id !== Number(usuarioId)) {
     throw {
       status: 409,
@@ -129,10 +151,14 @@ const _propagarDocumentoALaCuenta = async (usuarioId, tipoDocumento, numeroDocum
  * Valida que las referencias a catálogos y usuario existan.
  * @param {Object} data
  */
-const validarReferencias = async ({ usuario_id, tipo_usuario_id }, conductorIdActual = null) => {
+const validarReferencias = async (
+  { usuario_id, tipo_usuario_id },
+  conductorIdActual = null,
+) => {
   if (usuario_id) {
     const usuario = await usuarioRepo.findById(usuario_id);
-    if (!usuario) throw { status: 404, message: 'El usuario indicado no existe' };
+    if (!usuario)
+      throw { status: 404, message: "El usuario indicado no existe" };
 
     // conductor.usuario_id es UNIQUE: una cuenta pertenece como mucho a un conductor. Sin
     // esta comprobación el choque lo daba la base de datos como error de constraint, que
@@ -142,13 +168,17 @@ const validarReferencias = async ({ usuario_id, tipo_usuario_id }, conductorIdAc
       throw {
         status: 409,
         message: `Esa cuenta ya está vinculada al conductor ${yaVinculado.nombre_apellidos}. Cancela primero esa vinculación (DELETE /api/conductores/${yaVinculado.id}/usuario).`,
-        data: { conductor_id: yaVinculado.id, nombre_apellidos: yaVinculado.nombre_apellidos },
+        data: {
+          conductor_id: yaVinculado.id,
+          nombre_apellidos: yaVinculado.nombre_apellidos,
+        },
       };
     }
   }
   if (tipo_usuario_id !== undefined) {
     const tipoUsuario = await tipoUsuarioRepo.findById(tipo_usuario_id);
-    if (!tipoUsuario) throw { status: 404, message: 'El tipo de usuario indicado no existe' };
+    if (!tipoUsuario)
+      throw { status: 404, message: "El tipo de usuario indicado no existe" };
   }
 };
 
@@ -166,7 +196,7 @@ const getAll = () => repo.findAll();
  */
 const getById = async (id) => {
   const item = await repo.findById(id);
-  if (!item) throw { status: 404, message: 'Conductor no encontrado' };
+  if (!item) throw { status: 404, message: "Conductor no encontrado" };
   return item;
 };
 
@@ -185,7 +215,7 @@ const getActivos = () => repo.findActivos();
  */
 const getByDocumento = async (tipoDocumento, numeroDocumento) => {
   const item = await repo.findByDocumento(tipoDocumento, numeroDocumento);
-  if (!item) throw { status: 404, message: 'Conductor no encontrado' };
+  if (!item) throw { status: 404, message: "Conductor no encontrado" };
   return item;
 };
 
@@ -208,7 +238,11 @@ const getByCorreo = (correo) => repo.findByCorreo(correo);
  */
 const getByUsuarioId = async (usuarioId) => {
   const item = await repo.findByUsuarioId(usuarioId);
-  if (!item) throw { status: 404, message: 'Este usuario no tiene un conductor vinculado' };
+  if (!item)
+    throw {
+      status: 404,
+      message: "Este usuario no tiene un conductor vinculado",
+    };
   return item;
 };
 
@@ -231,34 +265,47 @@ const getByUsuarioId = async (usuarioId) => {
  * @throws {Object} 400 si se piden dos modos a la vez o no hay datos para decidir.
  * @returns {'VINCULAR'|'CREAR'|'SIN_CUENTA'|'AUTO'}
  */
-const _resolverModoCuenta = ({ usuario_id, crear_cuenta, crearCuenta, sin_cuenta, correo }, { porDefecto } = {}) => {
+const _resolverModoCuenta = (
+  { usuario_id, crear_cuenta, crearCuenta, sin_cuenta, correo },
+  { porDefecto } = {},
+) => {
   const quiereCrear = crear_cuenta === true || crearCuenta === true;
   const quiereSinCuenta = sin_cuenta === true;
 
   if (quiereCrear && quiereSinCuenta) {
-    throw { status: 400, message: 'crear_cuenta y sin_cuenta son opciones opuestas: envía solo una' };
+    throw {
+      status: 400,
+      message:
+        "crear_cuenta y sin_cuenta son opciones opuestas: envía solo una",
+    };
   }
   if (usuario_id && quiereCrear) {
     throw {
       status: 400,
-      message: 'No se puede crear una cuenta nueva y vincular una existente a la vez: envía usuario_id (vincular) o crear_cuenta (crear), no ambos',
+      message:
+        "No se puede crear una cuenta nueva y vincular una existente a la vez: envía usuario_id (vincular) o crear_cuenta (crear), no ambos",
     };
   }
   if (usuario_id && quiereSinCuenta) {
-    throw { status: 400, message: 'sin_cuenta pide un conductor sin cuenta de acceso, así que no puede venir con usuario_id' };
+    throw {
+      status: 400,
+      message:
+        "sin_cuenta pide un conductor sin cuenta de acceso, así que no puede venir con usuario_id",
+    };
   }
 
-  if (usuario_id) return 'VINCULAR';
-  if (quiereCrear) return 'CREAR';
-  if (quiereSinCuenta) return 'SIN_CUENTA';
-  if (correo) return 'AUTO';
+  if (usuario_id) return "VINCULAR";
+  if (quiereCrear) return "CREAR";
+  if (quiereSinCuenta) return "SIN_CUENTA";
+  if (correo) return "AUTO";
   // El alta que ocurre dentro del panel de estacionamiento sí tiene un modo por defecto
   // (sin cuenta): allí lo normal es registrar a alguien en la barrera, no darle acceso.
   if (porDefecto) return porDefecto;
 
   throw {
     status: 400,
-    message: 'El correo es requerido. Si esta persona no va a tener cuenta de acceso envía sin_cuenta: true; si quieres crearle una, envía crear_cuenta: true con contrasena y confirmar_contrasena',
+    message:
+      "El correo es requerido. Si esta persona no va a tener cuenta de acceso envía sin_cuenta: true; si quieres crearle una, envía crear_cuenta: true con contrasena y confirmar_contrasena",
   };
 };
 
@@ -271,7 +318,10 @@ const _resolverModoCuenta = ({ usuario_id, crear_cuenta, crearCuenta, sin_cuenta
  * @throws {Object} 409 si el correo (o el teléfono) ya pertenecen a otra cuenta.
  * @returns {Promise<number>} El id de la cuenta creada.
  */
-const _crearCuentaDeConductor = async ({ nombre_apellidos, correo, numero_telefonico, contrasena, cuerpo }, transaction) => {
+const _crearCuentaDeConductor = async (
+  { nombre_apellidos, correo, numero_telefonico, contrasena, cuerpo },
+  transaction,
+) => {
   // Pidieron CREAR la cuenta, así que ese correo tiene que estar libre. Reutilizar en
   // silencio la cuenta que lo tuviera dejaba al conductor vinculado a otra persona.
   const cuentaExistente = await usuarioRepo.findByCorreo(correo);
@@ -285,7 +335,10 @@ const _crearCuentaDeConductor = async ({ nombre_apellidos, correo, numero_telefo
   if (numero_telefonico) {
     const telefonoEnUso = await usuarioRepo.findByTelefono(numero_telefonico);
     if (telefonoEnUso) {
-      throw { status: 409, message: 'Este número de teléfono ya está registrado en otra cuenta' };
+      throw {
+        status: 409,
+        message: "Este número de teléfono ya está registrado en otra cuenta",
+      };
     }
   }
   // Misma política de contraseñas que POST /api/usuarios y el registro público.
@@ -326,14 +379,17 @@ const _crearCuentaDeConductor = async ({ nombre_apellidos, correo, numero_telefo
  * @returns {Promise<Object>} Conductor creado.
  */
 const create = async (data) => {
-  // regional_formacion, centro_formacion y programa_formacion ya no se piden en ningún
-  // formulario: son datos de SOFIA Plus que no aportan nada a estacionar un vehículo. Se
-  // ignoran si llegan; las columnas siguen en la base y lo ya guardado se conserva y se
-  // sigue leyendo (v_conductor_front y los reportes de Comunidad SENA las usan).
   const {
-    tipo_documento = 'CC', numero_documento, nombre_apellidos,
-    direccion, tipo_usuario_id, vigencia,
-    movilidad_reducida = false, tipo_discapacidad, estado = true, contrasena,
+    tipo_documento = "CC",
+    numero_documento,
+    nombre_apellidos,
+    direccion,
+    tipo_usuario_id,
+    vigencia,
+    movilidad_reducida = false,
+    tipo_discapacidad,
+    estado = true,
+    contrasena,
   } = data;
   // correo puede reasignarse: si se vincula una cuenta existente, manda el correo de esa
   // cuenta (ver más abajo).
@@ -345,15 +401,18 @@ const create = async (data) => {
   // Todo conductor necesita una cuenta de acceso, salvo los visitantes: sin ella no puede
   // consultar sus reservas ni sus vehículos, y la ficha queda a medias desde el primer día.
   // Un visitante es la excepción deliberada: entra una vez y no va a abrirse una cuenta.
-  if (modoCuenta === 'SIN_CUENTA' && !(await _esVisitante(tipo_usuario_id))) {
+  if (modoCuenta === "SIN_CUENTA" && !(await _esVisitante(tipo_usuario_id))) {
     throw {
       status: 400,
-      message: 'Un conductor necesita una cuenta de acceso: selecciona una existente, o marca "no tengo usuario" para crearla. Solo los visitantes pueden quedar sin cuenta.',
+      message:
+        'Un conductor necesita una cuenta de acceso: selecciona una existente, o marca "no tengo usuario" para crearla. Solo los visitantes pueden quedar sin cuenta.',
     };
   }
 
-  if (!numero_documento) throw { status: 400, message: 'El número de documento es requerido' };
-  if (!nombre_apellidos) throw { status: 400, message: 'El nombre y apellidos son requeridos' };
+  if (!numero_documento)
+    throw { status: 400, message: "El número de documento es requerido" };
+  if (!nombre_apellidos)
+    throw { status: 400, message: "El nombre y apellidos son requeridos" };
   // tipo_usuario_id es OPCIONAL. El alta que ocurre en medio de asignar una celda (panel
   // de estacionamiento) no tiene por qué preguntar el perfil formativo del conductor
   // -- Aprendiz/Instructor/Administrativo no aporta nada a estacionar un vehículo, y
@@ -363,9 +422,13 @@ const create = async (data) => {
   // Correo y teléfono son obligatorios SALVO que se vincule una cuenta existente: en ese
   // caso salen de ella (ver CAMPOS_DE_LA_CUENTA más abajo) y exigirlos aquí obligaría al
   // formulario a reescribir a mano unos datos que precisamente no puede editar.
-  if (modoCuenta === 'CREAR') {
+  if (modoCuenta === "CREAR") {
     // Lo único imprescindible para crear una cuenta es con qué entrar.
-    if (!correo) throw { status: 400, message: 'El correo es requerido para crear la cuenta de acceso' };
+    if (!correo)
+      throw {
+        status: 400,
+        message: "El correo es requerido para crear la cuenta de acceso",
+      };
     // Fortaleza + confirmación ANTES de tocar la base de datos, la misma política que
     // POST /api/usuarios y el registro público (PasswordUtil, un solo sitio).
     PasswordUtil.validarNueva(contrasena, data);
@@ -375,20 +438,32 @@ const create = async (data) => {
   // exige correo: de un visitante registrado en la barrera puede no conocerse ninguno.
 
   if (!TIPOS_DOCUMENTO.includes(tipo_documento)) {
-    throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
+    throw {
+      status: 400,
+      message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(", ")}`,
+    };
   }
   validarCorreo(correo);
   validarDiscapacidad(movilidad_reducida, tipo_discapacidad);
 
-  const existeDoc = await repo.findByDocumento(tipo_documento, numero_documento);
+  const existeDoc = await repo.findByDocumento(
+    tipo_documento,
+    numero_documento,
+  );
   if (existeDoc) {
-    throw { status: 409, message: 'Ya existe un conductor con ese tipo y número de documento' };
+    throw {
+      status: 409,
+      message: "Ya existe un conductor con ese tipo y número de documento",
+    };
   }
 
   if (correo) {
     const existeCorreo = await repo.findByCorreo(correo);
     if (existeCorreo.length > 0) {
-      throw { status: 409, message: 'Ya existe un conductor con ese correo electrónico' };
+      throw {
+        status: 409,
+        message: "Ya existe un conductor con ese correo electrónico",
+      };
     }
   }
 
@@ -406,18 +481,28 @@ const create = async (data) => {
   // la misma persona con dos correos o dos teléfonos sin forma de saber cuál vale.
   if (usuario_id) {
     const cuenta = await usuarioRepo.findById(usuario_id);
-    const deCuenta = _tomarDatosDeLaCuenta(cuenta, { correo, numero_telefonico });
+    const deCuenta = _tomarDatosDeLaCuenta(cuenta, {
+      correo,
+      numero_telefonico,
+    });
     correo = deCuenta.correo;
     numero_telefonico = deCuenta.numero_telefonico;
   }
 
   try {
     return await sequelize.transaction(async (transaction) => {
-      if (modoCuenta === 'CREAR') {
+      if (modoCuenta === "CREAR") {
         usuario_id = await _crearCuentaDeConductor(
-          { nombre_apellidos, correo, numero_telefonico, contrasena, cuerpo: data }, transaction,
+          {
+            nombre_apellidos,
+            correo,
+            numero_telefonico,
+            contrasena,
+            cuerpo: data,
+          },
+          transaction,
         );
-      } else if (modoCuenta === 'AUTO' && correo) {
+      } else if (modoCuenta === "AUTO" && correo) {
         const usuarioExistente = await usuarioRepo.findByCorreo(correo);
         if (usuarioExistente) {
           usuario_id = usuarioExistente.id;
@@ -428,24 +513,49 @@ const create = async (data) => {
           if (!contrasena) {
             throw {
               status: 400,
-              message: 'contrasena es requerida para crear la cuenta de usuario de este conductor. Si esta persona no va a tener cuenta, envía sin_cuenta: true',
+              message:
+                "contrasena es requerida para crear la cuenta de usuario de este conductor. Si esta persona no va a tener cuenta, envía sin_cuenta: true",
             };
           }
           usuario_id = await _crearCuentaDeConductor(
-            { nombre_apellidos, correo, numero_telefonico, contrasena, cuerpo: data }, transaction,
+            {
+              nombre_apellidos,
+              correo,
+              numero_telefonico,
+              contrasena,
+              cuerpo: data,
+            },
+            transaction,
           );
         }
       }
 
       // El documento también es dato de la cuenta (migración 002): se propaga para que
       // ambas copias nazcan iguales y la cuenta pueda precargarlo más adelante.
-      await _propagarDocumentoALaCuenta(usuario_id, tipo_documento, numero_documento, transaction);
+      await _propagarDocumentoALaCuenta(
+        usuario_id,
+        tipo_documento,
+        numero_documento,
+        transaction,
+      );
 
-      return repo.create({
-        usuario_id, tipo_documento, numero_documento, nombre_apellidos, correo,
-        direccion, numero_telefonico, tipo_usuario_id, vigencia,
-        movilidad_reducida, tipo_discapacidad, estado,
-      }, { transaction });
+      return repo.create(
+        {
+          usuario_id,
+          tipo_documento,
+          numero_documento,
+          nombre_apellidos,
+          correo,
+          direccion,
+          numero_telefonico,
+          tipo_usuario_id,
+          vigencia,
+          movilidad_reducida,
+          tipo_discapacidad,
+          estado,
+        },
+        { transaction },
+      );
     });
   } catch (error) {
     traducirErrorTrigger(error);
@@ -491,19 +601,29 @@ const create = async (data) => {
 const resolverOCrear = async (datos = {}, { transaction } = {}) => {
   if (datos.conductor_id) {
     const existente = await repo.findById(datos.conductor_id, { transaction });
-    if (!existente) throw { status: 404, message: 'Conductor no encontrado' };
+    if (!existente) throw { status: 404, message: "Conductor no encontrado" };
     return existente;
   }
 
   const numeroDocumento = datos.numero_documento ?? datos.numeroDocumento;
   if (!numeroDocumento) return null;
 
-  const tipoDocumento = (datos.tipo_documento ?? datos.tipoDocumento ?? 'CC').toString().trim().toUpperCase();
+  const tipoDocumento = (datos.tipo_documento ?? datos.tipoDocumento ?? "CC")
+    .toString()
+    .trim()
+    .toUpperCase();
   if (!TIPOS_DOCUMENTO.includes(tipoDocumento)) {
-    throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
+    throw {
+      status: 400,
+      message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(", ")}`,
+    };
   }
 
-  const yaRegistrado = await repo.findByDocumento(tipoDocumento, numeroDocumento, { transaction });
+  const yaRegistrado = await repo.findByDocumento(
+    tipoDocumento,
+    numeroDocumento,
+    { transaction },
+  );
   if (yaRegistrado) return yaRegistrado;
 
   if (!datos.nombre_apellidos) {
@@ -519,22 +639,30 @@ const resolverOCrear = async (datos = {}, { transaction } = {}) => {
   // formulario del panel de estacionamiento pueda ofrecer "no tengo cuenta" con sus campos
   // de contraseña y confirmación. Si no se pide ninguno, el conductor nace sin cuenta, que
   // es lo normal cuando el vigilante registra a alguien en la barrera.
-  const modoCuenta = _resolverModoCuenta(datos, { porDefecto: 'SIN_CUENTA' });
+  const modoCuenta = _resolverModoCuenta(datos, { porDefecto: "SIN_CUENTA" });
   let usuarioId = null;
   let correo = datos.correo || null;
   let telefono = datos.numero_telefonico || null;
 
-  if (modoCuenta === 'VINCULAR') {
+  if (modoCuenta === "VINCULAR") {
     await validarReferencias({ usuario_id: datos.usuario_id });
     // Los datos de contacto los manda la cuenta (CAMPOS_DE_LA_CUENTA); si el formulario
     // envía otros distintos se rechaza, en vez de dejar dos correos para la misma persona.
     const cuenta = await usuarioRepo.findById(datos.usuario_id);
-    const deCuenta = _tomarDatosDeLaCuenta(cuenta, { correo, numero_telefonico: telefono });
+    const deCuenta = _tomarDatosDeLaCuenta(cuenta, {
+      correo,
+      numero_telefonico: telefono,
+    });
     correo = deCuenta.correo;
     telefono = deCuenta.numero_telefonico;
     usuarioId = Number(datos.usuario_id);
-  } else if (modoCuenta === 'CREAR') {
-    if (!correo) throw { status: 400, message: 'El correo es requerido para crear la cuenta de acceso del conductor' };
+  } else if (modoCuenta === "CREAR") {
+    if (!correo)
+      throw {
+        status: 400,
+        message:
+          "El correo es requerido para crear la cuenta de acceso del conductor",
+      };
     usuarioId = await _crearCuentaDeConductor(
       {
         nombre_apellidos: datos.nombre_apellidos,
@@ -545,7 +673,7 @@ const resolverOCrear = async (datos = {}, { transaction } = {}) => {
       },
       transaction,
     );
-  } else if (modoCuenta === 'AUTO' && correo) {
+  } else if (modoCuenta === "AUTO" && correo) {
     // Llegó un correo suelto, sin decir qué hacer con él: si ya existe esa cuenta y está
     // libre se vincula; si no, el conductor queda sin cuenta. Crear una exige contraseña,
     // y aquí nadie la ha pedido -- inventarla sería peor que no crearla.
@@ -557,23 +685,32 @@ const resolverOCrear = async (datos = {}, { transaction } = {}) => {
 
   // El documento es también dato de la cuenta (migración 002): las dos copias nacen
   // iguales, dentro de esta misma transacción.
-  await _propagarDocumentoALaCuenta(usuarioId, tipoDocumento, numeroDocumento, transaction);
+  await _propagarDocumentoALaCuenta(
+    usuarioId,
+    tipoDocumento,
+    numeroDocumento,
+    transaction,
+  );
 
-  return repo.create({
-    usuario_id: usuarioId,
-    tipo_documento: tipoDocumento,
-    numero_documento: numeroDocumento,
-    nombre_apellidos: datos.nombre_apellidos,
-    correo,
-    numero_telefonico: telefono,
-    direccion: datos.direccion || null,
-    // Quien se registra en la barrera sin cuenta es, por definición, un visitante: es la
-    // única figura que el sistema admite sin acceso propio (ver el _esVisitante de arriba).
-    // Si el panel sí pregunta el perfil, manda lo que haya elegido.
-    tipo_usuario_id: datos.tipo_usuario_id || (usuarioId ? null : await _idTipoVisitante()),
-    movilidad_reducida: datos.movilidad_reducida === true,
-    tipo_discapacidad: datos.tipo_discapacidad || null,
-  }, { transaction });
+  return repo.create(
+    {
+      usuario_id: usuarioId,
+      tipo_documento: tipoDocumento,
+      numero_documento: numeroDocumento,
+      nombre_apellidos: datos.nombre_apellidos,
+      correo,
+      numero_telefonico: telefono,
+      direccion: datos.direccion || null,
+      // Quien se registra en la barrera sin cuenta es, por definición, un visitante: es la
+      // única figura que el sistema admite sin acceso propio (ver el _esVisitante de arriba).
+      // Si el panel sí pregunta el perfil, manda lo que haya elegido.
+      tipo_usuario_id:
+        datos.tipo_usuario_id || (usuarioId ? null : await _idTipoVisitante()),
+      movilidad_reducida: datos.movilidad_reducida === true,
+      tipo_discapacidad: datos.tipo_discapacidad || null,
+    },
+    { transaction },
+  );
 };
 
 /**
@@ -596,7 +733,10 @@ const desvincularUsuario = async (id) => {
   const conductor = await getById(id);
 
   if (!conductor.usuario_id) {
-    throw { status: 409, message: 'Este conductor no tiene ninguna cuenta de usuario vinculada' };
+    throw {
+      status: 409,
+      message: "Este conductor no tiene ninguna cuenta de usuario vinculada",
+    };
   }
 
   try {
@@ -623,15 +763,13 @@ const desvincularUsuario = async (id) => {
 const update = async (id, datosEnviados, usuarioId) => {
   const conductor = await getById(id);
 
-  // Los datos de formación salieron de los formularios (ver create): si llegan, se
-  // ignoran, y lo que hubiera guardado se conserva tal cual.
   const data = { ...datosEnviados };
-  delete data.regional_formacion;
-  delete data.centro_formacion;
-  delete data.programa_formacion;
 
   if (data.tipo_documento && !TIPOS_DOCUMENTO.includes(data.tipo_documento)) {
-    throw { status: 400, message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(', ')}` };
+    throw {
+      status: 400,
+      message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(", ")}`,
+    };
   }
   if (data.correo !== undefined) validarCorreo(data.correo);
 
@@ -649,12 +787,17 @@ const update = async (id, datosEnviados, usuarioId) => {
   // cuenta nueva traía un campo vacío, y quedaba una ficha mitad de una persona y mitad de
   // otra (el teléfono del conductor anterior con el nombre y el correo del nuevo). Si la
   // cuenta no tiene teléfono, el conductor se queda sin teléfono: eso es lo que dice la cuenta.
-  const cambiaDeCuenta = data.usuario_id !== undefined
-    && data.usuario_id !== null
-    && Number(data.usuario_id) !== Number(conductor.usuario_id);
+  const cambiaDeCuenta =
+    data.usuario_id !== undefined &&
+    data.usuario_id !== null &&
+    Number(data.usuario_id) !== Number(conductor.usuario_id);
   if (cambiaDeCuenta) {
     const cuentaNueva = await usuarioRepo.findById(data.usuario_id);
-    if (!cuentaNueva) throw { status: 404, message: 'La cuenta que intentas vincular no existe' };
+    if (!cuentaNueva)
+      throw {
+        status: 404,
+        message: "La cuenta que intentas vincular no existe",
+      };
     data.nombre_apellidos = cuentaNueva.nombre;
     data.correo = cuentaNueva.correo;
     data.numero_telefonico = cuentaNueva.numero_telefonico ?? null;
@@ -667,33 +810,67 @@ const update = async (id, datosEnviados, usuarioId) => {
   // Reactivar exige tener cuenta. Es el caso de un conductor cuya cuenta fue eliminada: se
   // quedó en pausa a propósito (ver usuario.service.remove) y volver a activarlo sin darle
   // acceso lo dejaría operando sin nadie detrás. Los visitantes no cuentan: nunca tuvieron.
-  const usuarioFinal = data.usuario_id !== undefined ? data.usuario_id : conductor.usuario_id;
-  const tipoUsuarioFinal = data.tipo_usuario_id !== undefined ? data.tipo_usuario_id : conductor.tipo_usuario_id;
-  if (data.estado === true && !conductor.estado && !usuarioFinal && !(await _esVisitante(tipoUsuarioFinal))) {
+  const usuarioFinal =
+    data.usuario_id !== undefined ? data.usuario_id : conductor.usuario_id;
+  const tipoUsuarioFinal =
+    data.tipo_usuario_id !== undefined
+      ? data.tipo_usuario_id
+      : conductor.tipo_usuario_id;
+  if (
+    data.estado === true &&
+    !conductor.estado &&
+    !usuarioFinal &&
+    !(await _esVisitante(tipoUsuarioFinal))
+  ) {
     throw {
       status: 409,
-      message: 'Este conductor no tiene cuenta de acceso: la que tenía fue eliminada. Vincúlale una cuenta para poder activarlo.',
+      message:
+        "Este conductor no tiene cuenta de acceso: la que tenía fue eliminada. Vincúlale una cuenta para poder activarlo.",
       data: { requiere_cuenta: true, conductor_id: conductor.id },
     };
   }
 
-  const movilidadReducidaFinal = data.movilidad_reducida !== undefined ? data.movilidad_reducida : conductor.movilidad_reducida;
-  const tipoDiscapacidadFinal = data.tipo_discapacidad !== undefined ? data.tipo_discapacidad : conductor.tipo_discapacidad;
+  const movilidadReducidaFinal =
+    data.movilidad_reducida !== undefined
+      ? data.movilidad_reducida
+      : conductor.movilidad_reducida;
+  const tipoDiscapacidadFinal =
+    data.tipo_discapacidad !== undefined
+      ? data.tipo_discapacidad
+      : conductor.tipo_discapacidad;
   validarDiscapacidad(movilidadReducidaFinal, tipoDiscapacidadFinal);
 
-  const tipoDocumentoFinal = data.tipo_documento !== undefined ? data.tipo_documento : conductor.tipo_documento;
-  const numeroDocumentoFinal = data.numero_documento !== undefined ? data.numero_documento : conductor.numero_documento;
-  if (data.tipo_documento !== undefined || data.numero_documento !== undefined) {
-    const existeDoc = await repo.findByDocumento(tipoDocumentoFinal, numeroDocumentoFinal);
+  const tipoDocumentoFinal =
+    data.tipo_documento !== undefined
+      ? data.tipo_documento
+      : conductor.tipo_documento;
+  const numeroDocumentoFinal =
+    data.numero_documento !== undefined
+      ? data.numero_documento
+      : conductor.numero_documento;
+  if (
+    data.tipo_documento !== undefined ||
+    data.numero_documento !== undefined
+  ) {
+    const existeDoc = await repo.findByDocumento(
+      tipoDocumentoFinal,
+      numeroDocumentoFinal,
+    );
     if (existeDoc && existeDoc.id !== id) {
-      throw { status: 409, message: 'Ya existe otro conductor con ese tipo y número de documento' };
+      throw {
+        status: 409,
+        message: "Ya existe otro conductor con ese tipo y número de documento",
+      };
     }
   }
 
   if (data.correo && data.correo !== conductor.correo) {
     const existeCorreo = await repo.findByCorreo(data.correo);
     if (existeCorreo.some((c) => c.id !== id)) {
-      throw { status: 409, message: 'Ya existe otro conductor con ese correo electrónico' };
+      throw {
+        status: 409,
+        message: "Ya existe otro conductor con ese correo electrónico",
+      };
     }
   }
 
@@ -709,8 +886,12 @@ const update = async (id, datosEnviados, usuarioId) => {
     // La tabla vehiculo lleva trigger de auditoría y exige saber quién escribe, en la misma
     // transacción (ver utils/dbContext.util.js). Aquí no se puede usar runWithUsuario porque
     // ya estamos dentro de una transacción, así que se fija la variable a mano.
-    await sequelize.query('SET LOCAL app.usuario_id = :usuarioId', {
-      replacements: { usuarioId: String(usuarioId ?? usuarioFinal ?? conductor.usuario_id ?? 1) },
+    await sequelize.query("SET LOCAL app.usuario_id = :usuarioId", {
+      replacements: {
+        usuarioId: String(
+          usuarioId ?? usuarioFinal ?? conductor.usuario_id ?? 1,
+        ),
+      },
       transaction,
     });
     await sequelize.query(
@@ -727,8 +908,9 @@ const update = async (id, datosEnviados, usuarioId) => {
   // de la cuenta nueva, así que ya está donde tiene que estar. Escribirlo además en la
   // cuenta anterior chocaba contra el índice único y hacía fallar el relevo entero
   // ("ese documento ya está registrado en la cuenta …", hablando de la cuenta nueva).
-  const cambiaDocumento = !cambiaDeCuenta
-    && (data.tipo_documento !== undefined || data.numero_documento !== undefined);
+  const cambiaDocumento =
+    !cambiaDeCuenta &&
+    (data.tipo_documento !== undefined || data.numero_documento !== undefined);
   if (!cambiaDocumento || !conductor.usuario_id) {
     if (!reactivando) return repo.update(id, data);
     return sequelize.transaction(async (transaction) => {
@@ -737,9 +919,13 @@ const update = async (id, datosEnviados, usuarioId) => {
     });
   }
 
-
   return sequelize.transaction(async (transaction) => {
-    await _propagarDocumentoALaCuenta(conductor.usuario_id, tipoDocumentoFinal, numeroDocumentoFinal, transaction);
+    await _propagarDocumentoALaCuenta(
+      conductor.usuario_id,
+      tipoDocumentoFinal,
+      numeroDocumentoFinal,
+      transaction,
+    );
     if (reactivando) await devolverVehiculos(transaction);
     return repo.update(id, data, { transaction });
   });
@@ -751,8 +937,12 @@ const update = async (id, datosEnviados, usuarioId) => {
  * @private
  */
 const OPERACIONES_DEL_CONDUCTOR = [
-  { tabla: 'registro_acceso', columna: 'conductor_id', que_es: 'entradas o salidas' },
-  { tabla: 'reserva', columna: 'conductor_id', que_es: 'reservas' },
+  {
+    tabla: "registro_acceso",
+    columna: "conductor_id",
+    que_es: "entradas o salidas",
+  },
+  { tabla: "reserva", columna: "conductor_id", que_es: "reservas" },
 ];
 
 /**
@@ -780,7 +970,7 @@ const remove = async (id) => {
     referencias: OPERACIONES_DEL_CONDUCTOR,
     id,
     sujeto: `a ${conductor.nombre_apellidos}`,
-    alternativa: 'Deshabilítalo en vez de borrarlo.',
+    alternativa: "Deshabilítalo en vez de borrarlo.",
     // Sin desglose: a quien intenta borrar no le sirve saber si son 3 ingresos o 2 reservas,
     // solo que hay historial que depende de esta persona. El detalle sigue en data.bloqueos.
     detallar: false,
