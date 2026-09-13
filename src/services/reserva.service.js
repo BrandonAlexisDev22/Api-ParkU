@@ -12,27 +12,52 @@
  * traducen a 409 con traducirErrorTrigger.
  */
 
-const repo = require('../repositories/reserva.repository');
-const celdaRepo = require('../repositories/celda.repository');
-const vehRepo = require('../repositories/vehiculo.repository');
-const conductorRepo = require('../repositories/conductor.repository');
-const parqRepo = require('../repositories/parqueadero.repository');
-const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
-const { enviarCorreoReserva, enviarSinBloquear } = require('../utils/mailer.util');
-const { HORA_APERTURA, HORA_CIERRE, horaEnBogotaTexto, esDomingoEnBogota } = require('../config/horarioOperacion');
+const repo = require("../repositories/reserva.repository");
+const celdaRepo = require("../repositories/celda.repository");
+const vehRepo = require("../repositories/vehiculo.repository");
+const conductorRepo = require("../repositories/conductor.repository");
+const parqRepo = require("../repositories/parqueadero.repository");
 const {
-  ANTICIPACION_MINIMA_MINUTOS, DURACION_MINIMA_MINUTOS, HORA_MAXIMA_INICIO,
-  MARGEN_CANCELACION_MINUTOS, MARGEN_CONFIRMACION_MINUTOS,
-  MARGEN_LLEGADA_MINUTOS, MOTIVO_VENCIMIENTO_ACEPTADA, MOTIVO_SIN_CONFIRMAR, MOTIVO_FRANJA_TOMADA,
-  MINUTO_MS, _enPalabras,
-} = require('../config/reglasReserva');
+  runWithUsuario,
+  traducirErrorTrigger,
+} = require("../utils/dbContext.util");
+const {
+  enviarCorreoReserva,
+  enviarSinBloquear,
+} = require("../utils/mailer.util");
+const {
+  HORA_APERTURA,
+  HORA_CIERRE,
+  horaEnBogotaTexto,
+  esDomingoEnBogota,
+} = require("../config/horarioOperacion");
+const {
+  ANTICIPACION_MINIMA_MINUTOS,
+  DURACION_MINIMA_MINUTOS,
+  HORA_MAXIMA_INICIO,
+  MARGEN_CANCELACION_MINUTOS,
+  MARGEN_CONFIRMACION_MINUTOS,
+  MARGEN_LLEGADA_MINUTOS,
+  MOTIVO_VENCIMIENTO_ACEPTADA,
+  MOTIVO_SIN_CONFIRMAR,
+  MOTIVO_FRANJA_TOMADA,
+  MINUTO_MS,
+  _enPalabras,
+} = require("../config/reglasReserva");
 
-const APERTURA = `${String(HORA_APERTURA).padStart(2, '0')}:00`;
-const CIERRE = `${String(HORA_CIERRE).padStart(2, '0')}:00`;
-const { ROLES } = require('../config/roles');
-const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
+const APERTURA = `${String(HORA_APERTURA).padStart(2, "0")}:00`;
+const CIERRE = `${String(HORA_CIERRE).padStart(2, "0")}:00`;
+const { ROLES } = require("../config/roles");
+const {
+  validarCompatibilidadCelda,
+} = require("../utils/compatibilidadVehiculo.util");
 
-const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA'];
+const ESTADOS_GESTIONABLES = [
+  "ACEPTADA",
+  "RECHAZADA",
+  "TERMINADA",
+  "CANCELADA",
+];
 
 /**
  * A qué estado puede pasar una reserva según el que ya tiene. RECHAZADA, TERMINADA y
@@ -43,15 +68,15 @@ const ESTADOS_GESTIONABLES = ['ACEPTADA', 'RECHAZADA', 'TERMINADA', 'CANCELADA']
  * cancelada hace tres semanas podía dejar una celda retenida sin que nadie la esperara.
  */
 const TRANSICIONES = {
-  PENDIENTE: ['ACEPTADA', 'RECHAZADA', 'CANCELADA'],
-  ACEPTADA: ['TERMINADA', 'CANCELADA'],
+  PENDIENTE: ["ACEPTADA", "RECHAZADA", "CANCELADA"],
+  ACEPTADA: ["TERMINADA", "CANCELADA"],
   RECHAZADA: [],
   TERMINADA: [],
   CANCELADA: [],
 };
 
 /** Estados en los que una reserva todavía se puede editar (los demás son historial). */
-const ESTADOS_EDITABLES = ['PENDIENTE', 'ACEPTADA'];
+const ESTADOS_EDITABLES = ["PENDIENTE", "ACEPTADA"];
 
 /**
  * Cancela las reservas que se quedaron sin sentido, y con ellas suelta las celdas que
@@ -73,22 +98,31 @@ const ESTADOS_EDITABLES = ['PENDIENTE', 'ACEPTADA'];
  */
 const vencerCaducadas = async (usuarioId = 1) => {
   const ahora = new Date();
-  const limiteLlegada = new Date(ahora.getTime() - MARGEN_LLEGADA_MINUTOS * MINUTO_MS);
-  const limiteConfirmacion = new Date(ahora.getTime() + MARGEN_CONFIRMACION_MINUTOS * MINUTO_MS);
+  const limiteLlegada = new Date(
+    ahora.getTime() - MARGEN_LLEGADA_MINUTOS * MINUTO_MS,
+  );
+  const limiteConfirmacion = new Date(
+    ahora.getTime() + MARGEN_CONFIRMACION_MINUTOS * MINUTO_MS,
+  );
 
   const caducadas = await repo.findCaducadas(limiteConfirmacion, limiteLlegada);
   for (const reserva of caducadas) {
     // La aceptada que nadie usó se CANCELA; la solicitud que nadie aprobó a tiempo se
     // RECHAZA: no es lo mismo echarse atrás que no llegar a aprobarse.
-    const esPendiente = reserva.estado === 'PENDIENTE';
-    const nuevoEstado = esPendiente ? 'RECHAZADA' : 'CANCELADA';
-    const motivo = esPendiente ? MOTIVO_SIN_CONFIRMAR : MOTIVO_VENCIMIENTO_ACEPTADA;
+    const esPendiente = reserva.estado === "PENDIENTE";
+    const nuevoEstado = esPendiente ? "RECHAZADA" : "CANCELADA";
+    const motivo = esPendiente
+      ? MOTIVO_SIN_CONFIRMAR
+      : MOTIVO_VENCIMIENTO_ACEPTADA;
     try {
       await cambiarEstado(reserva.id, nuevoEstado, usuarioId, motivo);
     } catch (error) {
       // Que una reserva no se pueda vencer (p. ej. alguien la gestionó en este mismo
       // instante) no debe tumbar la consulta que disparó el barrido.
-      console.error(`No se pudo vencer la reserva ${reserva.id}:`, error.message || error);
+      console.error(
+        `No se pudo vencer la reserva ${reserva.id}:`,
+        error.message || error,
+      );
     }
   }
   return caducadas.length;
@@ -117,7 +151,7 @@ const getAll = async (usuarioId) => {
  */
 const getById = async (id) => {
   const item = await repo.findById(id);
-  if (!item) throw { status: 404, message: 'Reserva no encontrada' };
+  if (!item) throw { status: 404, message: "Reserva no encontrada" };
   return item;
 };
 
@@ -142,9 +176,17 @@ const getByCelda = (celdaId) => repo.findByCelda(celdaId);
 const _validarFechas = (inicio, fin) => {
   const i = new Date(inicio);
   const f = new Date(fin);
-  if (isNaN(i) || isNaN(f)) throw { status: 400, message: 'Fechas inválidas' };
-  if (i >= f) throw { status: 400, message: 'fecha_hora_inicio debe ser anterior a fecha_hora_fin' };
-  if (i < new Date()) throw { status: 400, message: 'No se puede reservar en una fecha/hora pasada' };
+  if (isNaN(i) || isNaN(f)) throw { status: 400, message: "Fechas inválidas" };
+  if (i >= f)
+    throw {
+      status: 400,
+      message: "fecha_hora_inicio debe ser anterior a fecha_hora_fin",
+    };
+  if (i < new Date())
+    throw {
+      status: 400,
+      message: "No se puede reservar en una fecha/hora pasada",
+    };
 
   // Ver config/reglasReserva.js: con qué antelación se pide y cuánto dura como mínimo.
   const faltan = (i.getTime() - Date.now()) / MINUTO_MS;
@@ -176,7 +218,10 @@ const _validarFechas = (inicio, fin) => {
   }
   // El parqueadero no abre los domingos, así que tampoco hay nada que reservar ese día.
   if (esDomingoEnBogota(i) || esDomingoEnBogota(f)) {
-    throw { status: 400, message: 'El parqueadero no opera los domingos: elige otro día' };
+    throw {
+      status: 400,
+      message: "El parqueadero no opera los domingos: elige otro día",
+    };
   }
 
   // Empezar pegado al cierre no tiene coherencia; terminar cerca del cierre sí.
@@ -208,22 +253,29 @@ const _validarEntidades = async (celdaId, vehiculoId) => {
 
   if (celdaId !== undefined) {
     celda = await celdaRepo.findById(celdaId);
-    if (!celda) throw { status: 404, message: 'Celda no encontrada' };
+    if (!celda) throw { status: 404, message: "Celda no encontrada" };
     // No se filtra por OCUPADA/RESERVADA: una celda ocupada hoy puede reservarse para
     // mañana, y el solapamiento real lo detecta findConflictos por rango horario. Lo que
     // nunca sirve es una celda fuera de servicio.
-    if (['MANTENIMIENTO', 'INACTIVA'].includes(celda.estado)) {
-      throw { status: 409, message: `La celda ${celda.numero} está en ${celda.estado.toLowerCase()} y no admite reservas` };
+    if (["MANTENIMIENTO", "INACTIVA"].includes(celda.estado)) {
+      throw {
+        status: 409,
+        message: `La celda ${celda.numero} está en ${celda.estado.toLowerCase()} y no admite reservas`,
+      };
     }
   }
 
   if (vehiculoId) {
     vehiculo = await vehRepo.findById(vehiculoId);
-    if (!vehiculo) throw { status: 404, message: 'Vehículo no encontrado' };
+    if (!vehiculo) throw { status: 404, message: "Vehículo no encontrado" };
     // Sin propietario no hay a quién responsabilizar del vehículo ni a quién avisar; el
     // ingreso ya lo exigía indirectamente (el conductor debe ser propietario), la reserva no.
     if (!vehiculo.conductor_principal_id) {
-      throw { status: 409, message: 'El vehículo no tiene conductor asociado: asigna un propietario antes de reservar' };
+      throw {
+        status: 409,
+        message:
+          "El vehículo no tiene conductor asociado: asigna un propietario antes de reservar",
+      };
     }
   }
 
@@ -245,20 +297,38 @@ const _validarEntidades = async (celdaId, vehiculoId) => {
  * @param {number} [vehiculoId]
  * @throws {Object} 403 si el conductor/vehículo no le pertenecen al usuario autenticado.
  */
-const _validarPropiedad = async (usuarioRol, usuarioId, conductorId, vehiculoId) => {
+const _validarPropiedad = async (
+  usuarioRol,
+  usuarioId,
+  conductorId,
+  vehiculoId,
+) => {
   if (usuarioRol === ROLES.ADMIN || usuarioRol === ROLES.VIGILANTE) return;
 
   const propioConductor = await conductorRepo.findByUsuarioId(usuarioId);
   if (!propioConductor) {
-    throw { status: 403, message: 'Tu cuenta no tiene un perfil de conductor asociado' };
+    throw {
+      status: 403,
+      message: "Tu cuenta no tiene un perfil de conductor asociado",
+    };
   }
-  if (conductorId !== undefined && conductorId !== null && conductorId !== propioConductor.id) {
-    throw { status: 403, message: 'No puedes crear una reserva a nombre de otro conductor' };
+  if (
+    conductorId !== undefined &&
+    conductorId !== null &&
+    conductorId !== propioConductor.id
+  ) {
+    throw {
+      status: 403,
+      message: "No puedes crear una reserva a nombre de otro conductor",
+    };
   }
   if (vehiculoId) {
-    const esPropio = await vehRepo.findPropietario(vehiculoId, propioConductor.id);
+    const esPropio = await vehRepo.findPropietario(
+      vehiculoId,
+      propioConductor.id,
+    );
     if (!esPropio) {
-      throw { status: 403, message: 'El vehículo indicado no te pertenece' };
+      throw { status: 403, message: "El vehículo indicado no te pertenece" };
     }
   }
 };
@@ -272,14 +342,30 @@ const _validarPropiedad = async (usuarioRol, usuarioId, conductorId, vehiculoId)
  * @throws {Object} 400 datos faltantes/fechas inválidas, 403 si intenta reservar para otro sin ser Admin/Vigilante, 404 entidades no encontradas, 409 conflicto de horario o regla de negocio.
  * @returns {Promise<Object>}
  */
-const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motivo, fecha_hora_inicio, fecha_hora_fin }, usuarioId, usuarioRol) => {
+const create = async (
+  {
+    tipo_reserva,
+    celda_id,
+    conductor_id,
+    vehiculo_id,
+    motivo,
+    fecha_hora_inicio,
+    fecha_hora_fin,
+  },
+  usuarioId,
+  usuarioRol,
+) => {
   if (!tipo_reserva || !celda_id || !fecha_hora_inicio || !fecha_hora_fin) {
-    throw { status: 400, message: 'tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos' };
+    throw {
+      status: 400,
+      message:
+        "tipo_reserva, celda_id, fecha_hora_inicio y fecha_hora_fin son requeridos",
+    };
   }
   // El motivo es lo que permite a quien aprueba decidir con criterio, y lo que explica la
   // reserva cuando alguien la revisa semanas después.
   if (!motivo || !String(motivo).trim()) {
-    throw { status: 400, message: 'El motivo de la reserva es obligatorio' };
+    throw { status: 400, message: "El motivo de la reserva es obligatorio" };
   }
 
   // A propósito NO se mira NADA del momento en que se pide: reservar es planear, y planear
@@ -290,13 +376,24 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
   const { celda } = await _validarEntidades(celda_id, vehiculo_id);
   const parq = await parqRepo.findById(celda.parqueadero);
   if (parq && !parq.estado) {
-    throw { status: 409, message: 'El parqueadero se encuentra inactivo y no permite operaciones de estacionamiento.' };
+    throw {
+      status: 409,
+      message:
+        "El parqueadero se encuentra inactivo y no permite operaciones de estacionamiento.",
+    };
   }
   await _validarPropiedad(usuarioRol, usuarioId, conductor_id, vehiculo_id);
 
-  const conflictos = await repo.findConflictos(celda_id, fecha_hora_inicio, fecha_hora_fin);
+  const conflictos = await repo.findConflictos(
+    celda_id,
+    fecha_hora_inicio,
+    fecha_hora_fin,
+  );
   if (conflictos.length) {
-    throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
+    throw {
+      status: 409,
+      message: "La celda ya tiene una reserva en ese horario",
+    };
   }
 
   // Estado inicial: la celda solo pasa a RESERVADA cuando la reserva está ACEPTADA
@@ -305,19 +402,35 @@ const create = async ({ tipo_reserva, celda_id, conductor_id, vehiculo_id, motiv
   // quienes aprueban, una reserva que ELLOS registran nace ya aceptada y bloquea la celda
   // en el acto; la que registra un Conductor para sí mismo sigue naciendo PENDIENTE y
   // espera aprobación, que es el flujo de autoservicio que ya existía.
-  const gestionaAlCrear = usuarioRol === ROLES.ADMIN || usuarioRol === ROLES.VIGILANTE;
+  const gestionaAlCrear =
+    usuarioRol === ROLES.ADMIN || usuarioRol === ROLES.VIGILANTE;
   const estadoInicial = gestionaAlCrear
-    ? { estado: 'ACEPTADA', usuario_gestiona_id: usuarioId }
+    ? { estado: "ACEPTADA", usuario_gestiona_id: usuarioId }
     : {};
 
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.create(
-      {
-        tipo_reserva, celda_id, usuario_registra_id: usuarioId, conductor_id, vehiculo_id,
-        motivo, fecha_hora_inicio, fecha_hora_fin, ...estadoInicial,
-      },
-      { transaction },
-    ));
+    const creada = await runWithUsuario(usuarioId, (transaction) =>
+      repo.create(
+        {
+          tipo_reserva,
+          celda_id,
+          usuario_registra_id: usuarioId,
+          conductor_id,
+          vehiculo_id,
+          motivo,
+          fecha_hora_inicio,
+          fecha_hora_fin,
+          ...estadoInicial,
+        },
+        { transaction },
+      ),
+    );
+
+    if (creada?.estado === "ACEPTADA") {
+      await _avisarPorCorreo(creada, "ACEPTADA", null);
+    }
+
+    return creada;
   } catch (error) {
     traducirErrorTrigger(error);
   }
@@ -343,29 +456,45 @@ const update = async (id, datos, usuarioId) => {
   if (datos.celda_id !== undefined || datos.vehiculo_id !== undefined) {
     await _validarEntidades(
       datos.celda_id !== undefined ? datos.celda_id : reservaActual.celda_id,
-      datos.vehiculo_id !== undefined ? datos.vehiculo_id : reservaActual.vehiculo_id,
+      datos.vehiculo_id !== undefined
+        ? datos.vehiculo_id
+        : reservaActual.vehiculo_id,
     );
   }
 
-  const inicio = datos.fecha_hora_inicio !== undefined ? datos.fecha_hora_inicio : reservaActual.fecha_hora_inicio;
-  const fin = datos.fecha_hora_fin !== undefined ? datos.fecha_hora_fin : reservaActual.fecha_hora_fin;
-  if (datos.fecha_hora_inicio !== undefined || datos.fecha_hora_fin !== undefined) {
+  const inicio =
+    datos.fecha_hora_inicio !== undefined
+      ? datos.fecha_hora_inicio
+      : reservaActual.fecha_hora_inicio;
+  const fin =
+    datos.fecha_hora_fin !== undefined
+      ? datos.fecha_hora_fin
+      : reservaActual.fecha_hora_fin;
+  if (
+    datos.fecha_hora_inicio !== undefined ||
+    datos.fecha_hora_fin !== undefined
+  ) {
     _validarFechas(inicio, fin);
   }
 
-  const celdaFinal = datos.celda_id !== undefined ? datos.celda_id : reservaActual.celda_id;
+  const celdaFinal =
+    datos.celda_id !== undefined ? datos.celda_id : reservaActual.celda_id;
   const conflictos = await repo.findConflictos(celdaFinal, inicio, fin, id);
   if (conflictos.length) {
-    throw { status: 409, message: 'La celda ya tiene una reserva en ese horario' };
+    throw {
+      status: 409,
+      message: "La celda ya tiene una reserva en ese horario",
+    };
   }
 
   // Mover una reserva ACEPTADA a otra celda ya no exige retener la nueva: una reserva aparta
   // una franja de la agenda, no la celda entera. Lo único que queda por hacer es soltar la
   // celda que abandona SI había quedado marcada por el modelo anterior — si no, se quedaría
   // en RESERVADA para siempre, sin ninguna reserva que lo explicara.
-  const cambiaDeCelda = datos.celda_id !== undefined
-    && Number(datos.celda_id) !== Number(reservaActual.celda_id);
-  const mueveUnaAceptada = reservaActual.estado === 'ACEPTADA' && cambiaDeCelda;
+  const cambiaDeCelda =
+    datos.celda_id !== undefined &&
+    Number(datos.celda_id) !== Number(reservaActual.celda_id);
+  const mueveUnaAceptada = reservaActual.estado === "ACEPTADA" && cambiaDeCelda;
 
   try {
     return await runWithUsuario(usuarioId, async (transaction) => {
@@ -373,9 +502,15 @@ const update = async (id, datos, usuarioId) => {
 
       if (mueveUnaAceptada) {
         // Solo se suelta si no queda ninguna otra reserva aceptada esperándola.
-        const otraQueBloquea = await repo.findReservaQueBloquea(reservaActual.celda_id, new Date(), { transaction });
+        const otraQueBloquea = await repo.findReservaQueBloquea(
+          reservaActual.celda_id,
+          new Date(),
+          { transaction },
+        );
         if (!otraQueBloquea) {
-          await celdaRepo.liberarSiEstaReservada(reservaActual.celda_id, { transaction });
+          await celdaRepo.liberarSiEstaReservada(reservaActual.celda_id, {
+            transaction,
+          });
         }
       }
 
@@ -403,21 +538,27 @@ const update = async (id, datos, usuarioId) => {
  * @private
  */
 const _avisarPorCorreo = async (reserva, estado, motivo) => {
-  if (!['ACEPTADA', 'RECHAZADA', 'CANCELADA'].includes(estado)) return;
+  if (!["ACEPTADA", "RECHAZADA", "CANCELADA"].includes(estado)) return;
 
-  const conductor = reserva.conductor_id ? await conductorRepo.findById(reserva.conductor_id) : null;
+  const conductor = reserva.conductor_id
+    ? await conductorRepo.findById(reserva.conductor_id)
+    : null;
   const correo = conductor?.correo;
   if (!correo) return;
 
-  const celda = reserva.celda_id ? await celdaRepo.findById(reserva.celda_id) : null;
-  const parqueadero = celda?.parqueadero ? await parqRepo.findById(celda.parqueadero) : null;
+  const celda = reserva.celda_id
+    ? await celdaRepo.findById(reserva.celda_id)
+    : null;
+  const parqueadero = celda?.parqueadero
+    ? await parqRepo.findById(celda.parqueadero)
+    : null;
   const inicio = new Date(reserva.fecha_hora_inicio);
   const fin = new Date(reserva.fecha_hora_fin);
   const hhmm = (d) => d.toTimeString().slice(0, 5);
 
   await enviarSinBloquear(
     enviarCorreoReserva(correo, conductor.nombre_apellidos, estado, {
-      fecha: inicio.toLocaleDateString('es-CO', { dateStyle: 'full' }),
+      fecha: inicio.toLocaleDateString("es-CO", { dateStyle: "full" }),
       hora: `${hhmm(inicio)} a ${hhmm(fin)}`,
       parqueadero: parqueadero?.nombre,
       celda: celda?.numero,
@@ -430,17 +571,27 @@ const _avisarPorCorreo = async (reserva, estado, motivo) => {
 const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   const reserva = await getById(id);
   if (!ESTADOS_GESTIONABLES.includes(estado)) {
-    throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(', ')}` };
+    throw {
+      status: 400,
+      message: `Estado inválido. Permitidos: ${ESTADOS_GESTIONABLES.join(", ")}`,
+    };
   }
 
   // Aceptar es lo que compromete la franja: se comprueba aquí, con un mensaje que se
   // entiende, antes de que lo haga el trigger con su excepción de Postgres.
-  if (estado === 'ACEPTADA') {
+  if (estado === "ACEPTADA") {
     const yaTomada = await repo.findConflictos(
-      reserva.celda_id, reserva.fecha_hora_inicio, reserva.fecha_hora_fin, reserva.id,
+      reserva.celda_id,
+      reserva.fecha_hora_inicio,
+      reserva.fecha_hora_fin,
+      reserva.id,
     );
     if (yaTomada.length) {
-      throw { status: 409, message: 'Esa celda ya tiene otra reserva aceptada en esa franja horaria' };
+      throw {
+        status: 409,
+        message:
+          "Esa celda ya tiene otra reserva aceptada en esa franja horaria",
+      };
     }
   }
 
@@ -449,15 +600,18 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
     throw {
       status: 409,
       message: permitidos.length
-        ? `Una reserva ${reserva.estado.toLowerCase()} solo puede pasar a: ${permitidos.join(', ')}`
+        ? `Una reserva ${reserva.estado.toLowerCase()} solo puede pasar a: ${permitidos.join(", ")}`
         : `La reserva ya está ${reserva.estado.toLowerCase()} y no admite más cambios de estado`,
     };
   }
   // Rechazar y cancelar cambian los planes de alguien: tiene que quedar escrito por qué.
-  if ((estado === 'RECHAZADA' || estado === 'CANCELADA') && !motivoRechazo?.trim()) {
+  if (
+    (estado === "RECHAZADA" || estado === "CANCELADA") &&
+    !motivoRechazo?.trim()
+  ) {
     throw {
       status: 400,
-      message: `El motivo es obligatorio para ${estado === 'RECHAZADA' ? 'rechazar' : 'cancelar'} una reserva`,
+      message: `El motivo es obligatorio para ${estado === "RECHAZADA" ? "rechazar" : "cancelar"} una reserva`,
     };
   }
 
@@ -467,14 +621,17 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
     // reserva.motivo_rechazo y nunca llegaba al historial).
     const actualizada = await runWithUsuario(
       usuarioId,
-      (transaction) => repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, { transaction }),
+      (transaction) =>
+        repo.cambiarEstado(id, estado, usuarioId, motivoRechazo, {
+          transaction,
+        }),
       { motivo: motivoRechazo },
     );
 
     // Aceptar una reserva resuelve la competencia por esa franja: las demás solicitudes que
     // se solapaban con ella ya no pueden cumplirse, así que se cancelan solas con el motivo
     // escrito, en vez de quedarse pendientes esperando algo que nunca va a poder pasar.
-    if (estado === 'ACEPTADA') await _cancelarCompetidoras(reserva, usuarioId);
+    if (estado === "ACEPTADA") await _cancelarCompetidoras(reserva, usuarioId);
 
     /* Quien reservó se entera por correo, con los datos que necesita: cuándo, dónde y en qué
        celda. Sin esto tenía que entrar a la aplicación a comprobar si le habían aceptado la
@@ -497,24 +654,37 @@ const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
  */
 const _cancelarCompetidoras = async (reserva, usuarioId) => {
   const competidoras = await repo.findPendientesQueChocan(
-    reserva.celda_id, reserva.fecha_hora_inicio, reserva.fecha_hora_fin, reserva.id,
+    reserva.celda_id,
+    reserva.fecha_hora_inicio,
+    reserva.fecha_hora_fin,
+    reserva.id,
   );
   for (const otra of competidoras) {
     try {
       await runWithUsuario(
         usuarioId,
-        (transaction) => repo.cambiarEstado(otra.id, 'CANCELADA', usuarioId, MOTIVO_FRANJA_TOMADA, { transaction }),
+        (transaction) =>
+          repo.cambiarEstado(
+            otra.id,
+            "CANCELADA",
+            usuarioId,
+            MOTIVO_FRANJA_TOMADA,
+            { transaction },
+          ),
         { motivo: MOTIVO_FRANJA_TOMADA },
       );
 
       /* A quien pierde la franja también hay que decírselo, y por el mismo canal: su
          solicitud se canceló sola, sin que nadie la rechazara a mano, así que si no llega el
          correo se entera solo si vuelve a mirar la aplicación. */
-      await _avisarPorCorreo(otra, 'CANCELADA', MOTIVO_FRANJA_TOMADA);
+      await _avisarPorCorreo(otra, "CANCELADA", MOTIVO_FRANJA_TOMADA);
     } catch (error) {
       // Que una competidora no se pueda cancelar (alguien la gestionó en este mismo
       // instante) no debe deshacer la aceptación que sí funcionó.
-      console.error(`No se pudo cancelar la reserva ${otra.id} al aceptar la ${reserva.id}:`, error.message || error);
+      console.error(
+        `No se pudo cancelar la reserva ${otra.id} al aceptar la ${reserva.id}:`,
+        error.message || error,
+      );
     }
   }
 };
@@ -541,16 +711,22 @@ const cancelar = async (id, usuarioId, usuarioRol, motivo) => {
     const propioConductor = await conductorRepo.findByUsuarioId(usuarioId);
     // Vale tanto si la reserva está a su nombre como si fue él quien la registró: son las
     // dos formas en que una reserva puede ser "suya".
-    const esSuya = (propioConductor && Number(reserva.conductor_id) === Number(propioConductor.id))
-      || Number(reserva.usuario_registra_id) === Number(usuarioId);
+    const esSuya =
+      (propioConductor &&
+        Number(reserva.conductor_id) === Number(propioConductor.id)) ||
+      Number(reserva.usuario_registra_id) === Number(usuarioId);
     if (!esSuya) {
-      throw { status: 403, message: 'Solo puedes cancelar tus propias reservas' };
+      throw {
+        status: 403,
+        message: "Solo puedes cancelar tus propias reservas",
+      };
     }
 
     // Cancelar sobre la hora deja la celda vacía sin tiempo de que otra persona la
     // aproveche (ver config/reglasReserva.js). Quien gestiona el parqueadero sí puede
     // hacerlo a cualquier hora: para eso atiende el mostrador.
-    const faltan = (new Date(reserva.fecha_hora_inicio).getTime() - Date.now()) / MINUTO_MS;
+    const faltan =
+      (new Date(reserva.fecha_hora_inicio).getTime() - Date.now()) / MINUTO_MS;
     if (faltan < MARGEN_CANCELACION_MINUTOS) {
       throw {
         status: 409,
@@ -559,7 +735,7 @@ const cancelar = async (id, usuarioId, usuarioRol, motivo) => {
     }
   }
 
-  return cambiarEstado(id, 'CANCELADA', usuarioId, motivo);
+  return cambiarEstado(id, "CANCELADA", usuarioId, motivo);
 };
 
 /**
@@ -573,11 +749,17 @@ const cancelar = async (id, usuarioId, usuarioRol, motivo) => {
  */
 const remove = async (id, usuarioId) => {
   const reserva = await getById(id);
-  if (reserva.estado !== 'PENDIENTE') {
-    throw { status: 409, message: 'Solo se pueden eliminar reservas en estado PENDIENTE; las reservas ya gestionadas forman parte del histórico' };
+  if (reserva.estado !== "PENDIENTE") {
+    throw {
+      status: 409,
+      message:
+        "Solo se pueden eliminar reservas en estado PENDIENTE; las reservas ya gestionadas forman parte del histórico",
+    };
   }
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.remove(id, { transaction }));
+    return await runWithUsuario(usuarioId, (transaction) =>
+      repo.remove(id, { transaction }),
+    );
   } catch (error) {
     traducirErrorTrigger(error);
   }
