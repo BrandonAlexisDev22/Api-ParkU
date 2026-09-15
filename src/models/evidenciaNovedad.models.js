@@ -30,11 +30,6 @@ const EvidenciaNovedad = sequelize.define('EvidenciaNovedad', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
-  fecha_hora: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-  },
 }, {
   tableName: 'evidencia_novedad',
   timestamps: false,

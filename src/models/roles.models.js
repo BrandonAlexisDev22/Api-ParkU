@@ -28,9 +28,7 @@ const Rol = sequelize.define('Rol', {
   },
 }, {
   tableName: 'rol',
-  timestamps: true,
-  createdAt: 'fecha_creacion',
-  updatedAt: false,
+  timestamps: false,
 });
 
 module.exports = Rol;

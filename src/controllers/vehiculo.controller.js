@@ -28,9 +28,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         tipo:
  *           type: string
  *           enum: [CARRO, MOTO]
- *         tarjeta_propiedad:
- *           type: string
- *           nullable: true
  *         marca:
  *           type: string
  *           nullable: true
@@ -41,28 +38,7 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: integer
  *           nullable: true
  *           description: Año del vehículo.
- *         cilindraje:
- *           type: integer
- *           nullable: true
  *         color:
- *           type: string
- *           nullable: true
- *         servicio:
- *           type: string
- *           nullable: true
- *         carroceria:
- *           type: string
- *           nullable: true
- *         combustible:
- *           type: string
- *           nullable: true
- *         capacidad:
- *           type: integer
- *           nullable: true
- *         numero_motor:
- *           type: string
- *           nullable: true
- *         numero_chasis:
  *           type: string
  *           nullable: true
  *         observaciones:
@@ -142,9 +118,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         tipo:
  *           type: string
  *           enum: [CARRO, MOTO]
- *         tarjeta_propiedad:
- *           type: string
- *           nullable: true
  *         marca:
  *           type: string
  *           nullable: true
@@ -154,28 +127,7 @@ const { handleError } = require('../helpers/errorHandler');
  *         modelo:
  *           type: integer
  *           nullable: true
- *         cilindraje:
- *           type: integer
- *           nullable: true
  *         color:
- *           type: string
- *           nullable: true
- *         servicio:
- *           type: string
- *           nullable: true
- *         carroceria:
- *           type: string
- *           nullable: true
- *         combustible:
- *           type: string
- *           nullable: true
- *         capacidad:
- *           type: integer
- *           nullable: true
- *         numero_motor:
- *           type: string
- *           nullable: true
- *         numero_chasis:
  *           type: string
  *           nullable: true
  *         observaciones:
@@ -193,9 +145,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         tipo:
  *           type: string
  *           enum: [CARRO, MOTO]
- *         tarjeta_propiedad:
- *           type: string
- *           nullable: true
  *         marca:
  *           type: string
  *           nullable: true
@@ -205,28 +154,7 @@ const { handleError } = require('../helpers/errorHandler');
  *         modelo:
  *           type: integer
  *           nullable: true
- *         cilindraje:
- *           type: integer
- *           nullable: true
  *         color:
- *           type: string
- *           nullable: true
- *         servicio:
- *           type: string
- *           nullable: true
- *         carroceria:
- *           type: string
- *           nullable: true
- *         combustible:
- *           type: string
- *           nullable: true
- *         capacidad:
- *           type: integer
- *           nullable: true
- *         numero_motor:
- *           type: string
- *           nullable: true
- *         numero_chasis:
  *           type: string
  *           nullable: true
  *         observaciones:

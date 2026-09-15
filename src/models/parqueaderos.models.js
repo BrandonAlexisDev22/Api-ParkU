@@ -53,14 +53,6 @@ const Parqueadero = sequelize.define('Parqueadero', {
     type: DataTypes.STRING(50),
     allowNull: true,
   },
-  plano_url: {
-    type: DataTypes.STRING(500),
-    allowNull: true,
-  },
-  observaciones: {
-    type: DataTypes.STRING(500),
-    allowNull: true,
-  },
   descripcion: {
     type: DataTypes.STRING(255),
     allowNull: true,

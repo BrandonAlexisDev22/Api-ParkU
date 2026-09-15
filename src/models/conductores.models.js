@@ -77,9 +77,7 @@ const Conductor = sequelize.define(
   },
   {
     tableName: "conductor",
-    timestamps: true,
-    createdAt: "fecha_creacion",
-    updatedAt: false,
+    timestamps: false,
     indexes: [{ unique: true, fields: ["tipo_documento", "numero_documento"] }],
   },
 );

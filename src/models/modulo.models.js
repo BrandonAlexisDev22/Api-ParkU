@@ -18,15 +18,6 @@ const Modulo = sequelize.define('Modulo', {
     allowNull: false,
     unique: true,
   },
-  descripcion: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-  },
-  estado: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: true,
-  },
 }, {
   tableName: 'modulo',
   timestamps: false,

@@ -120,9 +120,9 @@ const findByUsabilidad = async (usabilidad) => {
  * @param {import('sequelize').Transaction} [opciones.transaction]
  * @returns {Promise<Object>}
  */
-const create = async ({ parqueadero, numero, tipo, usabilidad, estado = 'DISPONIBLE', observaciones, posicion_x, posicion_y, ancho, alto }, { transaction } = {}) => {
+const create = async ({ parqueadero, numero, tipo, usabilidad, estado = 'DISPONIBLE', observaciones }, { transaction } = {}) => {
   const nueva = await Celda.create(
-    { parqueadero, numero, tipo, usabilidad, estado, observaciones, posicion_x, posicion_y, ancho, alto },
+    { parqueadero, numero, tipo, usabilidad, estado, observaciones },
     { transaction }
   );
   return findById(nueva.id, { transaction });
@@ -136,7 +136,7 @@ const create = async ({ parqueadero, numero, tipo, usabilidad, estado = 'DISPONI
  * @returns {Promise<Object>}
  */
 const update = async (id, data, { transaction } = {}) => {
-  const allowedFields = ['numero', 'tipo', 'usabilidad', 'observaciones', 'posicion_x', 'posicion_y', 'ancho', 'alto'];
+  const allowedFields = ['numero', 'tipo', 'usabilidad', 'observaciones'];
   const cambios = {};
   for (const field of allowedFields) {
     if (data[field] !== undefined) cambios[field] = data[field];

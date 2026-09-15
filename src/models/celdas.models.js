@@ -40,22 +40,6 @@ const Celda = sequelize.define('Celda', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
-  posicion_x: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-  },
-  posicion_y: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-  },
-  ancho: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-  },
-  alto: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-  },
 }, {
   tableName: 'celda',
   timestamps: false,

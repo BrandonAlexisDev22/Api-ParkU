@@ -175,7 +175,7 @@ const getByUsabilidad = async (usabilidad) => {
  * @throws {Object} 400 si faltan datos o son inválidos; 404 si el parqueadero no existe; 409 si el número ya existe en ese parqueadero.
  * @returns {Promise<Object>} Celda creada.
  */
-const create = async ({ parqueadero, numero, tipo, usabilidad = 'GENERAL', observaciones, posicion_x, posicion_y, ancho, alto }, usuarioId) => {
+const create = async ({ parqueadero, numero, tipo, usabilidad = 'GENERAL', observaciones }, usuarioId) => {
   if (!parqueadero) throw { status: 400, message: 'El parqueadero es requerido' };
   if (!numero) throw { status: 400, message: 'El número de la celda es requerido' };
   if (!tipo) throw { status: 400, message: 'El tipo es requerido' };
@@ -194,7 +194,7 @@ const create = async ({ parqueadero, numero, tipo, usabilidad = 'GENERAL', obser
   if (existeNumero) throw { status: 409, message: 'Ya existe una celda con ese número en ese parqueadero' };
 
   return runWithUsuario(usuarioId, (transaction) => repo.create(
-    { parqueadero, numero, tipo, usabilidad, observaciones, posicion_x, posicion_y, ancho, alto },
+    { parqueadero, numero, tipo, usabilidad, observaciones },
     { transaction },
   ));
 };

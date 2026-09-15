@@ -8,7 +8,7 @@ const { EvidenciaNovedad } = require('../models');
 const findByNovedad = async (novedadId, { transaction } = {}) => {
   const rows = await EvidenciaNovedad.findAll({
     where: { novedad_id: novedadId },
-    order: [['fecha_hora', 'DESC']],
+    order: [['id', 'DESC']],
     transaction,
   });
   return rows.map((r) => r.toJSON());

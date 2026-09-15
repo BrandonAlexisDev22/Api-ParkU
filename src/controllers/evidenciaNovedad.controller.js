@@ -21,9 +21,6 @@ const { rutaPublica } = require('../middlewares/upload.middleware');
  *         descripcion:
  *           type: string
  *           nullable: true
- *         fecha_hora:
- *           type: string
- *           format: date-time
  *     EvidenciaNovedadCreate:
  *       type: object
  *       required:

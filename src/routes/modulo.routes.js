@@ -21,11 +21,6 @@ const { verificarToken, verificarAcceso } = require('../middlewares/auth.middlew
  *         nombre:
  *           type: string
  *           example: Parqueaderos
- *         descripcion:
- *           type: string
- *           nullable: true
- *         estado:
- *           type: boolean
  *         permisos:
  *           type: array
  *           description: Solo con ?con_permisos=true.

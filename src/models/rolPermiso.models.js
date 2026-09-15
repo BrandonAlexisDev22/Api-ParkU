@@ -28,9 +28,7 @@ const RolPermiso = sequelize.define('RolPermiso', {
   },
 }, {
   tableName: 'rol_permiso',
-  timestamps: true,
-  createdAt: 'fecha_asignacion',
-  updatedAt: false,
+  timestamps: false,
   indexes: [
     { unique: true, fields: ['rol_id', 'permiso_id'] },
   ],

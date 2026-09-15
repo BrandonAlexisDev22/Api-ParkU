@@ -123,9 +123,7 @@ const create = async ({ conductor_id, ...data }, { transaction } = {}) => {
  */
 const update = async (id, data, { transaction } = {}) => {
   const allowedFields = [
-    'placa', 'tipo', 'tarjeta_propiedad', 'marca', 'linea', 'modelo', 'cilindraje',
-    'color', 'servicio', 'carroceria', 'combustible', 'capacidad', 'numero_motor',
-    'numero_chasis', 'observaciones', 'vehiculo_sena', 'estado',
+    'placa', 'tipo', 'marca', 'linea', 'modelo', 'color', 'observaciones', 'vehiculo_sena', 'estado',
   ];
   const cambios = {};
   for (const field of allowedFields) {

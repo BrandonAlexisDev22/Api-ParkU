@@ -24,10 +24,6 @@ const Vehiculo = sequelize.define('Vehiculo', {
     type: DataTypes.ENUM('CARRO', 'MOTO', 'BICICLETA', 'CAMION', 'BUS'),
     allowNull: false,
   },
-  tarjeta_propiedad: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-  },
   marca: {
     type: DataTypes.STRING(100),
     allowNull: true,
@@ -41,36 +37,8 @@ const Vehiculo = sequelize.define('Vehiculo', {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
-  cilindraje: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-  },
   color: {
     type: DataTypes.STRING(50),
-    allowNull: true,
-  },
-  servicio: {
-    type: DataTypes.STRING(50),
-    allowNull: true,
-  },
-  carroceria: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-  },
-  combustible: {
-    type: DataTypes.STRING(50),
-    allowNull: true,
-  },
-  capacidad: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-  },
-  numero_motor: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-  },
-  numero_chasis: {
-    type: DataTypes.STRING(100),
     allowNull: true,
   },
   observaciones: {

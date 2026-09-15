@@ -52,11 +52,11 @@ const PERMISOS_CONDUCTOR = [
 ];
 
 const TIPOS_USUARIO = [
-  { nombre: 'Aprendiz', descripcion: 'Aprendiz en formación activa' },
-  { nombre: 'Instructor', descripcion: 'Instructor del centro de formación' },
-  { nombre: 'Administrativo', descripcion: 'Personal administrativo' },
-  { nombre: 'Contratista', descripcion: 'Personal contratista' },
-  { nombre: 'Visitante', descripcion: 'Visitante sin vínculo laboral o de formación' },
+  { nombre: 'Aprendiz' },
+  { nombre: 'Instructor' },
+  { nombre: 'Administrativo' },
+  { nombre: 'Contratista' },
+  { nombre: 'Visitante' },
 ];
 
 const seedRoles = async () => {

@@ -249,9 +249,6 @@ async function main() {
       linea: "Spark GT",
       modelo: 2020,
       color: "Rojo",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 5,
       sena: false,
     },
     {
@@ -262,9 +259,6 @@ async function main() {
       linea: "Logan",
       modelo: 2019,
       color: "Blanco",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 5,
       sena: false,
     },
     {
@@ -275,9 +269,6 @@ async function main() {
       linea: "FZ",
       modelo: 2021,
       color: "Negro",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 2,
       sena: false,
     },
     {
@@ -288,9 +279,6 @@ async function main() {
       linea: "3",
       modelo: 2018,
       color: "Gris",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 5,
       sena: false,
     },
     {
@@ -301,9 +289,6 @@ async function main() {
       linea: "Gixxer",
       modelo: 2022,
       color: "Azul",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 2,
       sena: false,
     },
     {
@@ -314,9 +299,6 @@ async function main() {
       linea: "Urbana",
       modelo: 2023,
       color: "Verde",
-      servicio: "Particular",
-      combustible: null,
-      capacidad: 1,
       sena: false,
     },
     {
@@ -327,9 +309,6 @@ async function main() {
       linea: "Picanto",
       modelo: 2017,
       color: "Plata",
-      servicio: "Particular",
-      combustible: "Gasolina",
-      capacidad: 5,
       sena: false,
     },
     {
@@ -340,9 +319,6 @@ async function main() {
       linea: "Duster",
       modelo: 2022,
       color: "Blanco",
-      servicio: "Oficial",
-      combustible: "Diesel",
-      capacidad: 5,
       sena: true,
     },
   ];
@@ -350,20 +326,9 @@ async function main() {
   await inTx(ids.adminUsuarioId, async () => {
     for (const v of vehiculosDef) {
       const row = await one(
-        `INSERT INTO vehiculo (placa, tipo, marca, linea, modelo, color, servicio, combustible, capacidad, vehiculo_sena)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-        [
-          v.placa,
-          v.tipo,
-          v.marca,
-          v.linea,
-          v.modelo,
-          v.color,
-          v.servicio,
-          v.combustible,
-          v.capacidad,
-          v.sena,
-        ],
+        `INSERT INTO vehiculo (placa, tipo, marca, linea, modelo, color, vehiculo_sena)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [v.placa, v.tipo, v.marca, v.linea, v.modelo, v.color, v.sena],
       );
       ids.vehiculos[v.key] = row.id;
     }
@@ -392,34 +357,6 @@ async function main() {
     );
   }
   console.log("   ok:", propiedad.length, "relaciones conductor-vehiculo");
-
-  // =====================================================================
-  // 5. LICENCIA_CONDUCCION
-  // =====================================================================
-  console.log("5. licencia_conduccion");
-  const licencias = [
-    ["Andrés Torres", "B1"],
-    ["Mariana López", "B1"],
-    ["Julián Pérez", "A2"],
-    ["Diana Rojas", "B1"],
-    ["Santiago Herrera", "A2"],
-    ["Pedro Sánchez", "B1"],
-  ];
-  let licNum = 90001;
-  for (const [condKey, categoria] of licencias) {
-    await client.query(
-      `INSERT INTO licencia_conduccion (conductor_id, numero_licencia, categoria, fecha_expedicion, fecha_vencimiento)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [
-        cid[condKey],
-        String(licNum++),
-        categoria,
-        dateOnly(-900),
-        dateOnly(900),
-      ],
-    );
-  }
-  console.log("   ok:", licencias.length, "licencias");
 
   // =====================================================================
   // 6. PARQUEADERO (update de tipo/zona/piso/descripcion -- tabla auditada)
@@ -602,18 +539,6 @@ async function main() {
   console.log("   ok:", equipamiento.length, "equipos");
 
   // =====================================================================
-  // 9. PARQUEADERO_IP_AUTORIZADA
-  // =====================================================================
-  console.log("9. parqueadero_ip_autorizada");
-  for (let i = 1; i <= 5; i++) {
-    await client.query(
-      `INSERT INTO parqueadero_ip_autorizada (parqueadero_id, direccion_ip, descripcion) VALUES ($1,$2,$3)`,
-      [i, `192.168.${i}.10`, `Terminal de control de acceso parqueadero ${i}`],
-    );
-  }
-  console.log("   ok: 5 IPs autorizadas");
-
-  // =====================================================================
   // 10. ASIGNACION_VIGILANTE
   // =====================================================================
   console.log("10. asignacion_vigilante");
@@ -655,251 +580,6 @@ async function main() {
     );
   }
   console.log("   ok:", asignaciones.length, "asignaciones de vigilancia");
-
-  // =====================================================================
-  // 11. AUTORIZACION_ACCESO
-  // =====================================================================
-  console.log("11. autorizacion_acceso");
-  await client.query(
-    `INSERT INTO autorizacion_acceso (usuario_id, parqueadero_id, hora_inicio, hora_fin, motivo)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [
-      uid["Diana Rojas"],
-      3,
-      "06:00",
-      "20:00",
-      "Acceso administrativo extendido",
-    ],
-  );
-  await client.query(
-    `INSERT INTO autorizacion_acceso (conductor_id, parqueadero_id, fecha_inicio, fecha_fin, motivo)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [
-      cid["Pedro Sánchez"],
-      2,
-      dateOnly(-2),
-      dateOnly(10),
-      "Visita programada de auditoría externa",
-    ],
-  );
-  console.log("   ok: 2 autorizaciones de acceso");
-
-  // =====================================================================
-  // 12. REGISTRO_ACCESO (tabla auditada; crea ocupacion_celda automático)
-  //     3 vehiculos actualmente DENTRO + 2 visitas historicas ya cerradas
-  // =====================================================================
-  console.log("12. registro_acceso");
-  ids.registros = {};
-
-  await inTx(uid["Carlos Ramírez"], async () => {
-    let r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso, descripcion_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [
-        vid["ABC123"],
-        cid["Andrés Torres"],
-        1,
-        ids.celdas["A-01"],
-        uid["Carlos Ramírez"],
-        d(0, 7, 15),
-        "Sin novedad en el ingreso",
-      ],
-    );
-    ids.registros["ABC123-actual"] = r.id;
-
-    r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["DEF456"],
-        cid["Mariana López"],
-        1,
-        ids.celdas["A-07"],
-        uid["Carlos Ramírez"],
-        d(0, 7, 40),
-      ],
-    );
-    ids.registros["DEF456-actual"] = r.id;
-  });
-
-  await inTx(uid["Laura Gómez"], async () => {
-    let r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["MJP12D"],
-        cid["Julián Pérez"],
-        4,
-        ids.celdas["M-01"],
-        uid["Laura Gómez"],
-        d(0, 6, 50),
-      ],
-    );
-    ids.registros["MJP12D-actual"] = r.id;
-
-    r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso, descripcion_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["SENA01"],
-        3,
-        ids.celdas["C-05"],
-        uid["Laura Gómez"],
-        d(0, 6, 30),
-        "Vehículo institucional - gira administrativa",
-      ],
-    );
-    ids.registros["SENA01-actual"] = r.id;
-  });
-
-  await inTx(uid["Carlos Ramírez"], async () => {
-    const r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["VIS001"],
-        cid["Pedro Sánchez"],
-        2,
-        ids.celdas["B-01"],
-        uid["Carlos Ramírez"],
-        d(0, 9, 10),
-      ],
-    );
-    ids.registros["VIS001-actual"] = r.id;
-  });
-
-  // Visitas históricas ya finalizadas (INSERT con salida NULL -> luego UPDATE de salida)
-  await inTx(uid["Laura Gómez"], async () => {
-    const r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["GHI789"],
-        cid["Diana Rojas"],
-        3,
-        ids.celdas["C-01"],
-        uid["Laura Gómez"],
-        d(-1, 8, 0),
-      ],
-    );
-    ids.registros["GHI789-historico"] = r.id;
-  });
-  await inTx(uid["Laura Gómez"], async () => {
-    await client.query(
-      `UPDATE registro_acceso SET fecha_hora_salida=$1, usuario_salida_id=$2, estado='FINALIZADO' WHERE id=$3`,
-      [d(-1, 17, 30), uid["Laura Gómez"], ids.registros["GHI789-historico"]],
-    );
-  });
-
-  await inTx(uid["Carlos Ramírez"], async () => {
-    const r = await one(
-      `INSERT INTO registro_acceso (vehiculo_id, conductor_id, parqueadero_id, celda_id, usuario_ingreso_id, fecha_hora_ingreso)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [
-        vid["JKL34M"],
-        cid["Santiago Herrera"],
-        4,
-        ids.celdas["M-02"],
-        uid["Carlos Ramírez"],
-        d(-2, 7, 45),
-      ],
-    );
-    ids.registros["JKL34M-historico"] = r.id;
-  });
-  await inTx(uid["Carlos Ramírez"], async () => {
-    await client.query(
-      `UPDATE registro_acceso SET fecha_hora_salida=$1, usuario_salida_id=$2, estado='FINALIZADO' WHERE id=$3`,
-      [d(-2, 13, 15), uid["Carlos Ramírez"], ids.registros["JKL34M-historico"]],
-    );
-  });
-  console.log(
-    "   ok:",
-    Object.keys(ids.registros).length,
-    "registros de acceso (5 dentro, 2 cerrados)",
-  );
-
-  // =====================================================================
-  // 13. CAPTURA_PLACA + 14. INTENTO_OCR
-  // =====================================================================
-  console.log("13-14. captura_placa / intento_ocr");
-  async function capturaConOcr({
-    placa,
-    parqueadero,
-    vehiculo,
-    registro,
-    verificada,
-    verifica,
-    direccion,
-    origen,
-    confianza,
-    exitoso,
-    error,
-  }) {
-    const cap = await one(
-      `INSERT INTO captura_placa (placa_detectada, parqueadero_id, vehiculo_id, registro_acceso_id, verificada, usuario_verifica_id, direccion_captura, origen, confianza)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [
-        placa,
-        parqueadero,
-        vehiculo || null,
-        registro || null,
-        verificada,
-        verifica || null,
-        direccion,
-        origen,
-        confianza,
-      ],
-    );
-    await client.query(
-      `INSERT INTO intento_ocr (captura_placa_id, motor, placa_detectada, confianza, tiempo_procesamiento_ms, exitoso, error)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [
-        cap.id,
-        "tesseract.js",
-        placa,
-        confianza,
-        800 + Math.round(confianza * 3),
-        exitoso,
-        error || null,
-      ],
-    );
-    return cap.id;
-  }
-  await capturaConOcr({
-    placa: "ABC123",
-    parqueadero: 1,
-    vehiculo: vid["ABC123"],
-    registro: ids.registros["ABC123-actual"],
-    verificada: true,
-    verifica: uid["Carlos Ramírez"],
-    direccion: "ENTRADA",
-    origen: "NAVEGADOR",
-    confianza: 92.5,
-    exitoso: true,
-  });
-  await capturaConOcr({
-    placa: "DEF456",
-    parqueadero: 1,
-    vehiculo: vid["DEF456"],
-    registro: ids.registros["DEF456-actual"],
-    verificada: true,
-    verifica: uid["Carlos Ramírez"],
-    direccion: "ENTRADA",
-    origen: "NAVEGADOR",
-    confianza: 88.0,
-    exitoso: true,
-  });
-  await capturaConOcr({
-    placa: "XYZ999",
-    parqueadero: 2,
-    verificada: false,
-    direccion: "ENTRADA",
-    origen: "MANUAL",
-    confianza: 45.0,
-    exitoso: false,
-    error: "Placa no coincide con ningún vehículo registrado",
-  });
-  console.log("   ok: 3 capturas de placa + 3 intentos OCR");
 
   // =====================================================================
   // 15. RESERVA (tabla auditada; puede bloquear celdas)
@@ -1076,49 +756,6 @@ async function main() {
     evidencias.length,
     "evidencias",
   );
-
-  // =====================================================================
-  // 18. ENCUESTA + 19. VALORACION
-  // =====================================================================
-  console.log("18-19. encuesta / valoracion");
-  const encuesta = await one(
-    `INSERT INTO encuesta (titulo, descripcion, fecha_inicio, fecha_fin)
-     VALUES ($1,$2,$3,$4) RETURNING id`,
-    [
-      "Satisfacción con el servicio de parqueaderos - 2do semestre 2026",
-      "Encuesta semestral sobre la experiencia de uso de los parqueaderos del Centro.",
-      dateOnly(-40),
-      dateOnly(120),
-    ],
-  );
-  const valoraciones = [
-    [
-      uid["Andrés Torres"],
-      ids.registros["ABC123-actual"],
-      5,
-      "Excelente servicio y rapidez en el ingreso",
-    ],
-    [
-      uid["Diana Rojas"],
-      ids.registros["GHI789-historico"],
-      4,
-      "Buen servicio, la señalización podría mejorar",
-    ],
-    [
-      uid["Santiago Herrera"],
-      ids.registros["JKL34M-historico"],
-      3,
-      "A veces toca esperar en hora pico",
-    ],
-  ];
-  for (const [usuario, registro, calif, comentario] of valoraciones) {
-    await client.query(
-      `INSERT INTO valoracion (encuesta_id, usuario_id, registro_acceso_id, calificacion, comentario)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [encuesta.id, usuario, registro, calif, comentario],
-    );
-  }
-  console.log("   ok: 1 encuesta +", valoraciones.length, "valoraciones");
 
   // =====================================================================
   // 20. DISPONIBILIDAD_CELDA (requiere app.usuario_id + app.motivo_disponibilidad)

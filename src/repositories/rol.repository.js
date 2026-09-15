@@ -124,8 +124,7 @@ const quitarPermiso = async (rolId, permisoId) => {
  * altas y bajas.
  *
  * setPermisos es el método que genera belongsToMany; resuelve el diff solo, así que no hay
- * que borrar todo y reinsertar (eso perdería fecha_asignacion de los permisos que se
- * mantienen).
+ * que borrar todo y reinsertar (los permisos que se mantienen conservan su fila y su id).
  * @param {number} rolId
  * @param {number[]} permisoIds
  * @returns {Promise<Object>} El rol con sus permisos ya actualizados.

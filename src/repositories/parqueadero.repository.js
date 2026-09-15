@@ -9,7 +9,7 @@ const { Parqueadero } = require('../models');
 
 const CAMPOS_EDITABLES = [
   'nombre', 'ubicacion', 'acceso', 'capacidad_maxima', 'hora_apertura',
-  'hora_cierre', 'zona', 'piso', 'plano_url', 'observaciones', 'descripcion', 'tipo',
+  'hora_cierre', 'zona', 'piso', 'descripcion', 'tipo',
 ];
 
 /**

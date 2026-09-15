@@ -34,9 +34,7 @@ const DetallePropiedad = sequelize.define('DetallePropiedad', {
   },
 }, {
   tableName: 'detalle_propiedad',
-  timestamps: true,
-  createdAt: 'fecha_registro',
-  updatedAt: false,
+  timestamps: false,
   indexes: [
     { unique: true, fields: ['conductor_id', 'vehiculo_id'] },
   ],

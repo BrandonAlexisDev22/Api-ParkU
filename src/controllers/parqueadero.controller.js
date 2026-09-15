@@ -43,12 +43,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         piso:
  *           type: string
  *           nullable: true
- *         plano_url:
- *           type: string
- *           nullable: true
- *         observaciones:
- *           type: string
- *           nullable: true
  *         descripcion:
  *           type: string
  *           nullable: true
@@ -90,12 +84,6 @@ const { handleError } = require('../helpers/errorHandler');
  *         piso:
  *           type: string
  *           nullable: true
- *         plano_url:
- *           type: string
- *           nullable: true
- *         observaciones:
- *           type: string
- *           nullable: true
  *         descripcion:
  *           type: string
  *           nullable: true
@@ -124,12 +112,6 @@ const { handleError } = require('../helpers/errorHandler');
  *           type: string
  *           nullable: true
  *         piso:
- *           type: string
- *           nullable: true
- *         plano_url:
- *           type: string
- *           nullable: true
- *         observaciones:
  *           type: string
  *           nullable: true
  *         descripcion:
