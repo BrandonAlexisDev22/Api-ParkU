@@ -79,21 +79,35 @@ const crearUploadMiddleware = ({ subcarpeta, extensionesPermitidas, limiteMB = 5
 };
 
 /**
- * Ruta pública (servida por express.static en src/index.js) de un archivo ya guardado.
+ * URL pública absoluta (servida por express.static en src/index.js) de un archivo ya
+ * guardado, p. ej. 'https://api.parku.com/uploads/evidencias/<uuid>.png'. Se devuelve
+ * absoluta porque el frontend vive en otro origen (Vercel) y una ruta relativa
+ * ('/uploads/...') la resolvería contra su propio dominio. La base sale de API_URL si está
+ * definida; si no, del host/protocolo de la request (requiere 'trust proxy' en src/index.js
+ * para que detrás de Railway/nginx el protocolo sea https y no http).
+ * @param {import('express').Request} req
  * @param {string} subcarpeta
  * @param {string} nombreArchivo
  * @returns {string}
  */
-const rutaPublica = (subcarpeta, nombreArchivo) => `/uploads/${subcarpeta}/${nombreArchivo}`;
+const rutaPublica = (req, subcarpeta, nombreArchivo) => {
+  const base = (process.env.API_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  return `${base}/uploads/${subcarpeta}/${nombreArchivo}`;
+};
 
 /**
- * Borra (best-effort, no lanza) un archivo previamente guardado a partir de su ruta pública
- * (tal como quedó almacenada en BD), p. ej. al reemplazar una foto de perfil.
- * @param {string} rutaPublicaGuardada - p. ej. '/uploads/perfiles/<uuid>.jpg'.
+ * Borra (best-effort, no lanza) un archivo previamente guardado a partir de su URL pública
+ * (tal como quedó almacenada en BD), p. ej. al reemplazar una foto de perfil. Acepta tanto
+ * la forma absoluta actual como la relativa ('/uploads/...') de registros antiguos.
+ * @param {string} urlGuardada - p. ej. 'https://api/uploads/perfiles/<uuid>.jpg' o '/uploads/perfiles/<uuid>.jpg'.
  */
-const eliminarArchivoSiExiste = (rutaPublicaGuardada) => {
-  if (!rutaPublicaGuardada || !rutaPublicaGuardada.startsWith('/uploads/')) return;
-  const rutaFisica = path.join(__dirname, '..', '..', rutaPublicaGuardada);
+const eliminarArchivoSiExiste = (urlGuardada) => {
+  if (!urlGuardada) return;
+  let pathname = urlGuardada;
+  try { pathname = new URL(urlGuardada).pathname; } catch (_) { /* ya es relativa */ }
+  if (!pathname.startsWith('/uploads/')) return;
+  const rutaFisica = path.join(__dirname, '..', '..', pathname);
+  if (!rutaFisica.startsWith(UPLOADS_ROOT)) return;
   fs.unlink(rutaFisica, () => {});
 };
 

@@ -109,7 +109,7 @@ const create = async (req, res) => {
     // archivo (JSON normal), se comporta exactamente igual que antes.
     const datos = { ...req.body };
     if (req.file) {
-      datos.url = rutaPublica('evidencias', req.file.filename);
+      datos.url = rutaPublica(req, 'evidencias', req.file.filename);
     }
     const nueva = await svc.create(req.params.id, datos);
     res.status(201).json(nueva);

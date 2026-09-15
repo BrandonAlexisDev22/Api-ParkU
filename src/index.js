@@ -16,6 +16,10 @@ const PORT = process.env.PORT || 3000;
 // 1. CONFIGURACIÓN DE SEGURIDAD Y MIDDLEWARES
 // =============================================
 
+// Detrás de Railway/nginx: que req.protocol/req.ip reflejen X-Forwarded-* (necesario para
+// construir URLs públicas https de los archivos subidos, ver upload.middleware.js).
+app.set('trust proxy', 1);
+
 // Helmet para headers de seguridad
 app.use(helmet());
 
@@ -44,6 +48,13 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Archivos subidos (foto de perfil, evidencia de novedades) -- disco local, ver
 // src/middlewares/upload.middleware.js. El despliegue (deploy.sh) es git pull + pm2
 // restart sobre un VPS con disco persistente, no contenedores efímeros.
+// helmet() pone Cross-Origin-Resource-Policy: same-origin en todas las respuestas, lo que
+// hace que el navegador bloquee <img src="https://api.../uploads/..."> desde el frontend
+// (otro origen). Para los archivos subidos se relaja a cross-origin.
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Logging de requests HTTP (Logger personalizado)

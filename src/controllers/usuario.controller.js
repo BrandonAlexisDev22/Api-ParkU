@@ -2,6 +2,7 @@ const svc = require('../services/usuario.service');
 const { handleError } = require('../helpers/errorHandler');
 const { permisosDelRol } = require('../middlewares/auth.middleware');
 const { ROLES } = require('../config/roles');
+const { rutaPublica } = require('../middlewares/upload.middleware');
 
 /**
  * ¿Puede quien pregunta saber DE QUIÉN es un correo o un documento ya ocupado?
@@ -100,8 +101,7 @@ const actualizarFoto = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'El archivo de la foto es requerido (campo "foto")' });
     }
-    const rutaPublica = `/uploads/perfiles/${req.file.filename}`;
-    const usuario = await svc.actualizarFoto(req.usuario.id, rutaPublica);
+    const usuario = await svc.actualizarFoto(req.usuario.id, rutaPublica(req, 'perfiles', req.file.filename));
     res.json(usuario);
   } catch (e) {
     handleError(res, e);
