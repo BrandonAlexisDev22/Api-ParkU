@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 
 // =============================================
 // CONTROLLERS
@@ -12,6 +12,13 @@ const authCtrl = require('../controllers/auth.controller');
 // =============================================
 
 const { verificarToken } = require('../middlewares/auth.middleware');
+const {
+  limitadorLogin,
+  limitadorRegistro,
+  limitadorEnvioCorreo,
+  limitadorCanjeToken,
+  limitadorConsultaExistencia,
+} = require('../middlewares/rateLimit.middleware');
 
 // Middleware de validación
 const { validate } = require('../middlewares/validators/auth.validator');
@@ -62,8 +69,54 @@ const registerValidation = [
 // Validación de Refresh Token
 const refreshValidation = [
   body('refreshToken')
+    .isString()
+    .withMessage('Refresh token requerido')
     .notEmpty()
     .withMessage('Refresh token requerido'),
+];
+
+// Validaciones de los flujos de recuperación y verificación de correo. Todos son públicos:
+// aquí se garantiza que lo que llega al servicio es texto con la forma esperada (un objeto o
+// un arreglo en `correo` cambiaría el significado de la consulta en Sequelize).
+const correoValidation = [
+  body('correo')
+    .isString()
+    .withMessage('Correo inválido')
+    .isEmail()
+    .withMessage('Correo inválido')
+    .normalizeEmail(),
+];
+
+const restablecerValidation = [
+  body('token')
+    .isString()
+    .withMessage('Token requerido')
+    .isLength({ min: 32, max: 128 })
+    .withMessage('Token inválido'),
+  body('nuevaContrasena')
+    .isString()
+    .withMessage('La nueva contraseña es requerida')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('La contraseña debe tener entre 8 y 128 caracteres'),
+];
+
+const verificarCodigoValidation = [
+  ...correoValidation,
+  body('codigo')
+    // El código puede llegar como número (123456) desde un JSON; se normaliza a texto.
+    .customSanitizer((v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : v))
+    .isString()
+    .withMessage('Código requerido')
+    .isLength({ min: 6, max: 8 })
+    .withMessage('Código inválido'),
+];
+
+const verificarCorreoValidation = [
+  query('token')
+    .isString()
+    .withMessage('Token requerido')
+    .isLength({ min: 32, max: 128 })
+    .withMessage('Token inválido'),
 ];
 
 // =============================================
@@ -115,6 +168,7 @@ const refreshValidation = [
 
 router.post(
   '/login',
+  limitadorLogin,
   loginValidation,
   validate,
   authCtrl.login
@@ -189,6 +243,7 @@ router.post(
 
 router.post(
   '/registro',
+  limitadorRegistro,
   registerValidation,
   validate,
   authCtrl.register
@@ -218,6 +273,7 @@ router.post(
  */
 router.get(
   '/existe-correo',
+  limitadorConsultaExistencia,
   authCtrl.existeCorreo
 );
 
@@ -298,6 +354,7 @@ router.get(
  */
 router.get(
   '/existe-numero',
+  limitadorConsultaExistencia,
   authCtrl.existeNumero
 );
 
@@ -327,6 +384,7 @@ router.get(
  */
 router.get(
   '/existe-documento',
+  limitadorConsultaExistencia,
   authCtrl.existeDocumento
 );
 
@@ -385,6 +443,7 @@ router.get(
 
 router.post(
   '/refresh-token',
+  limitadorCanjeToken,
   refreshValidation,
   validate,
   authCtrl.refreshToken
@@ -443,6 +502,9 @@ router.post(
  */
 router.post(
   '/recuperar-password',
+  limitadorEnvioCorreo,
+  correoValidation,
+  validate,
   authCtrl.recuperarPassword
 );
 
@@ -475,6 +537,9 @@ router.post(
  */
 router.post(
   '/restablecer-password',
+  limitadorCanjeToken,
+  restablecerValidation,
+  validate,
   authCtrl.restablecerPassword
 );
 
@@ -502,6 +567,9 @@ router.post(
  */
 router.get(
   '/verificar-correo',
+  limitadorCanjeToken,
+  verificarCorreoValidation,
+  validate,
   authCtrl.verificarCorreo
 );
 
@@ -542,6 +610,9 @@ router.get(
  */
 router.post(
   '/verificar-codigo',
+  limitadorCanjeToken,
+  verificarCodigoValidation,
+  validate,
   authCtrl.verificarCodigo
 );
 
@@ -569,6 +640,9 @@ router.post(
  */
 router.post(
   '/reenviar-verificacion',
+  limitadorEnvioCorreo,
+  correoValidation,
+  validate,
   authCtrl.reenviarVerificacion
 );
 

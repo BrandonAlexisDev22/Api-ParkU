@@ -17,6 +17,7 @@ const { crearConductorVinculado, TIPOS_DOCUMENTO_VALIDOS } = require('../utils/c
 const conductorRepo = require('../repositories/conductor.repository');
 const { CAMPOS_DE_LA_CUENTA } = conductorRepo;
 const PasswordUtil = require('../utils/password.util');
+const verificacionCorreoSvc = require('./verificacionCorreo.service');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Formato permisivo (con o sin '+', 7-15 dígitos) -- el mismo criterio que ya se usaba en
@@ -439,7 +440,8 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
   const usuario = await getById(id);
 
   // Si se actualiza el correo, verificar formato y que no esté en uso por otro usuario
-  if (data.correo && data.correo !== usuario.correo) {
+  const cambiaCorreo = Boolean(data.correo) && data.correo !== usuario.correo;
+  if (cambiaCorreo) {
     _validarCorreo(data.correo);
     const duplicado = await repo.findByCorreo(data.correo);
     if (duplicado && duplicado.id !== id) {
@@ -476,6 +478,12 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
 
   // El rol puede venir como `rol` o como `rol_id`, número o nombre (ver _resolverRol).
   const updateData = { ...data };
+  // La verificación es del correo, no de la cuenta: al cambiar la dirección se vuelve a
+  // empezar. Sin esto, una cuenta verificada con un correo podía pasarse a cualquier otra
+  // dirección (incluso ajena) y seguir figurando como verificada. Y nadie puede marcarse
+  // verificado desde el body: solo lo hace el flujo de verificación.
+  delete updateData.correo_verificado;
+  if (cambiaCorreo) updateData.correo_verificado = false;
   delete updateData.tipo_documento;
   delete updateData.tipoDocumento;
   delete updateData.numero_documento;
@@ -559,6 +567,14 @@ const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
 
       return actualizado;
     });
+
+    // Correo nuevo: se manda el enlace de verificación a la dirección nueva, fuera de la
+    // transacción y sin bloquear la respuesta (igual que en el registro).
+    if (cambiaCorreo && resultadoActualizacion) {
+      verificacionCorreoSvc.solicitar(resultadoActualizacion).catch((error) => {
+        console.error(`No se pudo enviar la verificación del nuevo correo de la cuenta ${id}:`, error.message);
+      });
+    }
 
     // Ya guardado: el aviso sale ahora, y si el correo falla no deshace nada.
     if (avisarCambioDeEstado?.correo) {
@@ -703,9 +719,26 @@ const actualizarPerfil = async (id, data = {}) => {
  * @throws {Object} 400 si faltan datos, 401 si actual incorrecta.
  * @returns {Promise<void>}
  */
-const cambiarContrasena = async (id, { actual, nueva }) => {
+const cambiarContrasena = async (id, { actual, nueva }, solicitanteId) => {
   if (!actual || !nueva) {
     throw { status: 400, message: 'actual y nueva son requeridos' };
+  }
+  if (typeof actual !== 'string' || typeof nueva !== 'string') {
+    throw { status: 400, message: 'actual y nueva deben ser texto' };
+  }
+
+  // Solo se puede cambiar la contraseña de la PROPIA cuenta. Aunque el endpoint exige la
+  // contraseña actual, sin este chequeo cualquier persona con sesión podía usarlo contra
+  // el id de otra cuenta como oráculo para adivinarla (y esa ruta no pasa por el bloqueo
+  // de intentos fallidos del login). Quien administra cuentas ajenas usa PUT /usuarios/:id.
+  if (solicitanteId !== undefined && Number(id) !== Number(solicitanteId)) {
+    throw { status: 403, message: 'Solo puedes cambiar la contraseña de tu propia cuenta' };
+  }
+
+  // Misma política que el registro y el alta administrativa (ver PasswordUtil).
+  PasswordUtil.validarFortaleza(nueva);
+  if (nueva === actual) {
+    throw { status: 400, message: 'La nueva contraseña debe ser distinta de la actual' };
   }
 
   const usuario = await repo.findById(id);

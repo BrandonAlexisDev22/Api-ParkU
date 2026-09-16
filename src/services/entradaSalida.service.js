@@ -23,6 +23,15 @@ const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.uti
 const { validarHorarioOperacion, horaEnBogotaTexto } = require('../config/horarioOperacion');
 const { MARGEN_ESTACIONAR_ANTES_MINUTOS, MINUTO_MS, _enPalabras } = require('../config/reglasReserva');
 const { validarCompatibilidadCelda } = require('../utils/compatibilidadVehiculo.util');
+const { resolverAlcance, exigir, acotar } = require('../utils/alcance.util');
+
+// Los registros de acceso son la bitácora de portería (quién entró, cuándo, con qué). El
+// rol Conductor tiene `ingreso.consultar` para ver SUS movimientos, no los de todos: quien
+// no gestiona ingresos/salidas solo ve los registros de sus vehículos o a su nombre.
+const PERMISOS_GESTION = ['ingreso.gestionar', 'salida.gestionar'];
+
+const _esRegistroPropio = (alcance, r) =>
+  alcance.esVehiculoPropio(r.vehiculo_id) || alcance.esConductorPropio(r.conductor_id);
 
 /**
  * Decide si este vehículo puede ocupar esta celda ahora mismo, mirando su AGENDA.
@@ -82,7 +91,10 @@ const _validarReservaDeCelda = async (celda, vehiculoId, conductorId) => {
  * Obtiene el historial completo de entradas y salidas.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async (solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findAll(), (r) => _esRegistroPropio(alcance, r));
+};
 
 /**
  * Busca un registro específico por ID.
@@ -90,9 +102,13 @@ const getAll = () => repo.findAll();
  * @throws {Object} 404 si el registro no existe.
  * @returns {Promise<Object>}
  */
-const getById = async (id) => {
+const getById = async (id, solicitante) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Registro no encontrado' };
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, _esRegistroPropio(alcance, item));
+  }
   return item;
 };
 
@@ -101,7 +117,11 @@ const getById = async (id) => {
  * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
-const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
+const getByVehiculo = async (vehiculoId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, alcance.esVehiculoPropio(vehiculoId));
+  return repo.findByVehiculo(vehiculoId);
+};
 
 /**
  * Consulta registros dentro de un rango de fechas.
@@ -110,9 +130,10 @@ const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
  * @throws {Object} 400 si faltan parámetros de fecha.
  * @returns {Promise<Array>}
  */
-const getByFecha = (desde, hasta) => {
+const getByFecha = async (desde, hasta, solicitante) => {
   if (!desde || !hasta) throw { status: 400, message: 'desde y hasta son requeridos' };
-  return repo.findByFecha(desde, hasta);
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findByFecha(desde, hasta), (r) => _esRegistroPropio(alcance, r));
 };
 
 /**

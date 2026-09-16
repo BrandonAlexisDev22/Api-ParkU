@@ -1,4 +1,3 @@
-const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
@@ -12,7 +11,12 @@ const Logger = require('../utils/logger.util');
 // Comparar contra un valor fuera de este set haría que Postgres rechace la
 // consulta con "invalid input value for enum" en vez de simplemente no encontrar nada.
 const TIPOS_DOCUMENTO_VALIDOS = ['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'];
-const { generarToken, generarRefreshToken, permisosDelRol } = require('../middlewares/auth.middleware');
+const {
+  generarToken,
+  generarRefreshToken,
+  verificarRefreshToken,
+  permisosDelRol,
+} = require('../middlewares/auth.middleware');
 const usuarioSvc = require('../services/usuario.service');
 const recuperacionPasswordSvc = require('../services/recuperacionPassword.service');
 const { handleError } = require('../helpers/errorHandler');
@@ -438,10 +442,11 @@ class AuthController {
         });
       }
 
-      // Verificar refresh token
+      // Verificar refresh token: firma, expiración y que sea de tipo refresh (un token de
+      // acceso no sirve para pedir otro, ni al revés -- ver auth.middleware.js).
       let decoded;
       try {
-        decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        decoded = verificarRefreshToken(refreshToken);
       } catch (error) {
         if (error.name === 'TokenExpiredError') {
           return res.status(401).json({

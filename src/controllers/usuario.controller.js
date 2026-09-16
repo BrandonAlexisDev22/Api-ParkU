@@ -110,7 +110,7 @@ const actualizarFoto = async (req, res) => {
 
 const cambiarContrasena = async (req, res) => {
   try {
-    await svc.cambiarContrasena(req.params.id, req.body);
+    await svc.cambiarContrasena(req.params.id, req.body, req.usuario.id);
     res.json({ message: 'Contraseña actualizada' });
   } catch (e) {
     handleError(res, e);

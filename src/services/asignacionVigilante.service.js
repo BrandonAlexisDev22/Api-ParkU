@@ -7,6 +7,8 @@ const repo = require('../repositories/asignacionVigilante.repository');
 const usuarioRepo = require('../repositories/usuario.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
 
+const { resolverAlcance, exigir } = require('../utils/alcance.util');
+
 const TURNOS_PERMITIDOS = ['MANANA', 'TARDE', 'NOCHE'];
 
 const getAll = () => repo.findAll();
@@ -17,7 +19,13 @@ const getById = async (id) => {
   return item;
 };
 
-const getByUsuario = (usuarioId) => repo.findByUsuario(usuarioId);
+// Los turnos de una persona son su horario de trabajo: los ve Admin/Vigilante, o la
+// propia persona. Nadie más.
+const getByUsuario = async (usuarioId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante);
+  exigir(alcance, alcance.esUsuarioPropio(usuarioId));
+  return repo.findByUsuario(usuarioId);
+};
 
 const _validarHoras = (horaInicio, horaFin) => {
   if (horaInicio && horaFin && horaFin <= horaInicio) {

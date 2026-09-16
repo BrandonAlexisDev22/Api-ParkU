@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/usuario.controller');
 const { verificarToken, verificarAcceso } = require('../middlewares/auth.middleware');
+const { limitadorCambioContrasena } = require('../middlewares/rateLimit.middleware');
 const { crearUploadMiddleware } = require('../middlewares/upload.middleware');
 
 const uploadFoto = crearUploadMiddleware({
@@ -567,6 +568,7 @@ router.put('/:id',
  */
 router.patch('/:id/contrasena',
   verificarToken,
+  limitadorCambioContrasena,
   ctrl.cambiarContrasena
 );
 

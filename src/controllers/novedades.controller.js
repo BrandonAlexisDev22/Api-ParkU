@@ -143,7 +143,7 @@ const { handleError } = require('../helpers/errorHandler');
  */
 const getAll = async (req, res) => {
   try {
-    const data = await svc.getAll();
+    const data = await svc.getAll(req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -175,7 +175,7 @@ const getAll = async (req, res) => {
  */
 const getById = async (req, res) => {
   try {
-    const data = await svc.getById(req.params.id);
+    const data = await svc.getById(req.params.id, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -207,7 +207,7 @@ const getById = async (req, res) => {
  */
 const getByVehiculo = async (req, res) => {
   try {
-    const data = await svc.getByVehiculo(req.params.vehiculoId);
+    const data = await svc.getByVehiculo(req.params.vehiculoId, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -239,7 +239,7 @@ const getByVehiculo = async (req, res) => {
  */
 const getByRegistroAcceso = async (req, res) => {
   try {
-    const data = await svc.getByRegistroAcceso(req.params.registroAccesoId);
+    const data = await svc.getByRegistroAcceso(req.params.registroAccesoId, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -281,7 +281,7 @@ const getByRegistroAcceso = async (req, res) => {
 const getByFiltros = async (req, res) => {
   try {
     const filtros = req.query;
-    const data = await svc.getByFiltros(filtros);
+    const data = await svc.getByFiltros(filtros, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);

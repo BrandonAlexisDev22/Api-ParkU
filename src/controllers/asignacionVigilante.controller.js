@@ -173,7 +173,7 @@ const getById = async (req, res) => {
  */
 const getByUsuario = async (req, res) => {
   try {
-    res.json(await svc.getByUsuario(req.params.usuarioId));
+    res.json(await svc.getByUsuario(req.params.usuarioId, req.usuario));
   } catch (e) {
     handleError(res, e);
   }

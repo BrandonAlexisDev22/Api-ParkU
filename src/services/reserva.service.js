@@ -48,6 +48,31 @@ const {
 const APERTURA = `${String(HORA_APERTURA).padStart(2, "0")}:00`;
 const CIERRE = `${String(HORA_CIERRE).padStart(2, "0")}:00`;
 const { ROLES } = require("../config/roles");
+const { resolverAlcance, exigir, acotar } = require("../utils/alcance.util");
+
+// Quién ve reservas ajenas: Admin/Vigilante o un rol con permiso de gestión. El resto
+// (Conductor) solo ve las suyas -- ver utils/alcance.util.js.
+const PERMISOS_GESTION = ["reservas.gestionar"];
+
+/** Una reserva es "suya" si está a su nombre, es de su vehículo o la registró él. */
+const _esReservaPropia = (alcance, r) =>
+  alcance.esConductorPropio(r.conductor_id) ||
+  alcance.esVehiculoPropio(r.vehiculo_id) ||
+  alcance.esUsuarioPropio(r.usuario_registra_id);
+
+/**
+ * Lo que se le muestra a quien NO es gestor de una reserva ajena en la agenda de una
+ * celda: solo la franja y el estado, para saber cuándo está ocupada. Nada de quién la
+ * pidió ni con qué vehículo.
+ */
+const _soloFranja = (r) => ({
+  id: r.id,
+  celda_id: r.celda_id,
+  celda: r.celda,
+  estado: r.estado,
+  fecha_hora_inicio: r.fecha_hora_inicio,
+  fecha_hora_fin: r.fecha_hora_fin,
+});
 const {
   validarCompatibilidadCelda,
 } = require("../utils/compatibilidadVehiculo.util");
@@ -135,39 +160,60 @@ const vencerCaducadas = async (usuarioId = 1) => {
  * abandonada soltara su celda era que un administrador tuviera la aplicación abierta (el
  * vencimiento vivía solo en el navegador), así que un fin de semana sin nadie dentro dejaba
  * celdas retenidas por reservas que nadie iba a usar.
- * @param {number} [usuarioId] - Quien consulta; solo se usa para atribuir el vencimiento.
+ * Quien no es gestor recibe solo sus reservas (a su nombre, de sus vehículos o registradas
+ * por él): el rol Conductor tiene `reservas.consultar` para ver las suyas, no las de todos.
+ * @param {{id:number, rol:number}} [solicitante] - req.usuario; atribuye el vencimiento y acota.
  * @returns {Promise<Array>}
  */
-const getAll = async (usuarioId) => {
-  await vencerCaducadas(usuarioId);
-  return repo.findAll();
+const getAll = async (solicitante) => {
+  await vencerCaducadas(solicitante?.id);
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findAll(), (r) => _esReservaPropia(alcance, r));
 };
 
 /**
  * Busca una reserva por su ID.
  * @param {number} id
- * @throws {Object} 404 si la reserva no existe.
+ * @param {{id:number, rol:number}} [solicitante] - Si viene y no es gestor, la reserva debe ser suya.
+ * @throws {Object} 404 si la reserva no existe; 403 si es ajena.
  * @returns {Promise<Object>}
  */
-const getById = async (id) => {
+const getById = async (id, solicitante) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: "Reserva no encontrada" };
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, _esReservaPropia(alcance, item));
+  }
   return item;
 };
 
 /**
- * Filtra reservas por vehículo.
+ * Filtra reservas por vehículo. Quien no es gestor solo puede consultar sus vehículos.
  * @param {number} vehiculoId
+ * @param {{id:number, rol:number}} [solicitante]
  * @returns {Promise<Array>}
  */
-const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
+const getByVehiculo = async (vehiculoId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, alcance.esVehiculoPropio(vehiculoId));
+  return repo.findByVehiculo(vehiculoId);
+};
 
 /**
- * Filtra reservas por celda.
+ * Filtra reservas por celda. Quien no es gestor ve la agenda completa de la celda (le
+ * sirve para saber cuándo está libre), pero de las reservas ajenas solo la franja y el
+ * estado; las suyas, completas.
  * @param {number} celdaId
+ * @param {{id:number, rol:number}} [solicitante]
  * @returns {Promise<Array>}
  */
-const getByCelda = (celdaId) => repo.findByCelda(celdaId);
+const getByCelda = async (celdaId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  const filas = await repo.findByCelda(celdaId);
+  if (alcance.gestor) return filas;
+  return filas.map((r) => (_esReservaPropia(alcance, r) ? r : _soloFranja(r)));
+};
 
 /**
  * Valida la coherencia de las fechas de reserva.

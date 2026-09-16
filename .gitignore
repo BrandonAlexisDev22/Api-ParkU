@@ -13,3 +13,6 @@ uploads/evidencias/*
 .env.local
 .env.production
 .env.*.local
+
+# Logs del servidor (IPs, user agents): no se suben al repositorio
+logs/

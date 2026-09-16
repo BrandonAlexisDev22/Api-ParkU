@@ -59,7 +59,7 @@ const { handleError } = require('../helpers/errorHandler');
  */
 const getAll = async (req, res) => {
   try {
-    res.json(await svc.getAll());
+    res.json(await svc.getAll(req.usuario));
   } catch (e) {
     handleError(res, e);
   }
@@ -89,7 +89,7 @@ const getAll = async (req, res) => {
  */
 const getById = async (req, res) => {
   try {
-    res.json(await svc.getById(req.params.id));
+    res.json(await svc.getById(req.params.id, req.usuario));
   } catch (e) {
     handleError(res, e);
   }
@@ -119,7 +119,7 @@ const getById = async (req, res) => {
  */
 const getByCelda = async (req, res) => {
   try {
-    res.json(await svc.getByCelda(req.params.celdaId));
+    res.json(await svc.getByCelda(req.params.celdaId, req.usuario));
   } catch (e) {
     handleError(res, e);
   }
@@ -149,7 +149,7 @@ const getByCelda = async (req, res) => {
  */
 const getByVehiculo = async (req, res) => {
   try {
-    res.json(await svc.getByVehiculo(req.params.vehiculoId));
+    res.json(await svc.getByVehiculo(req.params.vehiculoId, req.usuario));
   } catch (e) {
     handleError(res, e);
   }

@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const { swaggerDocs } = require("./config/swagger");
 const { testConnection, sequelize } = require("./config/database");
 const Logger = require("./utils/logger.util");
+const { limitadorGlobal } = require("./middlewares/rateLimit.middleware");
 const {
   verificarConexion: verificarConexionCorreo,
 } = require("./utils/mailer.util");
@@ -45,9 +46,15 @@ app.use(
   }),
 );
 
-// Parsear JSON
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
+// Techo global de peticiones por IP (ver src/middlewares/rateLimit.middleware.js). Los
+// endpoints de autenticación llevan además límites propios, más estrictos.
+app.use(limitadorGlobal);
+
+// Parsear JSON. El límite es para cuerpos JSON/formularios: los archivos van por multer con
+// su propio tope (5 MB). Un JSON de 10 MB no tiene ningún uso legítimo aquí y solo servía
+// para obligar al servidor a parsear cuerpos enormes.
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
 // Archivos subidos (foto de perfil, evidencia de novedades) -- disco local, ver
 // src/middlewares/upload.middleware.js. El despliegue (deploy.sh) es git pull + pm2
@@ -59,7 +66,12 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 });
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  // Sin listados de directorio ni archivos ocultos: aquí solo viven imágenes/evidencias con
+  // nombre UUID, y nada más debería poder leerse por esta ruta.
+  index: false,
+  dotfiles: 'deny',
+}));
 
 // Logging de requests HTTP (Logger personalizado)
 app.use((req, res, next) => {
@@ -90,21 +102,16 @@ app.get("/api/health", async (req, res) => {
   });
 });
 
-// Test de conexión a base de datos
+// Test de conexión a base de datos. Es público, así que NO devuelve host, puerto, nombre
+// de la base ni el mensaje de error del driver: eso es información de infraestructura que
+// solo debe verse en el log del servidor.
 app.get("/api/test-db", async (req, res) => {
   try {
-    const [result] = await sequelize.query(
-      "SELECT NOW() AS fecha_hora, current_database() AS base_datos",
-    );
+    const [result] = await sequelize.query("SELECT NOW() AS fecha_hora");
     res.status(200).json({
       success: true,
       message: "✅ Conexión exitosa con PostgreSQL",
-      data: {
-        fecha_hora: result[0]?.fecha_hora,
-        base_datos: result[0]?.base_datos,
-        host: process.env.DB_HOST,
-        port: process.env.DB_PORT,
-      },
+      data: { fecha_hora: result[0]?.fecha_hora },
     });
   } catch (error) {
     Logger.error("Error conectando a PostgreSQL", {
@@ -115,7 +122,6 @@ app.get("/api/test-db", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "❌ Error de conexión con la base de datos",
-      error: error.message,
     });
   }
 });
@@ -232,6 +238,19 @@ app.use((req, res) => {
 // 7. MANEJADOR DE ERRORES GLOBAL
 // =============================================
 app.use((err, req, res, next) => {
+  // Errores del parseo del cuerpo (JSON malformado, cuerpo demasiado grande, charset no
+  // soportado): son culpa del cliente, no del servidor. Se responden con su código real
+  // (400/413/415) y sin llegar al log de errores, que es para fallos nuestros.
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ success: false, message: "El cuerpo de la petición no es JSON válido" });
+  }
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ success: false, message: "El cuerpo de la petición es demasiado grande" });
+  }
+  if (err.type === "charset.unsupported" || err.type === "encoding.unsupported") {
+    return res.status(415).json({ success: false, message: "Codificación no soportada" });
+  }
+
   // Log del error
   Logger.error("Error no controlado", {
     message: err.message,
@@ -242,6 +261,8 @@ app.use((err, req, res, next) => {
     usuario: req.usuario?.id || "anónimo",
   });
 
+  // Nunca se devuelve err.message ni el stack: pueden contener SQL, rutas del servidor o
+  // detalles del driver.
   res.status(500).json({
     success: false,
     message: "Error interno del servidor",

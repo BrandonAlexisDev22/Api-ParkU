@@ -63,7 +63,7 @@ const { rutaPublica } = require('../middlewares/upload.middleware');
  */
 const getByNovedad = async (req, res) => {
   try {
-    res.json(await svc.getByNovedad(req.params.id));
+    res.json(await svc.getByNovedad(req.params.id, req.usuario));
   } catch (e) {
     handleError(res, e);
   }
@@ -108,7 +108,7 @@ const create = async (req, res) => {
     if (req.file) {
       datos.url = rutaPublica(req, 'evidencias', req.file.filename);
     }
-    const nueva = await svc.create(req.params.id, datos);
+    const nueva = await svc.create(req.params.id, datos, req.usuario);
     res.status(201).json(nueva);
   } catch (e) {
     handleError(res, e);

@@ -11,6 +11,65 @@ const jwt = require('jsonwebtoken');
 const { Usuario, sequelize } = require('../models');
 const { ROLES } = require('../config/roles');
 
+// =============================================
+// Secreto y parámetros del JWT
+// =============================================
+// Se resuelven UNA vez al cargar el módulo y se valida que existan: sin esto, un despliegue
+// sin JWT_SECRET arrancaba igual y firmaba tokens con `undefined` (jsonwebtoken lanza en
+// cada login, pero ya en producción). Un secreto corto en producción también se rechaza:
+// con HS256 el secreto es lo único que impide forjar un token con cualquier rol.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET no está definido. Configúralo en .env antes de arrancar la API.');
+}
+if (process.env.NODE_ENV === 'production' && JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET es demasiado corto para producción: usa al menos 32 caracteres aleatorios.');
+}
+
+// Algoritmo fijado explícitamente en firma y verificación. jsonwebtoken ya no acepta "none"
+// con un secreto, pero dejarlo implícito es depender de ese default; y sin la lista, un
+// cambio futuro a claves RSA abriría la confusión de algoritmos (verificar un HS256 firmado
+// con la clave pública).
+const JWT_ALGORITMOS = ['HS256'];
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const REFRESH_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
+
+// Los tokens de acceso y de refresco llevan un claim `tipo` y cada uno solo vale para lo
+// suyo. Antes tenían el mismo payload y la misma firma, así que un refresh token (30 días)
+// servía como token de acceso: si se filtraba, daba sesión durante un mes en vez de que
+// solo sirviera para pedir tokens nuevos (que a su vez se pueden cortar cambiando la
+// contraseña o desactivando la cuenta).
+const TIPO_ACCESS = 'access';
+const TIPO_REFRESH = 'refresh';
+
+/**
+ * Extrae el token del header Authorization. Solo se acepta el esquema `Bearer`.
+ * @param {import('express').Request} req
+ * @returns {string|null}
+ */
+const extraerBearer = (req) => {
+  const cabecera = req.headers.authorization;
+  if (typeof cabecera !== 'string') return null;
+  const [esquema, token, ...resto] = cabecera.trim().split(/\s+/);
+  if (!token || resto.length || esquema.toLowerCase() !== 'bearer') return null;
+  return token;
+};
+
+/**
+ * Verifica firma, expiración, algoritmo y tipo de un JWT emitido por esta API.
+ * @param {string} token
+ * @param {'access'|'refresh'} tipoEsperado
+ * @returns {Object} payload
+ * @throws {jwt.JsonWebTokenError|jwt.TokenExpiredError}
+ */
+const verificarJwt = (token, tipoEsperado) => {
+  const decoded = jwt.verify(token, JWT_SECRET, { algorithms: JWT_ALGORITMOS });
+  if (decoded.tipo !== tipoEsperado) {
+    throw new jwt.JsonWebTokenError('tipo de token no válido para esta operación');
+  }
+  return decoded;
+};
+
 /**
  * ====================================================
  * verificarToken - Middleware de autenticación
@@ -18,7 +77,7 @@ const { ROLES } = require('../config/roles');
  */
 const verificarToken = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = extraerBearer(req);
 
     if (!token) {
       return res.status(401).json({
@@ -29,7 +88,7 @@ const verificarToken = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = verificarJwt(token, TIPO_ACCESS);
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
@@ -241,11 +300,11 @@ const verificarAcceso = ({ permisos = [], roles = [] }) => async (req, res, next
  */
 const verificarTokenOpcional = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = extraerBearer(req);
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = verificarJwt(token, TIPO_ACCESS);
         req.usuario = decoded;
       } catch (error) {
         // Si el token es inválido, simplemente ignoramos
@@ -269,12 +328,13 @@ const generarToken = (usuario) => {
       id: usuario.id,
       correo: usuario.correo,
       rol: usuario.rol,
+      tipo: TIPO_ACCESS,
       // Marca de tiempo del último cambio de contraseña en el momento de emitir este
       // token -- ver verificarToken. 0 si nunca la cambió.
       pwdTs: usuario.fecha_cambio_contrasena ? new Date(usuario.fecha_cambio_contrasena).getTime() : 0,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN, algorithm: JWT_ALGORITMOS[0] }
   );
 };
 
@@ -287,14 +347,20 @@ const generarRefreshToken = (usuario) => {
   return jwt.sign(
     {
       id: usuario.id,
-      correo: usuario.correo,
-      rol: usuario.rol,
+      tipo: TIPO_REFRESH,
       pwdTs: usuario.fecha_cambio_contrasena ? new Date(usuario.fecha_cambio_contrasena).getTime() : 0,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d' }
+    JWT_SECRET,
+    { expiresIn: REFRESH_EXPIRES_IN, algorithm: JWT_ALGORITMOS[0] }
   );
 };
+
+/**
+ * Verifica un refresh token (firma, expiración y que sea de tipo refresh).
+ * @param {string} token
+ * @returns {Object} payload
+ */
+const verificarRefreshToken = (token) => verificarJwt(token, TIPO_REFRESH);
 
 module.exports = {
   verificarToken,
@@ -305,5 +371,6 @@ module.exports = {
   invalidarCachePermisos,
   verificarTokenOpcional,
   generarToken,
-  generarRefreshToken
+  generarRefreshToken,
+  verificarRefreshToken,
 };

@@ -16,6 +16,12 @@ const { traducirErrorTrigger } = require("../utils/dbContext.util");
 const { exigirSinOperaciones } = require("../utils/borrado.util");
 const { ROLES } = require("../config/roles");
 const PasswordUtil = require("../utils/password.util");
+const { resolverAlcance, exigir, acotar } = require("../utils/alcance.util");
+
+// Una ficha de conductor lleva documento, dirección y teléfono. La ve completa quien
+// gestiona conductores o cuentas; cualquier otro rol solo ve su propia ficha -- ver
+// utils/alcance.util.js.
+const PERMISOS_GESTION = ["conductores.consultar", "conductores.gestionar", "usuarios.consultar"];
 
 const TIPOS_DOCUMENTO = ["CC", "CE", "TI", "PASAPORTE", "PEP", "NIT"];
 
@@ -186,7 +192,10 @@ const validarReferencias = async (
  * Obtiene la lista de todos los conductores.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async (solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findAll(), (c) => alcance.esConductorPropio(c.id));
+};
 
 /**
  * Busca un conductor por su identificador.
@@ -194,9 +203,13 @@ const getAll = () => repo.findAll();
  * @throws {Object} 404 si el conductor no existe.
  * @returns {Promise<Object>}
  */
-const getById = async (id) => {
+const getById = async (id, solicitante) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: "Conductor no encontrado" };
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, alcance.esConductorPropio(item.id));
+  }
   return item;
 };
 
@@ -204,7 +217,10 @@ const getById = async (id) => {
  * Obtiene conductores activos (estado = true).
  * @returns {Promise<Array>}
  */
-const getActivos = () => repo.findActivos();
+const getActivos = async (solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findActivos(), (c) => alcance.esConductorPropio(c.id));
+};
 
 /**
  * Busca un conductor por su documento (tipo + número).
@@ -213,9 +229,13 @@ const getActivos = () => repo.findActivos();
  * @throws {Object} 404 si no existe.
  * @returns {Promise<Object>}
  */
-const getByDocumento = async (tipoDocumento, numeroDocumento) => {
+const getByDocumento = async (tipoDocumento, numeroDocumento, solicitante) => {
   const item = await repo.findByDocumento(tipoDocumento, numeroDocumento);
   if (!item) throw { status: 404, message: "Conductor no encontrado" };
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, alcance.esConductorPropio(item.id));
+  }
   return item;
 };
 
@@ -224,7 +244,14 @@ const getByDocumento = async (tipoDocumento, numeroDocumento) => {
  * @param {string} correo
  * @returns {Promise<Array>}
  */
-const getByCorreo = (correo) => repo.findByCorreo(correo);
+const getByCorreo = async (correo, solicitante) => {
+  const item = await repo.findByCorreo(correo);
+  if (item && solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, alcance.esConductorPropio(item.id));
+  }
+  return item;
+};
 
 /**
  * Busca el conductor vinculado a una cuenta de usuario (1:1). Es lo único que permite a
@@ -236,7 +263,11 @@ const getByCorreo = (correo) => repo.findByCorreo(correo);
  * @throws {Object} 404 si ese usuario no tiene un conductor vinculado.
  * @returns {Promise<Object>}
  */
-const getByUsuarioId = async (usuarioId) => {
+const getByUsuarioId = async (usuarioId, solicitante) => {
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, alcance.esUsuarioPropio(usuarioId));
+  }
   const item = await repo.findByUsuarioId(usuarioId);
   if (!item)
     throw {

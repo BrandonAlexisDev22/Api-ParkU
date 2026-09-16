@@ -201,7 +201,7 @@ const { handleError } = require("../helpers/errorHandler");
  */
 const getAll = async (req, res) => {
   try {
-    const data = await svc.getAll();
+    const data = await svc.getAll(req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -226,7 +226,7 @@ const getAll = async (req, res) => {
  */
 const getActivos = async (req, res) => {
   try {
-    const data = await svc.getActivos();
+    const data = await svc.getActivos(req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -271,7 +271,7 @@ const getByDocumento = async (req, res) => {
         .status(400)
         .json({ message: "tipo_documento y numero_documento son requeridos" });
     }
-    const data = await svc.getByDocumento(tipo_documento, numero_documento);
+    const data = await svc.getByDocumento(tipo_documento, numero_documento, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -304,7 +304,7 @@ const getByDocumento = async (req, res) => {
  */
 const getByCorreo = async (req, res) => {
   try {
-    const data = await svc.getByCorreo(req.params.correo);
+    const data = await svc.getByCorreo(req.params.correo, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -337,7 +337,7 @@ const getByCorreo = async (req, res) => {
  */
 const getByUsuarioId = async (req, res) => {
   try {
-    const data = await svc.getByUsuarioId(req.params.usuarioId);
+    const data = await svc.getByUsuarioId(req.params.usuarioId, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -369,7 +369,7 @@ const getByUsuarioId = async (req, res) => {
  */
 const getById = async (req, res) => {
   try {
-    const data = await svc.getById(req.params.id);
+    const data = await svc.getById(req.params.id, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);

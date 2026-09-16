@@ -184,7 +184,7 @@ const { handleError } = require('../helpers/errorHandler');
  */
 const getAll = async (req, res) => {
   try {
-    const data = await svc.getAll();
+    const data = await svc.getAll(req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -216,7 +216,7 @@ const getAll = async (req, res) => {
  */
 const getById = async (req, res) => {
   try {
-    const data = await svc.getById(req.params.id);
+    const data = await svc.getById(req.params.id, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -248,7 +248,7 @@ const getById = async (req, res) => {
  */
 const getByConductor = async (req, res) => {
   try {
-    const data = await svc.getByConductor(req.params.conductorId);
+    const data = await svc.getByConductor(req.params.conductorId, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);
@@ -283,7 +283,7 @@ const buscarPorPlaca = async (req, res) => {
     const data = await svc.buscarPorPlaca(req.query.placa, {
       celda_id: req.query.celda_id,
       tipo: req.query.tipo,
-    });
+    }, req.usuario);
     res.json(data);
   } catch (e) {
     handleError(res, e);

@@ -17,6 +17,12 @@ const celdaRepo = require('../repositories/celda.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { exigirSinOperaciones } = require('../utils/borrado.util');
 const { validarTipoSegunPlaca, validarCompatibilidadCelda, esCompatible } = require('../utils/compatibilidadVehiculo.util');
+const { resolverAlcance, exigir, acotar } = require('../utils/alcance.util');
+
+// Un vehículo delata a su dueño (placa -> nombre). La lista completa y la búsqueda por
+// placa son para quien gestiona conductores o atiende la portería; cualquier otro rol solo
+// ve sus propios vehículos -- ver utils/alcance.util.js.
+const PERMISOS_GESTION = ['conductores.consultar', 'conductores.gestionar', 'ingreso.gestionar'];
 
 // Tipos que ParkU admite HOY al dar de alta o editar un vehículo. El parqueadero solo
 // gestiona carros y motos.
@@ -74,7 +80,10 @@ const _validarMarcaColor = (data) => {
  * Obtiene la lista global de vehículos.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async (solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findAll(), (v) => alcance.esVehiculoPropio(v.id));
+};
 
 /**
  * Busca un vehículo por su ID.
@@ -82,9 +91,13 @@ const getAll = () => repo.findAll();
  * @throws {Object} 404 si el vehículo no existe.
  * @returns {Promise<Object>}
  */
-const getById = async (id) => {
+const getById = async (id, solicitante) => {
   const item = await repo.findById(id);
   if (!item) throw { status: 404, message: 'Vehículo no encontrado' };
+  if (solicitante) {
+    const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+    exigir(alcance, alcance.esVehiculoPropio(item.id));
+  }
   return item;
 };
 
@@ -93,7 +106,11 @@ const getById = async (id) => {
  * @param {number} conductorId
  * @returns {Promise<Array>}
  */
-const getByConductor = (conductorId) => repo.findByConductor(conductorId);
+const getByConductor = async (conductorId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, alcance.esConductorPropio(conductorId));
+  return repo.findByConductor(conductorId);
+};
 
 /**
  * Busca vehículos por prefijo de placa, para autocompletar mientras el usuario escribe.
@@ -101,7 +118,7 @@ const getByConductor = (conductorId) => repo.findByConductor(conductorId);
  * @param {string} placa
  * @returns {Promise<Array>}
  */
-const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
+const buscarPorPlaca = async (placa, { celda_id, tipo } = {}, solicitante) => {
   const texto = (placa || '').toString().trim();
   if (!texto) return [];
   const normalizado = texto.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -123,7 +140,8 @@ const buscarPorPlaca = async (placa, { celda_id, tipo } = {}) => {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_HISTORICOS.join(', ')}` };
   }
 
-  const encontrados = await repo.findByPlacaPrefix(normalizado, 20);
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  const encontrados = acotar(alcance, await repo.findByPlacaPrefix(normalizado, 20), (v) => alcance.esVehiculoPropio(v.id));
   if (!tipoFiltro) return encontrados;
   return encontrados.filter((v) => esCompatible(v.tipo, tipoFiltro));
 };

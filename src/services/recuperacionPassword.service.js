@@ -58,9 +58,12 @@ const restablecer = async (token, nuevaContrasena) => {
   if (!token || !nuevaContrasena) {
     throw { status: 400, message: 'token y nuevaContrasena son requeridos' };
   }
-  if (nuevaContrasena.length < 8) {
-    throw { status: 400, message: 'La nueva contraseña debe tener al menos 8 caracteres' };
+  if (typeof token !== 'string' || typeof nuevaContrasena !== 'string') {
+    throw { status: 400, message: 'token y nuevaContrasena deben ser texto' };
   }
+  // Misma política de fortaleza que el registro: restablecer no es la puerta de atrás para
+  // dejar una contraseña débil.
+  PasswordUtil.validarFortaleza(nuevaContrasena);
 
   const solicitud = await repo.findByTokenHash(_hash(token));
   if (!solicitud) throw { status: 400, message: 'Token inválido' };

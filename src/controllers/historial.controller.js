@@ -189,7 +189,7 @@ const getByParqueadero = async (req, res) => {
  */
 const getByReserva = async (req, res) => {
   try {
-    res.json(await svc.getByReserva(req.params.id));
+    res.json(await svc.getByReserva(req.params.id, req.usuario));
   } catch (e) {
     handleError(res, e);
   }
@@ -219,7 +219,7 @@ const getByReserva = async (req, res) => {
  */
 const getByNovedad = async (req, res) => {
   try {
-    res.json(await svc.getByNovedad(req.params.id));
+    res.json(await svc.getByNovedad(req.params.id, req.usuario));
   } catch (e) {
     handleError(res, e);
   }

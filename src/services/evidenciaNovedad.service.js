@@ -5,14 +5,15 @@
 
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/evidenciaNovedad.repository');
-const novedadRepo = require('../repositories/novedades.repository');
+const novedadesSvc = require('../services/novedades.service');
 
 const TIPOS_PERMITIDOS = ['FOTO', 'VIDEO', 'DOCUMENTO', 'NOTA'];
 const MAX_EVIDENCIAS_POR_NOVEDAD = 3;
 
-const getByNovedad = async (novedadId) => {
-  const novedad = await novedadRepo.findById(novedadId);
-  if (!novedad) throw { status: 404, message: 'Novedad no encontrada' };
+// Las evidencias cuelgan de la novedad: quien no puede ver la novedad (no es gestor y no
+// es suya) tampoco puede ver ni adjuntar evidencias -- ver novedades.service.
+const getByNovedad = async (novedadId, solicitante) => {
+  await novedadesSvc.exigirNovedadAccesible(novedadId, solicitante);
   return repo.findByNovedad(novedadId);
 };
 
@@ -23,9 +24,8 @@ const getByNovedad = async (novedadId) => {
  * @throws {Object} 404 si la novedad no existe; 400 si faltan/son inválidos url o tipo;
  *   409 si la novedad ya tiene 3 evidencias.
  */
-const create = async (novedadId, { url, tipo = 'FOTO', descripcion }) => {
-  const novedad = await novedadRepo.findById(novedadId);
-  if (!novedad) throw { status: 404, message: 'Novedad no encontrada' };
+const create = async (novedadId, { url, tipo = 'FOTO', descripcion }, solicitante) => {
+  await novedadesSvc.exigirNovedadAccesible(novedadId, solicitante);
   if (!url) throw { status: 400, message: 'La url es requerida' };
   if (!TIPOS_PERMITIDOS.includes(tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };

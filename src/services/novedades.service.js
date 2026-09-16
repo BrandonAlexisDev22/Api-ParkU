@@ -18,6 +18,30 @@ const evidenciaRepo = require('../repositories/evidenciaNovedad.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { enviarCorreoReporteDescartado, enviarSinBloquear } = require('../utils/mailer.util');
 const { ROLES } = require('../config/roles');
+const { resolverAlcance, exigir, acotar } = require('../utils/alcance.util');
+
+// Quién ve novedades ajenas: Admin/Vigilante o un rol con permiso de gestión. El resto
+// (Conductor tiene `novedades.consultar`) solo ve lo que reportó o lo que involucra a sus
+// vehículos -- ver utils/alcance.util.js.
+const PERMISOS_GESTION = ['novedades.gestionar'];
+
+const _esNovedadPropia = (alcance, n) =>
+  alcance.esUsuarioPropio(n.usuario_reporta_id) || alcance.esVehiculoPropio(n.vehiculo_id);
+
+/**
+ * 403 si quien pide no es gestor y la novedad no es suya. Lo usan también historial y
+ * evidencias, que cuelgan de la novedad.
+ * @param {number} id
+ * @param {{id:number, rol:number}} [solicitante]
+ * @returns {Promise<Object>} la novedad (fila cruda del repositorio)
+ */
+const exigirNovedadAccesible = async (id, solicitante) => {
+  const item = await repo.findById(id);
+  if (!item) throw { status: 404, message: 'Novedad no encontrada' };
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, _esNovedadPropia(alcance, item));
+  return item;
+};
 const { LIMITE_ESTADIA_MINUTOS } = require('../config/estadia');
 
 const TIPOS_PERMITIDOS = ['DANIO', 'ACCIDENTE', 'MAL_ESTACIONAMIENTO', 'QUEJA', 'OTRO'];
@@ -75,7 +99,10 @@ const _validarTransicion = (actual, nuevo) => {
  * Obtiene todas las novedades.
  * @returns {Promise<Array>}
  */
-const getAll = () => repo.findAll();
+const getAll = async (solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findAll(), (n) => _esNovedadPropia(alcance, n));
+};
 
 /**
  * Busca una novedad por ID.
@@ -83,9 +110,8 @@ const getAll = () => repo.findAll();
  * @throws {Object} 404 si no existe.
  * @returns {Promise<Object>}
  */
-const getById = async (id) => {
-  const item = await repo.findById(id);
-  if (!item) throw { status: 404, message: 'Novedad no encontrada' };
+const getById = async (id, solicitante) => {
+  const item = await exigirNovedadAccesible(id, solicitante);
   const [evidencias, reportante] = await Promise.all([
     evidenciaRepo.findByNovedad(id),
     conductorRepo.findByUsuarioId(item.usuario_reporta_id),
@@ -105,14 +131,23 @@ const getById = async (id) => {
  * @param {number} vehiculoId
  * @returns {Promise<Array>}
  */
-const getByVehiculo = (vehiculoId) => repo.findByVehiculo(vehiculoId);
+const getByVehiculo = async (vehiculoId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, alcance.esVehiculoPropio(vehiculoId));
+  return repo.findByVehiculo(vehiculoId);
+};
 
 /**
  * Obtiene novedades asociadas a un registro de acceso (ingreso/salida).
  * @param {number} registroAccesoId
  * @returns {Promise<Array>}
  */
-const getByRegistroAcceso = (registroAccesoId) => repo.findByRegistroAcceso(registroAccesoId);
+// Un registro de acceso es un dato operativo de portería: solo gestores.
+const getByRegistroAcceso = async (registroAccesoId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, false);
+  return repo.findByRegistroAcceso(registroAccesoId);
+};
 
 /**
  * Filtra novedades por tipo, prioridad y/o estado. Valida los valores antes de tocar la
@@ -122,7 +157,7 @@ const getByRegistroAcceso = (registroAccesoId) => repo.findByRegistroAcceso(regi
  * @throws {Object} 400 si algún filtro trae un valor fuera del enum correspondiente.
  * @returns {Promise<Array>}
  */
-const getByFiltros = (filtros) => {
+const getByFiltros = async (filtros, solicitante) => {
   const { tipo_novedad, prioridad, estado } = filtros;
   if (tipo_novedad && !TIPOS_PERMITIDOS.includes(tipo_novedad)) {
     throw { status: 400, message: `Tipo de novedad inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
@@ -133,7 +168,8 @@ const getByFiltros = (filtros) => {
   if (estado && !ESTADOS_PERMITIDOS.includes(estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
   }
-  return repo.findByFiltros(filtros);
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  return acotar(alcance, await repo.findByFiltros(filtros), (n) => _esNovedadPropia(alcance, n));
 };
 
 /**
@@ -466,4 +502,5 @@ module.exports = {
   aceptar,
   rechazar,
   remove,
+  exigirNovedadAccesible,
 };
