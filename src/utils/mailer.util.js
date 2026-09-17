@@ -488,6 +488,55 @@ const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
 };
 
 /**
+ * Avisa al conductor de que su vehículo entró o salió del parqueadero.
+ *
+ * Es el correo "de tranquilidad": quien presta el carro, o llega tarde y no vio dónde lo
+ * dejaron, sabe en qué celda está y desde cuándo; al salir, cuánto tiempo estuvo.
+ *
+ * @param {string} destino
+ * @param {string} nombre
+ * @param {'INGRESO'|'SALIDA'} movimiento
+ * @param {Object} datos - { placa, parqueadero, celda, horaIngreso, horaSalida, permanencia }
+ */
+const enviarCorreoAcceso = (destino, nombre, movimiento, datos = {}) => {
+  const ingreso = movimiento === "INGRESO";
+  const titulo = ingreso
+    ? `Tu vehículo ${datos.placa || ""} ingresó al parqueadero`.trim()
+    : `Tu vehículo ${datos.placa || ""} salió del parqueadero`.trim();
+
+  const filas = [
+    ["Vehículo", datos.placa || "—"],
+    ["Parqueadero", datos.parqueadero || "—"],
+    ["Celda", datos.celda || "—"],
+    ["Hora de ingreso", datos.horaIngreso || "—"],
+  ];
+  if (!ingreso) {
+    filas.push(["Hora de salida", datos.horaSalida || "—"]);
+    filas.push(["Tiempo en el parqueadero", datos.permanencia || "—"]);
+  }
+
+  const explicacion = ingreso
+    ? "<p>Portería registró el ingreso de tu vehículo. Si no fuiste tú quien lo llevó, comunícate con la administración del parqueadero.</p>"
+    : "<p>Portería registró la salida de tu vehículo y la celda quedó libre. Si no fuiste tú, comunícate con la administración del parqueadero.</p>";
+
+  const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join("\n");
+
+  return correos.enviarCorreo({
+    destino,
+    asunto: `${titulo} — ParkU`,
+    html: _plantillaBase(
+      titulo,
+      `
+      <p>Hola ${nombre || ""},</p>
+      ${_ficha(filas)}
+      ${explicacion}
+    `,
+    ),
+    texto: `Hola ${nombre || ""},\n\n${titulo}.\n\n${textoFilas}${_firmaTexto}`,
+  });
+};
+
+/**
  * Avisa a quien reportó un incidente de que su reporte se descartó, con el motivo.
  *
  * El motivo es el punto del mensaje: sin él, quien se tomó el trabajo de reportar algo solo ve
@@ -570,6 +619,7 @@ const correos = {
   enviarCorreoVerificacion,
   enviarCorreoRecuperacion,
   enviarCorreoReserva,
+  enviarCorreoAcceso,
   enviarCorreoReporteDescartado,
   enviarCorreoEstadoCuenta,
   verificarConexion,

@@ -116,6 +116,10 @@ class AuthController {
           nombre,
           numero_telefonico: numero || null,
           estado: 'ACTIVO',
+          // Ya no se pide verificar el correo: los correos de ParkU son solo avisos para el
+          // conductor (ingreso/salida de su vehículo, estado de su reserva). La cuenta nace
+          // con el correo dado por válido para que ninguna pantalla pida "verifica tu correo".
+          correo_verificado: true,
           // El documento queda también en la cuenta (migración 002), no solo en el
           // Conductor: así una cuenta lo tiene desde el registro y puede precargarse
           // después, en vez de tener que teclearlo de nuevo.
@@ -143,19 +147,9 @@ class AuthController {
         return usuario;
       });
 
-      // Fuera de la transacción y sin bloquear la respuesta: el registro ya quedó
-      // confirmado en BD; si el envío de correo falla, el usuario puede pedir un
-      // reenvío (POST /api/auth/reenviar-verificacion) en vez de perder la cuenta creada.
-      verificacionCorreoSvc.solicitar(nuevo).catch((error) => {
-        Logger.error('No se pudo generar/enviar la verificación de correo en el registro', {
-          usuario_id: nuevo.id,
-          error: error.message,
-        });
-      });
-
       return res.status(201).json({
         success: true,
-        message: 'Usuario registrado exitosamente. Revisa tu correo para verificar tu cuenta.',
+        message: 'Usuario registrado exitosamente. Ya puedes iniciar sesión.',
         data: {
           id: nuevo.id,
           correo: nuevo.correo,
@@ -589,22 +583,18 @@ class AuthController {
   }
 
   /**
-   * POST /api/auth/reenviar-verificacion - Genera y envía un nuevo enlace y código de verificación
+   * POST /api/auth/reenviar-verificacion - La verificación de correo se retiró: las cuentas
+   * nacen verificadas y no se envía ningún correo. La ruta queda para que los clientes
+   * antiguos que aún la llaman no reciban un 404, y responde lo mismo exista o no la
+   * cuenta (sin revelar correos registrados).
    */
   static async reenviarVerificacion(req, res) {
     try {
       const { correo } = req.body;
       if (!correo) throw { status: 400, message: 'El correo es requerido' };
-
-      const usuario = await Usuario.findOne({ where: { correo } });
-      // Misma respuesta exista o no la cuenta, o ya esté verificada -- evita enumeración
-      // de cuentas y no revela el estado de verificación de un correo ajeno.
-      if (usuario) {
-        await verificacionCorreoSvc.solicitar(usuario);
-      }
       return res.status(200).json({
         success: true,
-        message: 'Si el correo está registrado y aún no ha sido verificado, recibirás un nuevo enlace',
+        message: 'Ya no es necesario verificar el correo: puedes iniciar sesión directamente',
       });
     } catch (error) {
       handleError(res, error);

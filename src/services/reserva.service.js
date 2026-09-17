@@ -21,10 +21,7 @@ const {
   runWithUsuario,
   traducirErrorTrigger,
 } = require("../utils/dbContext.util");
-const {
-  enviarCorreoReserva,
-  enviarSinBloquear,
-} = require("../utils/mailer.util");
+const avisosConductor = require("./avisosConductor.service");
 const {
   HORA_APERTURA,
   HORA_CIERRE,
@@ -584,37 +581,10 @@ const update = async (id, datos, usuarioId) => {
  * escribir y no pasa nada — el aviso es un extra, no parte de la operación.
  * @private
  */
-const _avisarPorCorreo = async (reserva, estado, motivo) => {
-  if (!["PENDIENTE", "ACEPTADA", "RECHAZADA", "CANCELADA"].includes(estado))
-    return;
-
-  const conductor = reserva.conductor_id
-    ? await conductorRepo.findById(reserva.conductor_id)
-    : null;
-  const correo = conductor?.correo;
-  if (!correo) return;
-
-  const celda = reserva.celda_id
-    ? await celdaRepo.findById(reserva.celda_id)
-    : null;
-  const parqueadero = celda?.parqueadero
-    ? await parqRepo.findById(celda.parqueadero)
-    : null;
-  const inicio = new Date(reserva.fecha_hora_inicio);
-  const fin = new Date(reserva.fecha_hora_fin);
-  const hhmm = (d) => d.toTimeString().slice(0, 5);
-
-  await enviarSinBloquear(
-    enviarCorreoReserva(correo, conductor.nombre_apellidos, estado, {
-      fecha: inicio.toLocaleDateString("es-CO", { dateStyle: "full" }),
-      hora: `${hhmm(inicio)} a ${hhmm(fin)}`,
-      parqueadero: parqueadero?.nombre,
-      celda: celda?.numero,
-      motivo,
-    }),
-    `reserva ${reserva.id} ${estado}`,
-  );
-};
+const _avisarPorCorreo = (reserva, estado, motivo) =>
+  // Notificación en la app + correo, con las horas en Bogotá (antes salían en la zona
+  // horaria del servidor). Nunca lanza: ver avisosConductor.service.js.
+  avisosConductor.avisarReserva(reserva, estado, motivo);
 
 const cambiarEstado = async (id, estado, usuarioId, motivoRechazo) => {
   const reserva = await getById(id);

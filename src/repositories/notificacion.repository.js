@@ -1,10 +1,22 @@
 /**
  * @module NotificacionRepository
- * @description Lectura y marcado de notificaciones. Se insertan solas vía
- * fn_notificar_administradores() (triggers de novedad/reserva); la API no las crea.
+ * @description Lectura y marcado de notificaciones. Las de administradores se insertan
+ * solas vía fn_notificar_administradores() (triggers de novedad/reserva); las del
+ * conductor (ingreso/salida de su vehículo, estado de su reserva) las crea la API desde
+ * avisosConductor.service.js con `create`.
  */
 
 const { Notificacion } = require('../models');
+
+/**
+ * Crea una notificación para un usuario.
+ * @param {Object} data - { usuario_id, titulo, mensaje, tipo, referencia_tabla?, referencia_id? }
+ * @returns {Promise<Object>}
+ */
+const create = async (data) => {
+  const nueva = await Notificacion.create(data);
+  return nueva.toJSON();
+};
 
 /**
  * Notificaciones de un usuario, más recientes primero.
@@ -49,4 +61,4 @@ const marcarTodasLeidas = async (usuarioId) => {
   return afectadas;
 };
 
-module.exports = { findByUsuario, findById, marcarLeida, marcarTodasLeidas };
+module.exports = { create, findByUsuario, findById, marcarLeida, marcarTodasLeidas };

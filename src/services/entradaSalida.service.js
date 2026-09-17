@@ -17,6 +17,7 @@ const repo = require('../repositories/entradaSalida.repository');
 const celdaRepo = require('../repositories/celda.repository');
 const vehRepo = require('../repositories/vehiculo.repository');
 const parqRepo = require('../repositories/parqueadero.repository');
+const avisosConductor = require('./avisosConductor.service');
 const conductorRepo = require('../repositories/conductor.repository');
 const reservaRepo = require('../repositories/reserva.repository');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
@@ -202,14 +203,20 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
     throw { status: 409, message: 'El vehículo ya tiene un ingreso registrado sin salida' };
   }
 
+  let registro;
   try {
-    return await runWithUsuario(usuarioId, (transaction) => repo.registrarIngreso(
+    registro = await runWithUsuario(usuarioId, (transaction) => repo.registrarIngreso(
       { vehiculo_id, conductor_id, parqueadero_id, celda_id, reserva_id, usuario_ingreso_id: usuarioId, descripcion_ingreso, fecha_hora_ingreso, es_oficial_sena },
       { transaction },
     ));
   } catch (error) {
     traducirErrorTrigger(error);
   }
+
+  // Ya fuera de la transacción y sin esperar: el ingreso quedó guardado, y avisar al dueño
+  // (notificación en la app + correo) no puede retrasar ni tumbar la respuesta a portería.
+  avisosConductor.avisarIngreso(registro);
+  return registro;
 };
 
 /**
@@ -238,9 +245,10 @@ const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_sal
     throw { status: 409, message: 'El vehículo no tiene un ingreso activo' };
   }
 
+  let registro;
   try {
-    return await runWithUsuario(usuarioId, async (transaction) => {
-      const registro = await repo.registrarSalida(
+    registro = await runWithUsuario(usuarioId, async (transaction) => {
+      const cerrado = await repo.registrarSalida(
         ingresoAbierto.id,
         { usuario_salida_id: usuarioId, descripcion_salida, fecha_hora_salida },
         { transaction },
@@ -251,11 +259,15 @@ const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_sal
       // esa hora es la que se lee después para saber cuánto estuvo ocupada la celda.
       await cerrarReservaDelIngreso(ingresoAbierto, transaction);
 
-      return registro;
+      return cerrado;
     });
   } catch (error) {
     traducirErrorTrigger(error);
   }
+
+  // Mismo criterio que en el ingreso: se avisa después de confirmar, sin bloquear.
+  avisosConductor.avisarSalida(registro);
+  return registro;
 };
 
 /**
