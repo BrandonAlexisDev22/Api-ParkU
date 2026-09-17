@@ -440,14 +440,17 @@ const enviarCorreoRecuperacion = (destino, nombre, link) =>
  *
  * @param {string} destino
  * @param {string} nombre
- * @param {'ACEPTADA'|'RECHAZADA'|'CANCELADA'} desenlace
+ * @param {'PENDIENTE'|'ACEPTADA'|'RECHAZADA'|'CANCELADA'} desenlace
  * @param {Object} datos - { fecha, hora, parqueadero, celda, placa, motivo }
  */
 const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
+  const pendiente = desenlace === "PENDIENTE";
   const aceptada = desenlace === "ACEPTADA";
-  const titulo = aceptada
-    ? "Tu reserva fue aceptada"
-    : `Tu reserva fue ${desenlace === "CANCELADA" ? "cancelada" : "rechazada"}`;
+  const titulo = pendiente
+    ? "Recibimos tu solicitud de reserva"
+    : aceptada
+      ? "Tu reserva fue aceptada"
+      : `Tu reserva fue ${desenlace === "CANCELADA" ? "cancelada" : "rechazada"}`;
 
   const filas = [
     ["Fecha", datos.fecha || "—"],
@@ -457,13 +460,15 @@ const enviarCorreoReserva = (destino, nombre, desenlace, datos = {}) => {
   ];
   if (datos.placa) filas.push(["Vehículo", datos.placa]);
 
-  const explicacion = aceptada
-    ? "<p>Tu celda queda apartada para ese horario. Preséntate dentro de los primeros 20 minutos: pasado ese tiempo la reserva se cancela y la celda vuelve a quedar libre.</p>"
-    : `<p>Esta reserva ya no está vigente y la celda quedó libre para otras personas.</p>${
-        datos.motivo
-          ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${datos.motivo}</p>`
-          : ""
-      }<p>Puedes solicitar otra desde la aplicación cuando lo necesites.</p>`;
+  const explicacion = pendiente
+    ? "<p>Tu solicitud quedó a la espera de aprobación. Te avisaremos por correo en cuanto sea aceptada o rechazada.</p>"
+    : aceptada
+      ? "<p>Tu celda queda apartada para ese horario. Preséntate dentro de los primeros 20 minutos: pasado ese tiempo la reserva se cancela y la celda vuelve a quedar libre.</p>"
+      : `<p>Esta reserva ya no está vigente y la celda quedó libre para otras personas.</p>${
+          datos.motivo
+            ? `<p style="background:#FEF3C7; border-radius:8px; padding:11px 13px; margin:14px 0;"><strong>Motivo:</strong> ${datos.motivo}</p>`
+            : ""
+        }<p>Puedes solicitar otra desde la aplicación cuando lo necesites.</p>`;
 
   const textoFilas = filas.map(([k, v]) => `${k}: ${v}`).join("\n");
 

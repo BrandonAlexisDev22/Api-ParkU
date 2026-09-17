@@ -472,9 +472,10 @@ const create = async (
       ),
     );
 
-    if (creada?.estado === "ACEPTADA") {
-      await _avisarPorCorreo(creada, "ACEPTADA", null);
-    }
+    // ACEPTADA (la registró Admin/Vigilante) avisa el desenlace final; PENDIENTE (la
+    // registró el propio Conductor) confirma que la solicitud quedó registrada y a la
+    // espera de aprobación, para que no tenga que volver a la app a comprobarlo.
+    await _avisarPorCorreo(creada, creada?.estado, null);
 
     return creada;
   } catch (error) {
@@ -584,7 +585,8 @@ const update = async (id, datos, usuarioId) => {
  * @private
  */
 const _avisarPorCorreo = async (reserva, estado, motivo) => {
-  if (!["ACEPTADA", "RECHAZADA", "CANCELADA"].includes(estado)) return;
+  if (!["PENDIENTE", "ACEPTADA", "RECHAZADA", "CANCELADA"].includes(estado))
+    return;
 
   const conductor = reserva.conductor_id
     ? await conductorRepo.findById(reserva.conductor_id)

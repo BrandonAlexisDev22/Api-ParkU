@@ -12,7 +12,10 @@ const loadReservaServiceWithStubs = (mailCalls) => {
         create: async (payload) => ({
           id: 42,
           ...payload,
-          estado: "ACEPTADA",
+          // Refleja el estado que le mandó el service (ACEPTADA si lo registra
+          // Admin/Vigilante, PENDIENTE si no viene en el payload) en vez de forzarlo,
+          // para poder probar los dos correos de creación con el mismo stub.
+          estado: payload.estado || "PENDIENTE",
           usuario_registra_id: payload.usuario_registra_id,
           conductor_id: payload.conductor_id,
           celda_id: payload.celda_id,
@@ -50,6 +53,9 @@ const loadReservaServiceWithStubs = (mailCalls) => {
           nombre_apellidos: "Ana Gómez",
           correo: "ana@example.com",
         }),
+        // Solo lo consulta _validarPropiedad cuando quien crea NO es Admin/Vigilante: un
+        // Conductor creando su propia reserva.
+        findByUsuarioId: async () => ({ id: 77 }),
       };
     }
 
@@ -117,6 +123,45 @@ test("create envía correo cuando la reserva se acepta de inmediato", async () =
           destino === "ana@example.com" &&
           nombre === "Ana Gómez" &&
           estado === "ACEPTADA",
+      ),
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("create envía correo de confirmación cuando la reserva queda pendiente", async () => {
+  const mailCalls = [];
+  const { svc, restore } = loadReservaServiceWithStubs(mailCalls);
+
+  try {
+    let inicio = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    while (inicio.getDay() === 0 || inicio.getDay() === 6) {
+      inicio = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
+    }
+    inicio.setHours(10, 0, 0, 0);
+    const fin = new Date(inicio.getTime() + 2 * 60 * 60 * 1000);
+
+    const data = {
+      tipo_reserva: "VEHICULO_SENA",
+      celda_id: 12,
+      conductor_id: 77,
+      motivo: "Reserva de prueba",
+      fecha_hora_inicio: inicio.toISOString(),
+      fecha_hora_fin: fin.toISOString(),
+    };
+
+    // usuarioRol 3 = Conductor: la reserva nace PENDIENTE, a la espera de que
+    // Admin/Vigilante la gestione.
+    const reserva = await svc.create(data, 10, 3);
+
+    assert.equal(reserva.estado, "PENDIENTE");
+    assert.ok(
+      mailCalls.some(
+        ([destino, nombre, estado]) =>
+          destino === "ana@example.com" &&
+          nombre === "Ana Gómez" &&
+          estado === "PENDIENTE",
       ),
     );
   } finally {
