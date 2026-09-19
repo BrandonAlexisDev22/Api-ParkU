@@ -7,6 +7,27 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
+// Un WriteStream por día, reutilizado entre llamadas: escribir con appendFileSync (como
+// antes) abre y cierra el archivo en CADA log y, al ser síncrono, bloquea el event loop --
+// con un log por request eso serializa peticiones concurrentes detrás de disco. El stream
+// hace la escritura en background (libuv) y el propio stream bufferiza, así que no hay
+// abrir/cerrar por línea.
+let streamActual = null;
+let fechaDelStream = null;
+
+const obtenerStream = () => {
+  const fecha = new Date().toISOString().split('T')[0];
+  if (streamActual && fechaDelStream === fecha) return streamActual;
+
+  if (streamActual) streamActual.end();
+  fechaDelStream = fecha;
+  streamActual = fs.createWriteStream(path.join(logDir, `${fecha}.log`), { flags: 'a' });
+  streamActual.on('error', (error) => {
+    console.error('Error escribiendo el log en disco:', error.message);
+  });
+  return streamActual;
+};
+
 class Logger {
   /**
    * Escribe un mensaje en el archivo de log
@@ -26,9 +47,8 @@ class Logger {
                   level === 'AUDIT' ? '\x1b[36m' : '\x1b[32m';
     console.log(`${color}[${level}]${'\x1b[0m'} ${timestamp} - ${message}`);
 
-    // Guardar en archivo
-    const logFile = path.join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
-    fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
+    // Guardar en archivo (no bloqueante, ver obtenerStream)
+    obtenerStream().write(JSON.stringify(logEntry) + '\n');
   }
 
   /**

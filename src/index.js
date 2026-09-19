@@ -3,6 +3,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 
 const { swaggerDocs } = require("./config/swagger");
 const { testConnection, sequelize } = require("./config/database");
@@ -25,6 +26,11 @@ app.set('trust proxy', 1);
 
 // Helmet para headers de seguridad
 app.use(helmet());
+
+// Compresión gzip de las respuestas. compression() ya filtra por defecto los tipos no
+// comprimibles (imágenes, etc.), así que es seguro dejarlo global -- incluidas las
+// respuestas JSON con varios `include` de Sequelize, que son las más pesadas.
+app.use(compression());
 
 // CORS configurado
 // Los orígenes de CORS_ORIGIN se recortan (evita fallos por espacios extra tipo

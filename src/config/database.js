@@ -31,7 +31,10 @@ const commonOptions = {
   },
   pool: {
     max: parseInt(process.env.DB_POOL_MAX) || 20,
-    min: 0,
+    // Servidor persistente (PM2/VPS), no funciones serverless: mantener un mínimo de
+    // conexiones abiertas evita pagar el costo de TCP+TLS contra Neon (por red) en cada
+    // ráfaga de tráfico después de un rato inactivo.
+    min: parseInt(process.env.DB_POOL_MIN) || 2,
     acquire: 30000,
     idle: 30000,
   },
