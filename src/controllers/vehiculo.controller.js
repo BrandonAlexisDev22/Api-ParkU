@@ -318,7 +318,7 @@ const buscarPorPlaca = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const newVehiculo = await svc.create(req.body, req.usuario?.id);
+    const newVehiculo = await svc.create(req.body, req.usuario?.id, req.usuario);
     res.status(201).json(newVehiculo);
   } catch (e) {
     handleError(res, e);

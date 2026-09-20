@@ -8,7 +8,6 @@ uploads/perfiles/*
 uploads/evidencias/*
 !uploads/evidencias/.gitkeep
 
-
 .env
 .env.local
 .env.production
@@ -16,3 +15,4 @@ uploads/evidencias/*
 
 # Logs del servidor (IPs, user agents): no se suben al repositorio
 logs/
+º

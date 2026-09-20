@@ -160,10 +160,24 @@ const buscarPorPlaca = async (placa, { celda_id, tipo } = {}, solicitante) => {
  *   { tipo_documento, numero_documento, nombre_apellidos, correo?, numero_telefonico? }.
  *   Se aceptan también sueltos en la raíz (tipo_documento/numero_documento/nombre_apellidos).
  * @param {number} usuarioId - Usuario autenticado que hace la operación (auditoría).
+ * @param {{id:number, rol:number}} [solicitante] - req.usuario. Un Conductor (rol sin
+ *   permiso de gestión) solo puede registrar vehículos a SU propio nombre: cualquier
+ *   conductor_id/conductor que mande en el body se ignora y se reemplaza por el conductor
+ *   vinculado a su propia cuenta -- ver alcance.util.js.
  * @throws {Object} 400 si faltan datos, 404 si el conductor no existe, 409 si la placa ya está registrada.
  * @returns {Promise<Object>}
  */
-const create = async (data, usuarioId) => {
+const create = async (data, usuarioId, solicitante) => {
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  if (!alcance.gestor) {
+    if (!alcance.conductorId) {
+      throw { status: 404, message: 'Tu cuenta no tiene un perfil de conductor vinculado' };
+    }
+    data = { ...data, conductor_id: alcance.conductorId };
+    delete data.conductor;
+    for (const campo of CAMPOS_DEL_CONDUCTOR) delete data[campo];
+  }
+
   const { conductor_id, tipo, celda_id } = data;
   // Datos del dueño para el alta "en el momento", incluidos los de su cuenta de acceso: el
   // panel de estacionamiento manda un solo formulario con todo mezclado -- los datos de la

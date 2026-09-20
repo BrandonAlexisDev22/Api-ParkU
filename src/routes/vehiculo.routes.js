@@ -143,8 +143,10 @@ router.get('/:id',
  */
 router.post('/',
   verificarToken,
-  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso.
-  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2] }),
+  // Los vehículos se gestionan desde la pantalla de Conductores: mismo permiso. El
+  // Conductor (rol 3) también entra para registrar SU PROPIO vehículo -- el service
+  // (alcance.util) le ignora cualquier conductor_id que mande y lo fuerza al suyo.
+  verificarAcceso({ permisos: ['conductores.gestionar'], roles: [1, 2, 3] }),
   ctrl.create
 );
 
