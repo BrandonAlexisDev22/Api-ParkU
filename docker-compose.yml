@@ -1,35 +1,29 @@
-version: '3.8'
-
 services:
   api:
     build: .
     container_name: parku-api
-    restart: always
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
+    # Todas las variables (BD, JWT, correo, rate limiting...) salen de .env -- ver
+    # .env.example para la lista completa. Con esto una variable nueva que se agregue al
+    # proyecto no requiere tocar este archivo también.
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=${DATABASE_URL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_SSL=${DB_SSL}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
-      - REFRESH_TOKEN_EXPIRES_IN=${REFRESH_TOKEN_EXPIRES_IN}
-      - BCRYPT_ROUNDS=${BCRYPT_ROUNDS}
-      - CORS_ORIGIN=${CORS_ORIGIN}
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
-      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX}
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - parku-network
 
 networks:
   parku-network:
-    driver: bridge
+    name: parku-network
