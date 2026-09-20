@@ -9,7 +9,12 @@
     "start": "nodemon src/index.js",
     "docs": "npx jsdoc src -r -d docs",
     "seed": "node src/config/seed.js",
-    "mail:test": "node src/scripts/probarCorreo.js"
+    "mail:test": "node src/scripts/probarCorreo.js",
+    "migration:generate": "node scripts/migrate.js generate",
+    "migration:run": "node scripts/migrate.js run",
+    "migration:revert": "node scripts/migrate.js revert",
+    "migration:show": "node scripts/migrate.js show",
+    "backup": "bash scripts/backup.sh"
   },
   "keywords": [],
   "author": "",

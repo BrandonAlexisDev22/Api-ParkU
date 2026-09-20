@@ -15,4 +15,7 @@ uploads/evidencias/*
 
 # Logs del servidor (IPs, user agents): no se suben al repositorio
 logs/
+
+# Respaldos de base de datos (scripts/backup.sh): contienen datos personales
+backups/
 º

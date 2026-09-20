@@ -1,0 +1,25 @@
+-- Reversión de 008: NO ES AUTOMÁTICA (documentado también en
+-- database/migraciones/neon_limpieza_008_009_010.sql: "008 no tiene down").
+--
+-- Los valores que tenían las columnas eliminadas (regional_formacion,
+-- centro_formacion, programa_formacion) no se pierden: quedan copiados en
+-- public.conductor_formacion_historica (conductor_id + los tres valores).
+-- Lo que no se puede reconstruir automáticamente son las definiciones
+-- ORIGINALES de v_conductor_front, v_control_placas y v_vehiculo_front tal
+-- como estaban antes de 008: no quedaron guardadas en el repositorio antes
+-- de este cambio.
+--
+-- Para revertir manualmente si alguna vez hace falta:
+--   1. ALTER TABLE public.conductor ADD COLUMN regional_formacion VARCHAR(255),
+--                                    ADD COLUMN centro_formacion VARCHAR(255),
+--                                    ADD COLUMN programa_formacion VARCHAR(255);
+--   2. UPDATE public.conductor c
+--         SET regional_formacion = h.regional_formacion,
+--             centro_formacion   = h.centro_formacion,
+--             programa_formacion = h.programa_formacion
+--        FROM public.conductor_formacion_historica h
+--       WHERE h.conductor_id = c.id;
+--   3. Volver a publicar las 3 vistas con los campos de formación, tomando
+--      como referencia la definición que aparece en database/parku.postgres
+--      si corresponde a una versión previa a 008.
+SELECT 1;

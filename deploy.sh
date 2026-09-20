@@ -14,15 +14,19 @@ git pull origin main
 echo "📦 Instalando dependencias..."
 npm install --production
 
-# 3. Ejecutar migraciones
-echo "🗄️  Ejecutando migraciones..."
-node scripts/migrate.js
+# 3. Respaldo antes de migrar
+echo "💾 Generando respaldo de la base de datos..."
+npm run backup
 
-# 4. Reiniciar PM2
+# 4. Ejecutar migraciones
+echo "🗄️  Ejecutando migraciones..."
+node scripts/migrate.js run
+
+# 5. Reiniciar PM2
 echo "🔄 Reiniciando aplicación..."
 pm2 restart parku-api
 
-# 5. Ver estado
+# 6. Ver estado
 echo "📊 Estado de la aplicación:"
 pm2 status
 
