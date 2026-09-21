@@ -360,7 +360,7 @@ const create = async (req, res) => {
  */
 const update = async (req, res) => {
   try {
-    const updated = await svc.update(req.params.id, req.body, req.usuario?.id);
+    const updated = await svc.update(req.params.id, req.body, req.usuario?.id, req.usuario);
     res.json(updated);
   } catch (e) {
     handleError(res, e);
@@ -435,7 +435,7 @@ const remove = async (req, res) => {
  */
 const agregarPropietario = async (req, res) => {
   try {
-    const updated = await svc.agregarPropietario(req.params.id, req.body?.conductor_id, req.usuario?.id);
+    const updated = await svc.agregarPropietario(req.params.id, req.body?.conductor_id, req.usuario?.id, req.usuario);
     res.status(201).json(updated);
   } catch (e) {
     handleError(res, e);

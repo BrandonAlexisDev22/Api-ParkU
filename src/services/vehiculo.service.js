@@ -274,8 +274,18 @@ const create = async (data, usuarioId, solicitante) => {
  * @throws {Object} 404 si no existe, 400 si datos inválidos, 409 si placa duplicada.
  * @returns {Promise<Object>}
  */
-const update = async (id, data, usuarioId) => {
+const update = async (id, data, usuarioId, solicitante) => {
   const vehiculo = await getById(id);
+
+  // Un Conductor (rol 3) entra a esta ruta para editar SU vehículo, pero solo si es el
+  // propietario PRINCIPAL: un copropietario comparte el vehículo, no lo administra (no
+  // puede cambiarle la placa, marca, etc. a nombre de otro). Admin/Vigilante (o cualquier
+  // rol con conductores.gestionar) siguen editando cualquier vehículo, como hasta ahora.
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  if (!alcance.gestor) {
+    const propio = await repo.findPropietario(id, alcance.conductorId);
+    exigir(alcance, !!propio && propio.es_principal === true);
+  }
 
   if (data.tipo && !TIPOS_PERMITIDOS.includes(data.tipo)) {
     throw { status: 400, message: `Tipo inválido. Permitidos: ${TIPOS_PERMITIDOS.join(', ')}` };
@@ -367,8 +377,15 @@ const remove = async (id, usuarioId) => {
  * @throws {Object} 404 si el vehículo o el conductor no existen, 409 si ya es propietario.
  * @returns {Promise<Object>}
  */
-const agregarPropietario = async (vehiculoId, conductorId, usuarioId) => {
+const agregarPropietario = async (vehiculoId, conductorId, usuarioId, solicitante) => {
   await getById(vehiculoId);
+
+  // Un Conductor (rol 3) entra aquí desde "mi placa ya está registrada -> vincularme como
+  // copropietario": solo puede vincularSE a sí mismo, nunca dar de alta a otro conductor
+  // como dueño de un vehículo ajeno. Admin/Vigilante (gestor) no tienen esta restricción.
+  const alcance = await resolverAlcance(solicitante, PERMISOS_GESTION);
+  exigir(alcance, alcance.esConductorPropio(conductorId));
+
   const conductorExiste = await conductorRepo.findById(conductorId);
   if (!conductorExiste) throw { status: 404, message: 'Conductor no encontrado' };
 
