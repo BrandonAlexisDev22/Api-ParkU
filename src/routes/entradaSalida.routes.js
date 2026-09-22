@@ -36,7 +36,7 @@ const { verificarToken, verificarAcceso } = require('../middlewares/auth.middlew
  */
 router.get('/',
   verificarToken,
-  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
+  verificarAcceso({ permisos: ['ingreso.consultar', 'salida.consultar'], roles: [1,2] }), // ingresos y salidas son el mismo historial
   ctrl.getAll
 );
 
@@ -81,7 +81,7 @@ router.get('/',
  */
 router.get('/filtro',
   verificarToken,
-  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
+  verificarAcceso({ permisos: ['ingreso.consultar', 'salida.consultar'], roles: [1,2] }), // ingresos y salidas son el mismo historial
   ctrl.getByFecha
 );
 
@@ -116,7 +116,7 @@ router.get('/filtro',
  */
 router.get('/vehiculo/:vehiculoId',
   verificarToken,
-  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
+  verificarAcceso({ permisos: ['ingreso.consultar', 'salida.consultar'], roles: [1,2] }), // ingresos y salidas son el mismo historial
   ctrl.getByVehiculo
 );
 
@@ -151,7 +151,7 @@ router.get('/vehiculo/:vehiculoId',
  */
 router.get('/:id',
   verificarToken,
-  verificarAcceso({ permisos: ['ingreso.consultar'], roles: [1,2] }), // o quien tenga el permiso
+  verificarAcceso({ permisos: ['ingreso.consultar', 'salida.consultar'], roles: [1,2] }), // ingresos y salidas son el mismo historial
   ctrl.getById
 );
 
