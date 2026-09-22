@@ -4,6 +4,7 @@ const { Usuario, Conductor } = require('../models');
 const { sequelize } = require('../config/database');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
+const { crearVehiculoVinculado } = require('../utils/vehiculoVinculado.util');
 const verificacionCorreoSvc = require('../services/verificacionCorreo.service');
 const Logger = require('../utils/logger.util');
 
@@ -43,24 +44,42 @@ class AuthController {
       // comprueba aquí -- antes de cualquier escritura. La regla vive en PasswordUtil para
       // que el registro público y POST /api/usuarios rechacen exactamente lo mismo.
       PasswordUtil.validarConfirmacion(contrasena, req.body);
-      // Documento opcional: acepta tipo_documento/numero_documento (los nombres reales de
-      // las columnas) o su alias tipoDocumento/numeroDocumento (mismo criterio que ya usa
-      // GET /api/auth/existe-documento). Si viene, se guarda en la cuenta (migración 002) Y
-      // se crea el perfil de Conductor vinculado, en la MISMA transacción.
+      // Documento y vehículo, obligatorios: acepta tipo_documento/numero_documento (los
+      // nombres reales de las columnas) o su alias tipoDocumento/numeroDocumento (mismo
+      // criterio que ya usa GET /api/auth/existe-documento). Se guarda en la cuenta
+      // (migración 002) Y se crea el perfil de Conductor vinculado -- y, con él, SU vehículo
+      // -- en la MISMA transacción.
       //
       // Aquí SÍ se crea automáticamente, al revés que en POST /api/usuarios: quien se
-      // registra es la propia persona que va a parquear, así que su cuenta y su conductor
-      // son el mismo ser humano y vincularlos no le quita la cuenta a nadie. El alta
-      // administrativa, en cambio, crea cuentas para OTRAS personas -- ver el encabezado de
-      // src/utils/conductorVinculado.util.js.
+      // registra es la propia persona que va a parquear, así que su cuenta, su conductor y su
+      // vehículo son el mismo trámite. El alta administrativa, en cambio, crea cuentas para
+      // OTRAS personas -- ver el encabezado de src/utils/conductorVinculado.util.js.
+      //
+      // Regla de negocio: sin vehículo propio no hay registro. Quien no tenga uno para
+      // matricular no puede crear la cuenta por esta vía (tendría que dársela de alta un
+      // Administrador/Vigilante desde el panel, sin este requisito).
       const tipoDocumento = req.body.tipo_documento ?? req.body.tipoDocumento;
       const numeroDocumento = req.body.numero_documento ?? req.body.numeroDocumento;
       const tipoUsuarioId = req.body.tipo_usuario_id ?? req.body.tipoUsuarioId;
       const direccion = req.body.direccion;
-      if ((tipoDocumento && !numeroDocumento) || (!tipoDocumento && numeroDocumento)) {
+      if (!tipoDocumento || !numeroDocumento) {
         return res.status(400).json({
           success: false,
-          message: 'tipo_documento y numero_documento deben enviarse juntos',
+          message: 'Debes indicar tu tipo y número de documento para registrarte',
+        });
+      }
+
+      const vehiculoTipo = req.body.tipo_vehiculo ?? req.body.tipoVehiculo;
+      const vehiculoPlaca = req.body.placa;
+      const vehiculoMarca = req.body.marca;
+      const vehiculoLinea = req.body.linea;
+      const vehiculoModelo = req.body.modelo;
+      const vehiculoColor = req.body.color;
+      const vehiculoDescripcion = req.body.descripcion;
+      if (!vehiculoTipo || !vehiculoPlaca || !vehiculoMarca || !vehiculoColor) {
+        return res.status(400).json({
+          success: false,
+          message: 'Debes registrar tu vehículo (tipo, placa, marca y color) para crear tu cuenta',
         });
       }
 
@@ -123,26 +142,47 @@ class AuthController {
           // El documento queda también en la cuenta (migración 002), no solo en el
           // Conductor: así una cuenta lo tiene desde el registro y puede precargarse
           // después, en vez de tener que teclearlo de nuevo.
-          tipo_documento: tipoDocumento ? tipoDocumento.toString().trim().toUpperCase() : null,
-          numero_documento: numeroDocumento || null,
+          tipo_documento: tipoDocumento.toString().trim().toUpperCase(),
+          numero_documento: numeroDocumento,
         }, { transaction });
 
-        if (tipoDocumento && numeroDocumento) {
-          // El perfil de conductor de esta misma persona. Si falla (documento ya usado por
-          // otro conductor, tipo de usuario inexistente), el rollback se lleva también la
-          // cuenta: nunca queda media alta.
-          await crearConductorVinculado({
-            usuario_id: usuario.id,
-            tipo_documento: tipoDocumento.toString().trim().toUpperCase(),
-            numero_documento: numeroDocumento,
-            nombre_apellidos: nombre,
-            correo,
-            numero_telefonico: numero || null,
-            tipo_usuario_id: tipoUsuarioId || null,
-            direccion,
-            transaction,
-          });
-        }
+        // El perfil de conductor de esta misma persona. Si falla (documento ya usado por
+        // otro conductor, tipo de usuario inexistente), el rollback se lleva también la
+        // cuenta: nunca queda media alta.
+        const conductor = await crearConductorVinculado({
+          usuario_id: usuario.id,
+          tipo_documento: tipoDocumento.toString().trim().toUpperCase(),
+          numero_documento: numeroDocumento,
+          nombre_apellidos: nombre,
+          correo,
+          numero_telefonico: numero || null,
+          tipo_usuario_id: tipoUsuarioId || null,
+          direccion,
+          transaction,
+        });
+
+        // `vehiculo` lleva trigger de auditoría (fn_auditoria_generica) que exige declarar
+        // quién escribe dentro de la MISMA transacción -- ver dbContext.util.js. La cuenta
+        // recién creada es quien está registrando su propio vehículo.
+        await sequelize.query('SET LOCAL app.usuario_id = :usuarioId', {
+          replacements: { usuarioId: String(usuario.id) },
+          transaction,
+        });
+
+        // El vehículo de esta misma persona. Si falla (placa ya registrada, formato
+        // inválido, tipo incompatible con la placa), el rollback se lleva también el
+        // conductor y la cuenta: sin vehículo propio no hay registro.
+        await crearVehiculoVinculado({
+          conductor_id: conductor.id,
+          tipo: vehiculoTipo,
+          placa: vehiculoPlaca,
+          marca: vehiculoMarca,
+          linea: vehiculoLinea,
+          modelo: vehiculoModelo,
+          color: vehiculoColor,
+          descripcion: vehiculoDescripcion,
+          transaction,
+        });
 
         return usuario;
       });

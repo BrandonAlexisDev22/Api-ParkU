@@ -427,4 +427,9 @@ const quitarPropietario = async (vehiculoId, conductorId, usuarioId) => {
   }
 };
 
-module.exports = { getAll, getById, getByConductor, buscarPorPlaca, create, update, remove, agregarPropietario, quitarPropietario };
+module.exports = {
+  getAll, getById, getByConductor, buscarPorPlaca, create, update, remove, agregarPropietario, quitarPropietario,
+  // Reexportados para utils/vehiculoVinculado.util.js (alta del vehículo en el registro
+  // público, misma validación de forma que usa esta misma función internamente).
+  _validarPlaca, TIPOS_PERMITIDOS,
+};
