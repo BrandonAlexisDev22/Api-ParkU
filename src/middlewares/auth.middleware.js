@@ -222,6 +222,12 @@ const permisosDelRol = async (rolId) => {
   );
 
   const permisos = new Set(filas.map((f) => f.nombre));
+  // Quien puede GESTIONAR un módulo puede también CONSULTARLO: sin esto, un rol creado a
+  // medida con solo "Registrar salidas" (salida.gestionar) no podía ni cargar el listado
+  // sobre el que registra esas salidas.
+  for (const nombre of [...permisos]) {
+    if (nombre.endsWith('.gestionar')) permisos.add(nombre.replace(/\.gestionar$/, '.consultar'));
+  }
   cachePermisos.set(rolId, { permisos, expira: Date.now() + TTL_CACHE_PERMISOS_MS });
   return permisos;
 };
