@@ -21,7 +21,7 @@ const nodemailer = require("nodemailer");
 const buscarServicio = require("nodemailer/lib/well-known");
 const catalogoServicios = require("nodemailer/lib/well-known/services.json");
 const Logger = require("./logger.util");
-const { sendEmail: enviarCorreoResend } = require("./resend.util");
+const { sendEmail: enviarCorreoResend, getDefaultFrom: getDefaultFromResend } = require("./resend.util");
 
 let transporter = null;
 let transporterInicializado = false;
@@ -203,6 +203,10 @@ const verificarConexion = async () => {
  * @returns {Promise<{enviado: boolean, motivo?: string}>}
  */
 const enviarCorreo = async ({ destino, asunto, html, texto }) => {
+  // Motivo del rechazo de Resend, si lo hubo: si tampoco hay SMTP de respaldo es la única
+  // pista real de por qué no salió el correo (antes se perdía y solo quedaba "SMTP no
+  // configurado").
+  let motivoResend = null;
   if (process.env.RESEND_API_KEY) {
     const resultado = await enviarCorreoResend({
       to: destino,
@@ -213,8 +217,9 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
     });
 
     if (resultado.ok) {
-      return { enviado: true, id: resultado.id || null };
+      return { enviado: true, proveedor: "resend", id: resultado.id || null };
     }
+    motivoResend = resultado.motivo;
 
     Logger.warn(
       "Resend falló al enviar correo; se intenta SMTP como fallback",
@@ -231,7 +236,13 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
     Logger.info(
       `[correo omitido, SMTP no configurado] Para: ${destino} · Asunto: ${asunto}`,
     );
-    return { enviado: false, motivo: "SMTP no configurado" };
+    return {
+      enviado: false,
+      proveedor: motivoResend ? "resend" : null,
+      motivo: motivoResend
+        ? `Resend rechazó el correo: ${motivoResend} (y no hay SMTP de respaldo)`
+        : "No hay proveedor de correo configurado (RESEND_API_KEY, MAIL_SERVICE o SMTP_HOST)",
+    };
   }
 
   try {
@@ -249,14 +260,14 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
       html,
       ...(texto && { text: texto }),
     });
-    return { enviado: true };
+    return { enviado: true, proveedor: "smtp" };
   } catch (error) {
     Logger.error("Error enviando correo", {
       destino,
       asunto,
       error: error.message,
     });
-    return { enviado: false, motivo: error.message };
+    return { enviado: false, proveedor: "smtp", motivo: error.message };
   }
 };
 
@@ -610,6 +621,72 @@ const enviarSinBloquear = (envio, contexto) =>
     );
   });
 
+/** Dominios de correo gratuito: Resend no deja enviar DESDE ellos (no se pueden verificar). */
+const DOMINIOS_WEBMAIL = ["gmail.com", "googlemail.com", "hotmail.com", "outlook.com", "live.com", "yahoo.com", "icloud.com"];
+
+/** Dominio de un remitente "Nombre <correo@dominio>" o "correo@dominio". */
+const _dominioDe = (remitente) => {
+  const m = String(remitente || "").match(/@([^>\s]+)/);
+  return m ? m[1].toLowerCase() : null;
+};
+
+/**
+ * Qué proveedor de correo está configurado y con qué remitente, más las advertencias de las
+ * configuraciones que se sabe que hacen que los correos no lleguen. NUNCA incluye claves ni
+ * contraseñas. Lo usa GET /api/notificaciones/email/diagnostico (solo Administrador), porque
+ * sin acceso a las variables ni a los logs del servidor no había forma de saber por qué no
+ * llegaban los correos.
+ * @returns {Object}
+ */
+const diagnosticoCorreo = () => {
+  const resendConfigurado = Boolean((process.env.RESEND_API_KEY || "").trim());
+  // El mismo remitente que usa enviarCorreo con Resend (ver resend.util.js getDefaultFrom).
+  const remitenteResend = resendConfigurado
+    ? process.env.RESEND_FROM || process.env.MAIL_FROM || getDefaultFromResend()
+    : null;
+  const smtp = _resolverConfig();
+  const frontendUrl = (process.env.FRONTEND_URL || "").trim();
+  const advertencias = [];
+
+  if (!resendConfigurado && !smtp) {
+    advertencias.push("No hay ningún proveedor de correo configurado: falta RESEND_API_KEY, o MAIL_SERVICE / SMTP_HOST. Ningún correo se envía, solo se anota en el log.");
+  }
+  if (resendConfigurado) {
+    const dominio = _dominioDe(remitenteResend);
+    if (dominio === "resend.dev") {
+      advertencias.push("Resend usa el remitente de pruebas onboarding@resend.dev: con él Resend SOLO entrega correos al dueño de la cuenta de Resend. Verifica un dominio propio en resend.com/domains y pon RESEND_FROM=\"ParkU <noreply@tu-dominio>\".");
+    } else if (dominio && DOMINIOS_WEBMAIL.includes(dominio)) {
+      advertencias.push(`El remitente de Resend es de ${dominio}: Resend no permite enviar desde un correo gratuito. Pon RESEND_FROM con un dominio propio verificado en Resend.`);
+    }
+    if (!process.env.RESEND_FROM && process.env.MAIL_FROM) {
+      advertencias.push("RESEND_FROM está vacío, así que Resend usa MAIL_FROM como remitente. MAIL_FROM suele ser la cuenta SMTP (p. ej. Gmail), que Resend rechaza.");
+    }
+  }
+  if (smtp && smtp.auth && !process.env.SMTP_PASSWORD) {
+    advertencias.push("SMTP_USER está configurado pero SMTP_PASSWORD está vacío.");
+  }
+  if (!frontendUrl) {
+    advertencias.push("FRONTEND_URL está vacío: los enlaces de los correos (recuperar contraseña) quedan incompletos y no abren.");
+  }
+
+  return {
+    proveedorPrincipal: resendConfigurado ? "resend" : smtp ? "smtp" : null,
+    resend: { configurado: resendConfigurado, remitente: remitenteResend },
+    smtp: smtp
+      ? {
+          configurado: true,
+          servicio: smtp.servicio,
+          host: smtp.host,
+          puerto: smtp.port,
+          usuario: smtp.auth ? smtp.auth.user : null,
+          remitente: process.env.MAIL_FROM || (process.env.SMTP_USER ? `"ParkU (no responder)" <${process.env.SMTP_USER}>` : null),
+        }
+      : { configurado: false },
+    frontendUrl: frontendUrl || null,
+    advertencias,
+  };
+};
+
 /* Las funciones de abajo llaman al envío a través de este objeto y no por su nombre: así
    se puede sustituir `enviarCorreo` desde fuera —una prueba comprueba QUÉ se habría
    enviado sin necesitar un servidor de correo— sin cambiar en nada el comportamiento real. */
@@ -624,6 +701,7 @@ const correos = {
   enviarCorreoEstadoCuenta,
   verificarConexion,
   listarServicios,
+  diagnosticoCorreo,
 };
 
 module.exports = correos;

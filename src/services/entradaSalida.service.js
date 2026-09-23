@@ -213,9 +213,11 @@ const registrarIngreso = async ({ vehiculo_id, conductor_id, parqueadero_id, cel
     traducirErrorTrigger(error);
   }
 
-  // Ya fuera de la transacción y sin esperar: el ingreso quedó guardado, y avisar al dueño
-  // (notificación en la app + correo) no puede retrasar ni tumbar la respuesta a portería.
-  avisosConductor.avisarIngreso(registro);
+  // Ya fuera de la transacción: el ingreso quedó guardado. El aviso al dueño (notificación
+  // en la app + correo) nunca lanza, así que no puede tumbar la respuesta a portería, pero SÍ
+  // hay que esperarlo: en Vercel la función se congela en cuanto responde, y un correo que
+  // quedaba enviándose "en segundo plano" no llegaba nunca.
+  await avisosConductor.avisarIngreso(registro);
   return registro;
 };
 
@@ -265,8 +267,8 @@ const registrarSalida = async ({ vehiculo_id, descripcion_salida, fecha_hora_sal
     traducirErrorTrigger(error);
   }
 
-  // Mismo criterio que en el ingreso: se avisa después de confirmar, sin bloquear.
-  avisosConductor.avisarSalida(registro);
+  // Mismo criterio que en el ingreso: se avisa después de confirmar y se espera el envío.
+  await avisosConductor.avisarSalida(registro);
   return registro;
 };
 
