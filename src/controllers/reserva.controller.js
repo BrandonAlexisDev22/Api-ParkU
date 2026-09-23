@@ -321,7 +321,7 @@ const update = async (req, res) => {
  * /reservas/{id}/estado:
  *   patch:
  *     summary: Acepta, rechaza, cancela o termina una reserva
- *     description: Aceptar una reserva no bloquea la celda: aparta su franja horaria. Las solicitudes que competían por esa misma franja se cancelan solas.
+ *     description: "Aceptar una reserva no bloquea la celda: aparta su franja horaria. Las solicitudes que competían por esa misma franja se cancelan solas."
  *     tags: [Reservas]
  *     parameters:
  *       - in: path
