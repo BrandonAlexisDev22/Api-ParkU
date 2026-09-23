@@ -77,6 +77,8 @@ const restablecer = async (token, nuevaContrasena) => {
   // updateContrasena también fija fecha_cambio_contrasena, que invalida los JWT emitidos
   // antes de este momento -- ver auth.middleware.js verificarToken.
   await usuarioRepo.updateContrasena(solicitud.usuario_id, contrasena);
+  // Si la cuenta se bloqueó por intentos fallidos, la contraseña nueva la desbloquea.
+  await usuarioRepo.desbloquearTrasRecuperacion(solicitud.usuario_id);
   await repo.marcarUsado(solicitud.id);
 };
 
