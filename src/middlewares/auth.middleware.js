@@ -8,7 +8,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { Usuario, sequelize } = require('../models');
+const { Usuario, Conductor, sequelize } = require('../models');
 const { ROLES } = require('../config/roles');
 
 // =============================================
@@ -112,6 +112,19 @@ const verificarToken = async (req, res, next) => {
         status: 401,
         message: 'Usuario no encontrado o inactivo'
       });
+    }
+
+    // Igual que en el login: el conductor tiene su propio `estado`, aparte del de su
+    // Usuario. Sin esto, desactivar solo la ficha de conductor no cortaba una sesión ya
+    // abierta -- el token seguía siendo válido hasta expirar.
+    if (user.rol_id === ROLES.CONDUCTOR) {
+      const conductor = await Conductor.findOne({ where: { usuario_id: user.id } });
+      if (conductor && conductor.estado === false) {
+        return res.status(401).json({
+          status: 401,
+          message: 'Conductor inactivo. Contacte al administrador'
+        });
+      }
     }
 
     // Invalida tokens emitidos ANTES del último cambio de contraseña (login normal,
