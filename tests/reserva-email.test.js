@@ -2,6 +2,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const Module = require("node:module");
 
+// reserva.service carga (vía sus dependencias) auth.middleware, que se niega a arrancar sin
+// JWT_SECRET. Sin esto la suite fallaba en cualquier máquina sin .env, no por los correos.
+process.env.JWT_SECRET ||= "secreto-solo-para-tests";
+
+// avisosConductor.service es quien de verdad llama al mailer: si queda en caché entre tests,
+// el segundo test sigue usando el mailer falso del primero y no ve sus propios correos.
+const MODULOS_A_RECARGAR = [
+  "../src/services/reserva.service",
+  "../src/services/avisosConductor.service",
+];
+const limpiarCache = () => {
+  for (const m of MODULOS_A_RECARGAR) delete require.cache[require.resolve(m)];
+};
+
 const loadReservaServiceWithStubs = (mailCalls) => {
   const originalLoad = Module._load;
 
@@ -81,14 +95,14 @@ const loadReservaServiceWithStubs = (mailCalls) => {
     return originalLoad.apply(this, arguments);
   };
 
-  delete require.cache[require.resolve("../src/services/reserva.service")];
+  limpiarCache();
   const svc = require("../src/services/reserva.service");
 
   return {
     svc,
     restore: () => {
       Module._load = originalLoad;
-      delete require.cache[require.resolve("../src/services/reserva.service")];
+      limpiarCache();
     },
   };
 };
