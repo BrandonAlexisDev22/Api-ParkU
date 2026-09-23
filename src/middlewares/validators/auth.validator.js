@@ -6,9 +6,12 @@ const { body, validationResult } = require('express-validator');
 
 const registerValidation = [
   body('correo')
+    // Solo minúsculas y sin espacios: normalizeEmail() quitaba los puntos de Gmail y el
+    // correo dejaba de coincidir con el guardado desde el administrador (ver utils/correo.util.js).
+    .trim()
+    .toLowerCase()
     .isEmail()
-    .withMessage('Debe ser un correo electrónico válido')
-    .normalizeEmail(),
+    .withMessage('Debe ser un correo electrónico válido'),
 
   body('contrasena')
     .isLength({ min: 8 })
@@ -36,9 +39,12 @@ const registerValidation = [
 
 const loginValidation = [
   body('correo')
+    // Solo minúsculas y sin espacios: normalizeEmail() quitaba los puntos de Gmail y el
+    // correo dejaba de coincidir con el guardado desde el administrador (ver utils/correo.util.js).
+    .trim()
+    .toLowerCase()
     .isEmail()
-    .withMessage('Debe ser un correo electrónico válido')
-    .normalizeEmail(),
+    .withMessage('Debe ser un correo electrónico válido'),
 
   body('contrasena')
     .notEmpty()

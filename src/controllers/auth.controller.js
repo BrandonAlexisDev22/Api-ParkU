@@ -89,7 +89,9 @@ class AuthController {
       // (verificarToken + verificarRol([2])), no desde el registro público.
 
       // Verificar si el correo ya existe
-      const existe = await Usuario.findOne({ where: { correo } });
+      // Con findParaAcceso, una cuenta registrada antes con la forma de normalizeEmail()
+      // ("juanperez@gmail.com") también cuenta como duplicado de "juan.perez@gmail.com".
+      const existe = await usuarioRepo.findParaAcceso(correo);
       if (existe) {
         return res.status(400).json({
           success: false,
@@ -295,8 +297,9 @@ class AuthController {
 
       const { correo, contrasena } = req.body;
 
-      // Buscar usuario
-      const user = await Usuario.findOne({ where: { correo } });
+      // Buscar usuario. Acepta también la forma que dejaba el normalizeEmail() de antes (ver
+      // utils/correo.util.js), para las cuentas que se registraron con él.
+      const user = await usuarioRepo.findParaAcceso(correo);
 
       if (!user) {
         return res.status(401).json({

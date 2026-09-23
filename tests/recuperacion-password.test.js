@@ -38,6 +38,7 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
     if (request === "../repositories/usuario.repository") {
       return {
         findByCorreo: async (correo) => (usuario && correo === usuario.correo ? usuario : null),
+        findParaAcceso: async (correo) => (usuario && correo === usuario.correo ? usuario : null),
         updateContrasena: async (id, contrasena) => {
           llamadas.updateContrasena.push({ id, contrasena });
         },

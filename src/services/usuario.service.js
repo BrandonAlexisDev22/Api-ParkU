@@ -7,6 +7,7 @@
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 const repo = require('../repositories/usuario.repository');
+const { normalizarCorreo } = require('../utils/correo.util');
 const { runWithUsuario, traducirErrorTrigger } = require('../utils/dbContext.util');
 const { enviarCorreoEstadoCuenta, enviarSinBloquear } = require('../utils/mailer.util');
 const { exigirSinOperaciones } = require('../utils/borrado.util');
@@ -324,7 +325,10 @@ const comprobarDisponibilidad = async (criterios = {}, { revelarDuenio = true } 
  * @returns {Promise<Object>}
  */
 const create = async (data) => {
-  const { nombre, correo, contrasena, estado, numero_telefonico } = data;
+  const { nombre, contrasena, estado, numero_telefonico } = data;
+  // Misma forma que usan el login y el registro (ver utils/correo.util.js): sin esto, un
+  // correo con mayúsculas o espacios quedaba guardado así y el login no lo encontraba.
+  const correo = data.correo ? normalizarCorreo(data.correo) : data.correo;
   // El cliente puede enviar el rol como `rol` o como `rol_id` -- antes solo se leía `rol`,
   // así que un cliente que mandara `rol_id` (el nombre real de la columna) terminaba
   // siempre en el default (Conductor) sin que nada lo avisara.
@@ -436,8 +440,12 @@ const create = async (data) => {
  *   teléfono/documento duplicado.
  * @returns {Promise<Object>}
  */
-const update = async (id, data, { revelarDuenioDelDocumento = true } = {}) => {
+const update = async (id, datosEnviados, { revelarDuenioDelDocumento = true } = {}) => {
   const usuario = await getById(id);
+  // El correo se guarda en la misma forma con la que lo busca el login (ver
+  // utils/correo.util.js).
+  const data = { ...datosEnviados };
+  if (data.correo) data.correo = normalizarCorreo(data.correo);
 
   // Si se actualiza el correo, verificar formato y que no esté en uso por otro usuario
   const cambiaCorreo = Boolean(data.correo) && data.correo !== usuario.correo;
