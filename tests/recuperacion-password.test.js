@@ -15,6 +15,7 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
     create: [],
     marcarUsado: [],
     updateContrasena: [],
+    desbloquearTrasRecuperacion: [],
     enviarCorreoRecuperacion: [],
   };
 
@@ -41,6 +42,9 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
         findParaAcceso: async (correo) => (usuario && correo === usuario.correo ? usuario : null),
         updateContrasena: async (id, contrasena) => {
           llamadas.updateContrasena.push({ id, contrasena });
+        },
+        desbloquearTrasRecuperacion: async (id) => {
+          llamadas.desbloquearTrasRecuperacion.push(id);
         },
       };
     }
@@ -144,6 +148,8 @@ test("restablecer() con un token válido y sin usar actualiza la contraseña y q
 
     assert.equal(llamadas.updateContrasena.length, 1);
     assert.equal(llamadas.updateContrasena[0].id, USUARIO.id);
+    // Si la cuenta se había bloqueado por intentos fallidos, la contraseña nueva la desbloquea.
+    assert.deepEqual(llamadas.desbloquearTrasRecuperacion, [USUARIO.id]);
     assert.equal(llamadas.marcarUsado.length, 1);
     assert.equal(llamadas.marcarUsado[0], solicitud.id);
   } finally {
@@ -175,6 +181,7 @@ test("restablecer() rechaza un token que ya fue usado", async () => {
       },
     );
     assert.equal(llamadas.updateContrasena.length, 0);
+    assert.equal(llamadas.desbloquearTrasRecuperacion.length, 0);
   } finally {
     restore();
   }
@@ -204,6 +211,7 @@ test("restablecer() rechaza un token expirado", async () => {
       },
     );
     assert.equal(llamadas.updateContrasena.length, 0);
+    assert.equal(llamadas.desbloquearTrasRecuperacion.length, 0);
   } finally {
     restore();
   }
@@ -222,6 +230,7 @@ test("restablecer() rechaza un token inexistente", async () => {
       },
     );
     assert.equal(llamadas.updateContrasena.length, 0);
+    assert.equal(llamadas.desbloquearTrasRecuperacion.length, 0);
   } finally {
     restore();
   }
@@ -251,6 +260,7 @@ test("restablecer() rechaza una contraseña que no cumple la política de fortal
       },
     );
     assert.equal(llamadas.updateContrasena.length, 0);
+    assert.equal(llamadas.desbloquearTrasRecuperacion.length, 0);
   } finally {
     restore();
   }

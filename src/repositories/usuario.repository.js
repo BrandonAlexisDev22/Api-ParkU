@@ -199,6 +199,20 @@ const updateContrasena = async (id, contrasena) => {
 };
 
 /**
+ * Tras restablecer la contraseña con un enlace de recuperación: pone a cero los intentos
+ * fallidos y, si la cuenta estaba BLOQUEADA por esos intentos, la vuelve a ACTIVO. Quien
+ * olvidó su contraseña suele haber agotado los 5 intentos antes de pedir el enlace, y sin
+ * esto seguía viendo "Usuario bloqueado" con la contraseña nueva. Una cuenta INACTIVA no se
+ * toca: esa la desactivó un administrador, no los intentos.
+ * @param {number} id
+ * @returns {Promise<void>}
+ */
+const desbloquearTrasRecuperacion = async (id) => {
+  await Usuario.update({ intentos_fallidos: 0 }, { where: { id } });
+  await Usuario.update({ estado: 'ACTIVO' }, { where: { id, estado: 'BLOQUEADO' } });
+};
+
+/**
  * Registra un intento de login fallido; bloquea la cuenta tras `maxIntentos`.
  * @param {number} id
  * @param {number} maxIntentos
@@ -248,6 +262,7 @@ module.exports = {
   findById,
   findByCorreo,
   findParaAcceso,
+  desbloquearTrasRecuperacion,
   findByDocumento,
   findByTelefono,
   create,

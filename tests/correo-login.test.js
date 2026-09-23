@@ -101,3 +101,35 @@ test("el validador del login ya no quita los puntos del correo de Gmail", async 
     servidor.close();
   }
 });
+
+test("desbloquearTrasRecuperacion reactiva solo una cuenta BLOQUEADA, nunca una INACTIVA", async () => {
+  const originalLoad = Module._load;
+  const updates = [];
+  Module._load = function (request, parent, isMain) {
+    if (request === "../models") {
+      return {
+        Usuario: { update: async (cambios, opciones) => { updates.push({ cambios, where: opciones.where }); } },
+        Rol: {},
+        Conductor: {},
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  const ruta = require.resolve("../src/repositories/usuario.repository");
+  delete require.cache[ruta];
+  let repo;
+  try {
+    repo = require(ruta);
+  } finally {
+    Module._load = originalLoad;
+    delete require.cache[ruta];
+  }
+
+  await repo.desbloquearTrasRecuperacion(7);
+
+  assert.deepEqual(updates, [
+    { cambios: { intentos_fallidos: 0 }, where: { id: 7 } },
+    // El cambio de estado va condicionado a BLOQUEADO: una cuenta INACTIVA no la toca.
+    { cambios: { estado: "ACTIVO" }, where: { id: 7, estado: "BLOQUEADO" } },
+  ]);
+});
