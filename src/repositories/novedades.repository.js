@@ -155,7 +155,7 @@ const update = async (id, data, { transaction } = {}) => {
   const allowedFields = [
     'tipo_novedad', 'prioridad', 'estado', 'descripcion', 'usuario_asignado_id',
     'vehiculo_id', 'celda_id', 'parqueadero_id', 'registro_acceso_id',
-    'fecha_hora_cierre', 'justificacion_cierre',
+    'fecha_hora_cierre', 'justificacion_cierre', 'activo',
   ];
   const cambios = {};
   for (const field of allowedFields) {

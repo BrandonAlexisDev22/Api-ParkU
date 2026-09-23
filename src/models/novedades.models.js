@@ -85,6 +85,14 @@ const Novedad = sequelize.define('Novedad', {
     type: DataTypes.STRING(255),
     allowNull: true,
   },
+  /* Visibilidad para el switch de activar/desactivar del frontend (Admin/Vigilante).
+     Independiente del ciclo de vida de `estado`: un incidente puede archivarse sin
+     cancelarse ni cerrarse, y viceversa. Ver migración 012. */
+  activo: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
 }, {
   tableName: 'novedad',
   timestamps: false,
