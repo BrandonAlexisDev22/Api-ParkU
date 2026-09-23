@@ -75,6 +75,27 @@ const findById = async (id, { transaction } = {}) => {
 };
 
 /**
+ * Bloquea la fila (`SELECT ... FOR UPDATE`) y devuelve su estado actual. Debe llamarse dentro
+ * de la transacción con la que se va a escribir, justo antes de validar la transición: sin el
+ * bloqueo, dos PUT concurrentes sobre el mismo id leen el mismo `estado` de partida y ambos
+ * pasan la validación de transición aunque, aplicados en serie, el segundo ya no debería ser
+ * válido (p. ej. dos vigilantes moviendo EN_PROCESO a la vez, uno a RESUELTA y otro a CERRADA:
+ * sin bloqueo, el segundo nunca ve que el primero ya pasó por RESUELTA).
+ * @param {number} id
+ * @param {import('sequelize').Transaction} opciones.transaction - Obligatoria: sin
+ *   transacción, `FOR UPDATE` no tiene sentido y Sequelize lo ignora.
+ * @returns {Promise<{ id: number, estado: string } | null>}
+ */
+const lockEstado = async (id, { transaction }) => {
+  const row = await Novedad.findByPk(id, {
+    attributes: ['id', 'estado'],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  return row ? row.toJSON() : null;
+};
+
+/**
  * Filtra novedades por vehículo.
  * @param {number} vehiculoId
  * @returns {Promise<Array>}
@@ -181,6 +202,7 @@ const remove = async (id) => {
 module.exports = {
   findAll,
   findById,
+  lockEstado,
   findByVehiculo,
   findByRegistroAcceso,
   findByFiltros,

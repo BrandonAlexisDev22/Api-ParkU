@@ -368,6 +368,28 @@ const create = async (data, usuarioId, usuarioRol) => {
 };
 
 /**
+ * Avisa a quien reportó que su incidente/novedad quedó descartado (CERRADA o CANCELADA) y
+ * por qué. Compartido entre `update()` y `rechazar()` -- antes solo `update()` lo enviaba, así
+ * que rechazar por el endpoint dedicado dejaba al reportante sin el correo.
+ * @private
+ */
+const _avisarDescarte = async (id, actual, estado, motivo) => {
+  const reportante = actual.usuario_reporta_id
+    ? await usuarioRepo.findById(actual.usuario_reporta_id)
+    : null;
+  if (reportante?.correo) {
+    await enviarSinBloquear(
+      enviarCorreoReporteDescartado(reportante.correo, reportante.nombre, {
+        descripcion: actual.descripcion,
+        desenlace: estado,
+        motivo,
+      }),
+      `novedad ${id} ${estado}`,
+    );
+  }
+};
+
+/**
  * Actualiza una novedad (estado, prioridad, asignación, cierre, etc.).
  * @param {number} id
  * @param {Object} data - Campos a actualizar.
@@ -391,7 +413,9 @@ const update = async (id, data, usuarioId) => {
     throw { status: 400, message: 'El campo activo debe ser verdadero o falso' };
   }
   // El switch de activar/inactivar del frontend llega aquí como un PUT con `estado`; no
-  // basta con que el frontend lo deshabilite.
+  // basta con que el frontend lo deshabilite. Esta es solo la validación "optimista" para
+  // devolver un error legible cuanto antes -- la que de verdad decide es la de abajo, ya con
+  // la fila bloqueada dentro de la transacción (ver repo.lockEstado).
   if (data.estado) _validarTransicion(actual.estado, data.estado);
 
   /* Tener un encargado es lo deseable —deja claro a quién preguntarle— pero no se exige:
@@ -411,25 +435,23 @@ const update = async (id, data, usuarioId) => {
 
   await _validarReferencias(data);
 
-  const actualizada = await runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+  const actualizada = await runWithUsuario(usuarioId, async (transaction) => {
+    if (data.estado) {
+      // Bloquea la fila y revalida contra el estado más reciente: entre la lectura de
+      // `actual` de arriba y este punto, otro PUT concurrente pudo haber cambiado el estado
+      // (dos vigilantes gestionando el mismo incidente a la vez).
+      const bloqueada = await repo.lockEstado(id, { transaction });
+      if (!bloqueada) throw { status: 404, message: 'Novedad no encontrada' };
+      _validarTransicion(bloqueada.estado, data.estado);
+    }
+    return repo.update(id, data, { transaction });
+  });
 
   /* Quien reportó algo tiene derecho a saber que se descartó y por qué: el motivo se guarda
      precisamente para que lo lea, y hasta ahora solo lo veía si volvía a entrar a mirar.
      No bloquea: el cambio de estado ya está guardado. */
   if (ESTADOS_CON_MOTIVO.includes(data.estado)) {
-    const reportante = actual.usuario_reporta_id
-      ? await usuarioRepo.findById(actual.usuario_reporta_id)
-      : null;
-    if (reportante?.correo) {
-      await enviarSinBloquear(
-        enviarCorreoReporteDescartado(reportante.correo, reportante.nombre, {
-          descripcion: actual.descripcion,
-          desenlace: data.estado,
-          motivo: data.justificacion_cierre ?? actual.justificacion_cierre,
-        }),
-        `novedad ${id} ${data.estado}`,
-      );
-    }
+    await _avisarDescarte(id, actual, data.estado, data.justificacion_cierre ?? actual.justificacion_cierre);
   }
 
   return actualizada;
@@ -457,7 +479,12 @@ const aceptar = async (id, { usuario_asignado_id, prioridad }, usuarioId) => {
   await _validarReferencias({ usuario_asignado_id });
 
   const data = { usuario_asignado_id, prioridad, estado: 'EN_PROCESO' };
-  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+  return runWithUsuario(usuarioId, async (transaction) => {
+    const bloqueada = await repo.lockEstado(id, { transaction });
+    if (!bloqueada) throw { status: 404, message: 'Novedad no encontrada' };
+    _validarTransicion(bloqueada.estado, 'EN_PROCESO');
+    return repo.update(id, data, { transaction });
+  });
 };
 
 /**
@@ -476,7 +503,16 @@ const rechazar = async (id, { motivo }, usuarioId) => {
   if (!motivo?.trim()) throw { status: 400, message: 'El motivo de rechazo es requerido' };
 
   const data = { estado: 'CANCELADA', justificacion_cierre: motivo, fecha_hora_cierre: new Date() };
-  return runWithUsuario(usuarioId, (transaction) => repo.update(id, data, { transaction }));
+  const actualizada = await runWithUsuario(usuarioId, async (transaction) => {
+    const bloqueada = await repo.lockEstado(id, { transaction });
+    if (!bloqueada) throw { status: 404, message: 'Novedad no encontrada' };
+    _validarTransicion(bloqueada.estado, 'CANCELADA');
+    return repo.update(id, data, { transaction });
+  });
+
+  await _avisarDescarte(id, actual, 'CANCELADA', motivo);
+
+  return actualizada;
 };
 
 /**
