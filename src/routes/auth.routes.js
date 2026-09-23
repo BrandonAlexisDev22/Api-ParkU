@@ -18,6 +18,7 @@ const {
   limitadorEnvioCorreo,
   limitadorCanjeToken,
   limitadorConsultaExistencia,
+  limitadorVerificarIdentidad,
 } = require('../middlewares/rateLimit.middleware');
 
 // Middleware de validación
@@ -94,6 +95,27 @@ const correoValidation = [
     .withMessage('Correo inválido')
     .isEmail()
     .withMessage('Correo inválido'),
+];
+
+const verificarIdentidadValidation = [
+  ...correoValidation,
+  body('tipoDocumento')
+    .trim()
+    .toUpperCase()
+    .isIn(['CC', 'CE', 'TI', 'PASAPORTE', 'PEP', 'NIT'])
+    .withMessage('Tipo de documento inválido'),
+  body('numeroDocumento')
+    .isString()
+    .withMessage('Número de documento requerido')
+    .trim()
+    .notEmpty()
+    .withMessage('Número de documento requerido'),
+  body('nombre')
+    .isString()
+    .withMessage('Nombre requerido')
+    .trim()
+    .notEmpty()
+    .withMessage('Nombre requerido'),
 ];
 
 const restablecerValidation = [
@@ -489,9 +511,13 @@ router.post(
 
 /**
  * @swagger
- * /api/auth/recuperar-password:
+ * /api/auth/verificar-identidad:
  *   post:
- *     summary: Solicitar un token de recuperación de contraseña
+ *     summary: Verifica correo + documento + nombre y entrega un token de recuperación
+ *     description: >
+ *       No envía ningún correo ni SMS: si los datos coinciden con una cuenta, el token de
+ *       recuperación de un solo uso viaja en la misma respuesta, listo para usarse contra
+ *       /api/auth/restablecer-password.
  *     tags: [Autenticación]
  *     requestBody:
  *       required: true
@@ -501,20 +527,32 @@ router.post(
  *             type: object
  *             required:
  *               - correo
+ *               - tipoDocumento
+ *               - numeroDocumento
+ *               - nombre
  *             properties:
  *               correo:
  *                 type: string
  *                 format: email
+ *               tipoDocumento:
+ *                 type: string
+ *                 enum: [CC, CE, TI, PASAPORTE, PEP, NIT]
+ *               numeroDocumento:
+ *                 type: string
+ *               nombre:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Si el correo existe, se generó un token (se envía por correo en producción)
+ *         description: Identidad verificada; la respuesta incluye el token de recuperación
+ *       400:
+ *         description: Datos con formato inválido, o que no coinciden con ninguna cuenta
  */
 router.post(
-  '/recuperar-password',
-  limitadorEnvioCorreo,
-  correoValidation,
+  '/verificar-identidad',
+  limitadorVerificarIdentidad,
+  verificarIdentidadValidation,
   validate,
-  authCtrl.recuperarPassword
+  authCtrl.verificarIdentidad
 );
 
 /**

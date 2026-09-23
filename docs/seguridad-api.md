@@ -92,7 +92,7 @@ Esto frena ataques de adivinación de contraseñas contra una cuenta concreta.
 
 Si el correo no existe **o** la contraseña está mal, la respuesta es la misma: `401 Credenciales inválidas`. Así un atacante no puede usar el login para descubrir qué correos están registrados (*enumeración de usuarios*).
 
-Lo mismo ocurre en recuperación de contraseña: `POST /api/auth/recuperar-password` responde igual exista o no la cuenta (`src/services/recuperacionPassword.service.js`).
+La recuperación de contraseña, en cambio, sí confirma si los datos coinciden: `POST /api/auth/verificar-identidad` compara correo + documento + nombre contra una cuenta y, si no coinciden, responde `400` explícito (`src/services/recuperacionPassword.service.js`). No hay canal externo (correo, SMS) que absorba ese silencio, así que el freno contra fuerza bruta es el limitador de intentos (`limitadorVerificarIdentidad`), no la ambigüedad de la respuesta.
 
 ---
 

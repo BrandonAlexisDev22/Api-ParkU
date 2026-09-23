@@ -1,7 +1,7 @@
 /**
  * @module MailerUtil
- * @description Envío de correo transaccional (verificación de cuenta, recuperación de
- * contraseña) vía SMTP. Todas las credenciales vienen de variables de entorno -- nunca
+ * @description Envío de correo transaccional (avisos de reserva, ingreso/salida, estado de
+ * cuenta) vía SMTP. Todas las credenciales vienen de variables de entorno -- nunca
  * hardcodeadas.
  *
  * Soporta cualquiera de los servicios de correo que nodemailer ya conoce (Gmail,
@@ -457,27 +457,6 @@ const enviarCorreoVerificacion = (destino, nombre, link, opciones = {}) => {
 };
 
 /**
- * @param {string} destino
- * @param {string} nombre
- * @param {string} link
- */
-const enviarCorreoRecuperacion = (destino, nombre, link) =>
-  correos.enviarCorreo({
-    destino,
-    asunto: "Recupera tu contraseña — ParkU",
-    html: _plantillaBase(
-      "Recupera tu contraseña",
-      `
-    <p>Hola ${nombre || ""},</p>
-    <p>Recibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:</p>
-    <p><a href="${link}" target="_blank">Restablecer mi contraseña</a></p>
-    <p>Si no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.</p>
-  `,
-    ),
-    texto: `Hola ${nombre || ""},\n\nRecibimos una solicitud para restablecer tu contraseña. Este enlace expira pronto y solo puede usarse una vez:\n${link}\n\nSi no solicitaste esto, puedes ignorar este mensaje; tu contraseña no ha cambiado.${_firmaTexto}`,
-  });
-
-/**
  * Avisa de en qué quedó una reserva.
  *
  * Con los datos concretos —cuándo, dónde y en qué celda— y no solo "tu reserva cambió": quien
@@ -715,7 +694,7 @@ const diagnosticoCorreo = () => {
     advertencias.push("SMTP_USER está configurado pero SMTP_PASSWORD está vacío.");
   }
   if (!frontendUrl) {
-    advertencias.push("FRONTEND_URL está vacío: los enlaces de los correos (recuperar contraseña) quedan incompletos y no abren.");
+    advertencias.push("FRONTEND_URL está vacío: el enlace del correo de verificación de cuenta queda incompleto y no abre.");
   }
 
   return {
@@ -744,7 +723,6 @@ const correos = {
   enviarCorreo,
   enviarSinBloquear,
   enviarCorreoVerificacion,
-  enviarCorreoRecuperacion,
   enviarCorreoReserva,
   enviarCorreoAcceso,
   enviarCorreoReporteDescartado,
