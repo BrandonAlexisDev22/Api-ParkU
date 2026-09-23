@@ -30,7 +30,8 @@ const solicitar = async (correo) => {
   if (!correo) throw { status: 400, message: 'El correo es requerido' };
   if (!EMAIL_REGEX.test(correo)) throw { status: 400, message: 'El correo electrónico no tiene un formato válido' };
 
-  const usuario = await usuarioRepo.findByCorreo(correo);
+  // Mismo criterio que el login: el correo tal cual o la forma heredada de normalizeEmail().
+  const usuario = await usuarioRepo.findParaAcceso(correo);
   if (!usuario) return; // No revelar si la cuenta existe -- ver el controller.
 
   // Evita que dos solicitudes sucesivas dejen dos tokens simultáneamente válidos.

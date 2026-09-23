@@ -30,9 +30,12 @@ const { validate } = require('../middlewares/validators/auth.validator');
 // Validación de Login
 const loginValidation = [
   body('correo')
+    // Solo minúsculas y sin espacios: normalizeEmail() quitaba los puntos de Gmail y el
+    // correo dejaba de coincidir con el guardado desde el administrador (ver utils/correo.util.js).
+    .trim()
+    .toLowerCase()
     .isEmail()
-    .withMessage('Correo inválido')
-    .normalizeEmail(),
+    .withMessage('Correo inválido'),
 
   body('contrasena')
     .notEmpty()
@@ -42,9 +45,12 @@ const loginValidation = [
 // Validación de Registro
 const registerValidation = [
   body('correo')
+    // Solo minúsculas y sin espacios: normalizeEmail() quitaba los puntos de Gmail y el
+    // correo dejaba de coincidir con el guardado desde el administrador (ver utils/correo.util.js).
+    .trim()
+    .toLowerCase()
     .isEmail()
-    .withMessage('Correo inválido')
-    .normalizeEmail(),
+    .withMessage('Correo inválido'),
 
   body('contrasena')
     .isLength({ min: 8 })
@@ -80,11 +86,14 @@ const refreshValidation = [
 // un arreglo en `correo` cambiaría el significado de la consulta en Sequelize).
 const correoValidation = [
   body('correo')
+    // Solo minúsculas y sin espacios: normalizeEmail() quitaba los puntos de Gmail y el
+    // correo dejaba de coincidir con el guardado desde el administrador (ver utils/correo.util.js).
+    .trim()
+    .toLowerCase()
     .isString()
     .withMessage('Correo inválido')
     .isEmail()
-    .withMessage('Correo inválido')
-    .normalizeEmail(),
+    .withMessage('Correo inválido'),
 ];
 
 const restablecerValidation = [

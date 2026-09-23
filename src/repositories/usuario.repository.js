@@ -5,6 +5,7 @@
  */
 
 const { Usuario, Rol, Conductor } = require('../models');
+const { formasGuardadasDelCorreo } = require('../utils/correo.util');
 
 const includeRol = {
   model: Rol,
@@ -98,6 +99,21 @@ const findById = async (id, { transaction } = {}) => {
  */
 const findByCorreo = async (correo) => {
   const row = await Usuario.findOne({ where: { correo } });
+  return row ? row.toJSON() : null;
+};
+
+/**
+ * Busca la cuenta con la que alguien quiere entrar (login, recuperar contraseña) a partir
+ * del correo que escribió. Prueba la forma canónica y la que dejaba el `normalizeEmail()`
+ * que usaba antes el registro público (ver utils/correo.util.js); si las dos existen como
+ * cuentas distintas, gana la que coincide exacto.
+ * @param {string} correo - Tal como lo escribió la persona.
+ * @returns {Promise<Object|null>}
+ */
+const findParaAcceso = async (correo) => {
+  const formas = formasGuardadasDelCorreo(correo);
+  const rows = await Usuario.findAll({ where: { correo: formas } });
+  const row = rows.find((r) => r.correo === formas[0]) ?? rows[0];
   return row ? row.toJSON() : null;
 };
 
@@ -231,6 +247,7 @@ module.exports = {
   findAll,
   findById,
   findByCorreo,
+  findParaAcceso,
   findByDocumento,
   findByTelefono,
   create,
