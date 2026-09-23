@@ -387,6 +387,9 @@ const update = async (id, data, usuarioId) => {
   if (data.estado && !ESTADOS_PERMITIDOS.includes(data.estado)) {
     throw { status: 400, message: `Estado inválido. Permitidos: ${ESTADOS_PERMITIDOS.join(', ')}` };
   }
+  if (data.activo !== undefined && typeof data.activo !== 'boolean') {
+    throw { status: 400, message: 'El campo activo debe ser verdadero o falso' };
+  }
   // El switch de activar/inactivar del frontend llega aquí como un PUT con `estado`; no
   // basta con que el frontend lo deshabilite.
   if (data.estado) _validarTransicion(actual.estado, data.estado);
