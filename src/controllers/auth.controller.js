@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const PasswordUtil = require('../utils/password.util');
 const { Usuario, Conductor } = require('../models');
 const { sequelize } = require('../config/database');
+const { ROLES } = require('../config/roles');
 const usuarioRepo = require('../repositories/usuario.repository');
 const { crearConductorVinculado } = require('../utils/conductorVinculado.util');
 const { crearVehiculoVinculado } = require('../utils/vehiculoVinculado.util');
@@ -315,6 +316,19 @@ class AuthController {
             ? 'Usuario bloqueado. Contacte al administrador'
             : 'Usuario inactivo. Contacte al administrador'
         });
+      }
+
+      // El estado del Usuario no basta para un conductor: su ficha en `conductor` tiene su
+      // propio `estado` (booleano) que un admin/vigilante puede desactivar sin tocar la
+      // cuenta. Sin este chequeo, un conductor desactivado seguía pudiendo iniciar sesión.
+      if (user.rol_id === ROLES.CONDUCTOR) {
+        const conductor = await Conductor.findOne({ where: { usuario_id: user.id } });
+        if (conductor && conductor.estado === false) {
+          return res.status(403).json({
+            success: false,
+            message: 'Conductor inactivo. Contacte al administrador'
+          });
+        }
       }
 
       // La verificación de correo YA NO BLOQUEA el inicio de sesión: se registra
