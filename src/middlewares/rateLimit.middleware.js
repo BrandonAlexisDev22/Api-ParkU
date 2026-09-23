@@ -89,6 +89,16 @@ const limitadorEnvioCorreo = crear({
   mensaje: 'Ya se enviaron varios correos a esa dirección. Revisa tu bandeja o espera una hora.',
 });
 
+// Verificar identidad para recuperar contraseña: aquí se intenta adivinar el documento y el
+// nombre de una cuenta a partir del correo, sin el freno natural de tener que recibir algo
+// por un canal aparte. Estricto y por correo+IP, igual que el envío de correo que reemplaza.
+const limitadorVerificarIdentidad = crear({
+  ventanaMs: 60 * MINUTO_MS,
+  maximo: entero(process.env.RATE_LIMIT_VERIFICAR_IDENTIDAD_MAX, 5),
+  porCorreo: true,
+  mensaje: 'Demasiados intentos. Espera una hora e inténtalo de nuevo.',
+});
+
 // Restablecer contraseña, verificar código, verificar enlace: aquí se adivina un token o un
 // código de 6 dígitos. El servicio ya invalida el código tras varios fallos; esto cubre el
 // enlace y evita que se intente contra muchas cuentas a la vez.
@@ -123,4 +133,5 @@ module.exports = {
   limitadorCanjeToken,
   limitadorConsultaExistencia,
   limitadorCambioContrasena,
+  limitadorVerificarIdentidad,
 };

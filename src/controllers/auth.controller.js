@@ -582,17 +582,18 @@ class AuthController {
   }
 
   /**
-   * POST /api/auth/recuperar-password - Solicita un token de recuperación de contraseña
+   * POST /api/auth/verificar-identidad - Verifica correo + documento + nombre y, si
+   * coinciden con una cuenta, entrega un token de recuperación de un solo uso. No
+   * depende de ningún canal externo: el token viaja en la misma respuesta.
    */
-  static async recuperarPassword(req, res) {
+  static async verificarIdentidad(req, res) {
     try {
-      const { correo } = req.body;
-      await recuperacionPasswordSvc.solicitar(correo);
-      // Respuesta genérica siempre: no revela si el correo existe o no (evita
-      // enumeración de cuentas). El token real solo viaja por el correo enviado.
+      const { correo, tipoDocumento, numeroDocumento, nombre } = req.body;
+      const token = await recuperacionPasswordSvc.verificarIdentidad(correo, tipoDocumento, numeroDocumento, nombre);
       return res.status(200).json({
         success: true,
-        message: 'Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña',
+        message: 'Identidad verificada. Ya puedes definir tu nueva contraseña.',
+        data: { token },
       });
     } catch (error) {
       handleError(res, error);

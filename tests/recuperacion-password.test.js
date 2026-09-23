@@ -6,6 +6,8 @@ const USUARIO = {
   id: 10,
   correo: "ana@example.com",
   nombre: "Ana Gómez",
+  tipo_documento: "CC",
+  numero_documento: "123456789",
 };
 
 const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
@@ -16,7 +18,6 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
     marcarUsado: [],
     updateContrasena: [],
     desbloquearTrasRecuperacion: [],
-    enviarCorreoRecuperacion: [],
   };
 
   Module._load = function (request, parent, isMain) {
@@ -49,15 +50,6 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
       };
     }
 
-    if (request === "../utils/mailer.util") {
-      return {
-        enviarCorreoRecuperacion: async (destino, nombre, link) => {
-          llamadas.enviarCorreoRecuperacion.push({ destino, nombre, link });
-          return { enviado: true };
-        },
-      };
-    }
-
     return originalLoad.apply(this, arguments);
   };
 
@@ -74,11 +66,11 @@ const loadServiceWithStubs = ({ usuario = USUARIO, solicitudes = {} } = {}) => {
   };
 };
 
-test("solicitar() con un correo existente genera un token, lo guarda hasheado y envía el correo con el enlace", async () => {
+test("verificarIdentidad() con datos que coinciden genera un token y lo devuelve en claro", async () => {
   const { svc, llamadas, restore } = loadServiceWithStubs();
 
   try {
-    await svc.solicitar(USUARIO.correo);
+    const token = await svc.verificarIdentidad(USUARIO.correo, "cc", USUARIO.numero_documento, USUARIO.nombre);
 
     assert.equal(llamadas.invalidarPendientes.length, 1);
     assert.equal(llamadas.invalidarPendientes[0], USUARIO.id);
@@ -89,35 +81,90 @@ test("solicitar() con un correo existente genera un token, lo guarda hasheado y 
     assert.match(llamadas.create[0].token_hash, /^[0-9a-f]{64}$/);
     assert.ok(llamadas.create[0].fecha_expiracion instanceof Date);
 
-    assert.equal(llamadas.enviarCorreoRecuperacion.length, 1);
-    const { destino, nombre, link } = llamadas.enviarCorreoRecuperacion[0];
-    assert.equal(destino, USUARIO.correo);
-    assert.equal(nombre, USUARIO.nombre);
-    assert.match(link, /\/reset-password\?token=[0-9a-f]{64}$/);
+    // El token devuelto es el mismo que se hasheó y guardó.
+    const crypto = require("crypto");
+    assert.equal(crypto.createHash("sha256").update(token).digest("hex"), llamadas.create[0].token_hash);
   } finally {
     restore();
   }
 });
 
-test("solicitar() con un correo sin cuenta no crea token ni envía correo (evita enumeración de cuentas)", async () => {
+test("verificarIdentidad() con un correo sin cuenta no crea token", async () => {
   const { svc, llamadas, restore } = loadServiceWithStubs({ usuario: null });
 
   try {
-    await svc.solicitar("nadie@example.com");
-
+    await assert.rejects(
+      () => svc.verificarIdentidad("nadie@example.com", "CC", "123456789", "Cualquiera"),
+      (error) => {
+        assert.equal(error.status, 400);
+        assert.match(error.message, /no coinciden/i);
+        return true;
+      },
+    );
     assert.equal(llamadas.create.length, 0);
-    assert.equal(llamadas.enviarCorreoRecuperacion.length, 0);
   } finally {
     restore();
   }
 });
 
-test("solicitar() rechaza un correo con formato inválido antes de tocar la base de datos", async () => {
+test("verificarIdentidad() rechaza cuando el documento no coincide con la cuenta del correo", async () => {
   const { svc, llamadas, restore } = loadServiceWithStubs();
 
   try {
     await assert.rejects(
-      () => svc.solicitar("no-es-un-correo"),
+      () => svc.verificarIdentidad(USUARIO.correo, "CC", "000000000", USUARIO.nombre),
+      (error) => {
+        assert.equal(error.status, 400);
+        assert.match(error.message, /no coinciden/i);
+        return true;
+      },
+    );
+    assert.equal(llamadas.create.length, 0);
+  } finally {
+    restore();
+  }
+});
+
+test("verificarIdentidad() rechaza cuando el nombre no coincide con la cuenta del correo", async () => {
+  const { svc, llamadas, restore } = loadServiceWithStubs();
+
+  try {
+    await assert.rejects(
+      () => svc.verificarIdentidad(USUARIO.correo, "CC", USUARIO.numero_documento, "Otra Persona"),
+      (error) => {
+        assert.equal(error.status, 400);
+        return true;
+      },
+    );
+    assert.equal(llamadas.create.length, 0);
+  } finally {
+    restore();
+  }
+});
+
+test("verificarIdentidad() rechaza un correo con formato inválido antes de tocar la base de datos", async () => {
+  const { svc, llamadas, restore } = loadServiceWithStubs();
+
+  try {
+    await assert.rejects(
+      () => svc.verificarIdentidad("no-es-un-correo", "CC", USUARIO.numero_documento, USUARIO.nombre),
+      (error) => {
+        assert.equal(error.status, 400);
+        return true;
+      },
+    );
+    assert.equal(llamadas.create.length, 0);
+  } finally {
+    restore();
+  }
+});
+
+test("verificarIdentidad() rechaza un tipo de documento que no existe en el catálogo", async () => {
+  const { svc, llamadas, restore } = loadServiceWithStubs();
+
+  try {
+    await assert.rejects(
+      () => svc.verificarIdentidad(USUARIO.correo, "XX", USUARIO.numero_documento, USUARIO.nombre),
       (error) => {
         assert.equal(error.status, 400);
         return true;
