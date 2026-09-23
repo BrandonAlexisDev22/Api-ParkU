@@ -22,6 +22,7 @@ const buscarServicio = require("nodemailer/lib/well-known");
 const catalogoServicios = require("nodemailer/lib/well-known/services.json");
 const Logger = require("./logger.util");
 const { sendEmail: enviarCorreoResend, getDefaultFrom: getDefaultFromResend } = require("./resend.util");
+const { sendEmail: enviarCorreoBrevo, parsearRemitente, remitenteBrevo } = require("./brevo.util");
 
 let transporter = null;
 let transporterInicializado = false;
@@ -140,7 +141,16 @@ const _getTransporter = () => {
 
   configuracionEfectiva = config;
   const { servicio, ...opciones } = config;
-  transporter = nodemailer.createTransport(opciones);
+  transporter = nodemailer.createTransport({
+    ...opciones,
+    /* Tiempos cortos: por defecto nodemailer espera ~2 minutos a que el servidor conteste, y
+       los avisos de ingreso/salida esperan el envío antes de responder a portería. Si el SMTP
+       está bloqueado (Render, plan gratuito) o caído, el correo debe fallar en segundos, no
+       dejar colgado el registro de un vehículo. */
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+  });
 
   Logger.info(
     `SMTP configurado: ${servicio || "servidor personalizado"} (${config.host}:${config.port}, ${config.secure ? "TLS directo" : "STARTTLS"})`,
@@ -163,6 +173,16 @@ const verificarConexion = async () => {
       ok: true,
       detalle:
         "Resend configurado correctamente. Se usará como proveedor principal de correos.",
+    };
+  }
+
+  if (process.env.BREVO_API_KEY) {
+    return {
+      configurado: true,
+      ok: Boolean(parsearRemitente(remitenteBrevo())),
+      detalle: parsearRemitente(remitenteBrevo())
+        ? `API de Brevo configurada (remitente ${remitenteBrevo()}). Los correos salen por HTTPS, sin SMTP.`
+        : "BREVO_API_KEY está puesta pero falta el remitente: pon BREVO_FROM (o MAIL_FROM) con un correo verificado en Brevo.",
     };
   }
 
@@ -203,10 +223,9 @@ const verificarConexion = async () => {
  * @returns {Promise<{enviado: boolean, motivo?: string}>}
  */
 const enviarCorreo = async ({ destino, asunto, html, texto }) => {
-  // Motivo del rechazo de Resend, si lo hubo: si tampoco hay SMTP de respaldo es la única
-  // pista real de por qué no salió el correo (antes se perdía y solo quedaba "SMTP no
-  // configurado").
-  let motivoResend = null;
+  // Por qué falló cada proveedor que se intentó: si ninguno logra enviar, es la única pista
+  // real de qué pasa (antes solo quedaba "SMTP no configurado").
+  const fallos = [];
   if (process.env.RESEND_API_KEY) {
     const resultado = await enviarCorreoResend({
       to: destino,
@@ -219,16 +238,27 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
     if (resultado.ok) {
       return { enviado: true, proveedor: "resend", id: resultado.id || null };
     }
-    motivoResend = resultado.motivo;
+    fallos.push(`Resend: ${resultado.motivo}`);
+    Logger.warn("Resend falló al enviar correo; se intenta el siguiente proveedor", {
+      destino,
+      asunto,
+      motivo: resultado.motivo,
+    });
+  }
 
-    Logger.warn(
-      "Resend falló al enviar correo; se intenta SMTP como fallback",
-      {
-        destino,
-        asunto,
-        motivo: resultado.motivo,
-      },
-    );
+  // API HTTP de Brevo: va por HTTPS, así que funciona donde el SMTP está bloqueado (Render,
+  // plan gratuito). Ver brevo.util.js.
+  if (process.env.BREVO_API_KEY) {
+    const resultado = await enviarCorreoBrevo({ to: destino, subject: asunto, html, text: texto });
+    if (resultado.ok) {
+      return { enviado: true, proveedor: "brevo", id: resultado.id || null };
+    }
+    fallos.push(`Brevo: ${resultado.motivo}`);
+    Logger.warn("Brevo falló al enviar correo; se intenta SMTP", {
+      destino,
+      asunto,
+      motivo: resultado.motivo,
+    });
   }
 
   const t = _getTransporter();
@@ -238,10 +268,10 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
     );
     return {
       enviado: false,
-      proveedor: motivoResend ? "resend" : null,
-      motivo: motivoResend
-        ? `Resend rechazó el correo: ${motivoResend} (y no hay SMTP de respaldo)`
-        : "No hay proveedor de correo configurado (RESEND_API_KEY, MAIL_SERVICE o SMTP_HOST)",
+      proveedor: null,
+      motivo: fallos.length
+        ? `${fallos.join(" · ")} (y no hay SMTP de respaldo)`
+        : "No hay proveedor de correo configurado (RESEND_API_KEY, BREVO_API_KEY, MAIL_SERVICE o SMTP_HOST)",
     };
   }
 
@@ -267,7 +297,11 @@ const enviarCorreo = async ({ destino, asunto, html, texto }) => {
       asunto,
       error: error.message,
     });
-    return { enviado: false, proveedor: "smtp", motivo: error.message };
+    return {
+      enviado: false,
+      proveedor: "smtp",
+      motivo: [...fallos, `SMTP: ${error.message}`].join(" · "),
+    };
   }
 };
 
@@ -644,12 +678,27 @@ const diagnosticoCorreo = () => {
   const remitenteResend = resendConfigurado
     ? process.env.RESEND_FROM || process.env.MAIL_FROM || getDefaultFromResend()
     : null;
+  const brevoKey = (process.env.BREVO_API_KEY || "").trim();
+  const brevoConfigurado = Boolean(brevoKey);
+  const remitenteDeBrevo = brevoConfigurado ? remitenteBrevo() || null : null;
   const smtp = _resolverConfig();
   const frontendUrl = (process.env.FRONTEND_URL || "").trim();
+  const enRender = Boolean(process.env.RENDER);
   const advertencias = [];
 
-  if (!resendConfigurado && !smtp) {
-    advertencias.push("No hay ningún proveedor de correo configurado: falta RESEND_API_KEY, o MAIL_SERVICE / SMTP_HOST. Ningún correo se envía, solo se anota en el log.");
+  if (!resendConfigurado && !brevoConfigurado && !smtp) {
+    advertencias.push("No hay ningún proveedor de correo configurado: falta RESEND_API_KEY, BREVO_API_KEY, o MAIL_SERVICE / SMTP_HOST. Ningún correo se envía, solo se anota en el log.");
+  }
+  if (enRender && smtp && !resendConfigurado && !brevoConfigurado) {
+    advertencias.push("El servidor corre en Render y solo tiene SMTP: el plan gratuito de Render bloquea los puertos SMTP y la conexión termina en timeout. Pon BREVO_API_KEY (API key de Brevo, \"xkeysib-...\") y BREVO_FROM para enviar por HTTPS.");
+  }
+  if (brevoConfigurado) {
+    if (brevoKey.startsWith("xsmtpsib-")) {
+      advertencias.push("BREVO_API_KEY tiene una clave SMTP (\"xsmtpsib-...\"). La API necesita una API key (\"xkeysib-...\"): Brevo → SMTP & API → API Keys.");
+    }
+    if (!parsearRemitente(remitenteDeBrevo)) {
+      advertencias.push("BREVO_API_KEY está puesta pero falta el remitente: pon BREVO_FROM (o MAIL_FROM) con un correo verificado como remitente en Brevo.");
+    }
   }
   if (resendConfigurado) {
     const dominio = _dominioDe(remitenteResend);
@@ -670,8 +719,9 @@ const diagnosticoCorreo = () => {
   }
 
   return {
-    proveedorPrincipal: resendConfigurado ? "resend" : smtp ? "smtp" : null,
+    proveedorPrincipal: resendConfigurado ? "resend" : brevoConfigurado ? "brevo" : smtp ? "smtp" : null,
     resend: { configurado: resendConfigurado, remitente: remitenteResend },
+    brevo: { configurado: brevoConfigurado, remitente: remitenteDeBrevo },
     smtp: smtp
       ? {
           configurado: true,

@@ -5,7 +5,7 @@ const Module = require("node:module");
 /* Por qué no llegaban los correos: sin acceso a las variables ni a los logs del servidor no
    había forma de saberlo. diagnosticoCorreo() y el motivo que devuelve enviarCorreo() lo dicen. */
 
-const VARIABLES = ["RESEND_API_KEY", "RESEND_FROM", "RESEND_DOMAIN", "MAIL_FROM", "MAIL_SERVICE", "SMTP_SERVICE", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "FRONTEND_URL"];
+const VARIABLES = ["RENDER", "BREVO_API_KEY", "BREVO_FROM", "RESEND_API_KEY", "RESEND_FROM", "RESEND_DOMAIN", "MAIL_FROM", "MAIL_SERVICE", "SMTP_SERVICE", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "FRONTEND_URL"];
 
 /** Carga mailer.util con estas variables de entorno y un Resend falso. */
 const cargarMailer = (env, respuestaResend = { ok: true, id: "r1" }) => {
@@ -101,8 +101,7 @@ test("si Resend rechaza el correo y no hay SMTP, enviarCorreo devuelve el motivo
   try {
     const r = await mailer.enviarCorreo({ destino: "ana@sena.edu.co", asunto: "x", html: "<p>x</p>" });
     assert.equal(r.enviado, false);
-    assert.equal(r.proveedor, "resend");
-    assert.match(r.motivo, /You can only send testing emails/);
+    assert.match(r.motivo, /^Resend: You can only send testing emails/);
   } finally {
     restaurar();
   }
@@ -113,6 +112,95 @@ test("si Resend acepta el correo, enviarCorreo lo reporta como enviado por Resen
   try {
     const r = await mailer.enviarCorreo({ destino: "ana@sena.edu.co", asunto: "x", html: "<p>x</p>" });
     assert.deepEqual(r, { enviado: true, proveedor: "resend", id: "r1" });
+  } finally {
+    restaurar();
+  }
+});
+
+/* Brevo por API: el SMTP de Brevo daba "Connection timeout" en Render (puertos SMTP bloqueados). */
+
+/** Reemplaza fetch global durante una prueba y devuelve las llamadas que recibió. */
+const conFetchFalso = (respuesta) => {
+  const original = globalThis.fetch;
+  const llamadas = [];
+  globalThis.fetch = async (url, opciones) => {
+    llamadas.push({ url, opciones, cuerpo: JSON.parse(opciones.body) });
+    return new Response(JSON.stringify(respuesta.cuerpo), { status: respuesta.status });
+  };
+  return { llamadas, restaurar: () => { globalThis.fetch = original; } };
+};
+
+test("con BREVO_API_KEY, el correo sale por la API HTTPS de Brevo con el remitente de BREVO_FROM", async () => {
+  const f = conFetchFalso({ status: 201, cuerpo: { messageId: "<m1@brevo>" } });
+  const { mailer, restaurar } = cargarMailer({
+    BREVO_API_KEY: "xkeysib-abc",
+    BREVO_FROM: "ParkU <avisos@parku.co>",
+    SMTP_HOST: "smtp-relay.sendinblue.com",
+  });
+  try {
+    const r = await mailer.enviarCorreo({ destino: "ana@sena.edu.co", asunto: "Hola", html: "<p>x</p>", texto: "x" });
+    assert.deepEqual(r, { enviado: true, proveedor: "brevo", id: "<m1@brevo>" });
+    assert.equal(f.llamadas.length, 1);
+    assert.equal(f.llamadas[0].url, "https://api.brevo.com/v3/smtp/email");
+    assert.equal(f.llamadas[0].opciones.headers["api-key"], "xkeysib-abc");
+    assert.deepEqual(f.llamadas[0].cuerpo, {
+      sender: { name: "ParkU", email: "avisos@parku.co" },
+      to: [{ email: "ana@sena.edu.co" }],
+      subject: "Hola",
+      htmlContent: "<p>x</p>",
+      textContent: "x",
+    });
+  } finally {
+    restaurar();
+    f.restaurar();
+  }
+});
+
+test("si Brevo rechaza el correo y no hay SMTP, devuelve el motivo de Brevo", async () => {
+  const f = conFetchFalso({ status: 400, cuerpo: { code: "invalid_parameter", message: "sender is not valid" } });
+  const { mailer, restaurar } = cargarMailer({ BREVO_API_KEY: "xkeysib-abc", BREVO_FROM: "x@noverificado.com" });
+  try {
+    const r = await mailer.enviarCorreo({ destino: "ana@sena.edu.co", asunto: "Hola", html: "<p>x</p>" });
+    assert.equal(r.enviado, false);
+    assert.match(r.motivo, /Brevo: 400 invalid_parameter sender is not valid/);
+  } finally {
+    restaurar();
+    f.restaurar();
+  }
+});
+
+test("sin remitente, Brevo no llama a la API y lo dice", async () => {
+  const f = conFetchFalso({ status: 201, cuerpo: {} });
+  const { mailer, restaurar } = cargarMailer({ BREVO_API_KEY: "xkeysib-abc" });
+  try {
+    const r = await mailer.enviarCorreo({ destino: "ana@sena.edu.co", asunto: "Hola", html: "<p>x</p>" });
+    assert.equal(r.enviado, false);
+    assert.match(r.motivo, /Falta el remitente/);
+    assert.equal(f.llamadas.length, 0);
+  } finally {
+    restaurar();
+    f.restaurar();
+  }
+});
+
+test("en Render con solo SMTP, el diagnóstico avisa que los puertos SMTP están bloqueados", () => {
+  const { mailer, restaurar } = cargarMailer({ RENDER: "true", SMTP_HOST: "smtp-relay.sendinblue.com", FRONTEND_URL: "https://x" });
+  try {
+    const d = mailer.diagnosticoCorreo();
+    assert.equal(d.proveedorPrincipal, "smtp");
+    assert.ok(d.advertencias.some((a) => /Render y solo tiene SMTP/.test(a)));
+  } finally {
+    restaurar();
+  }
+});
+
+test("con una clave SMTP de Brevo en BREVO_API_KEY, el diagnóstico lo detecta", () => {
+  const { mailer, restaurar } = cargarMailer({ BREVO_API_KEY: "xsmtpsib-abc", BREVO_FROM: "a@b.co", FRONTEND_URL: "https://x" });
+  try {
+    const d = mailer.diagnosticoCorreo();
+    assert.equal(d.proveedorPrincipal, "brevo");
+    assert.ok(d.advertencias.some((a) => /clave SMTP/.test(a)));
+    assert.ok(!JSON.stringify(d).includes("xsmtpsib-abc"));
   } finally {
     restaurar();
   }
