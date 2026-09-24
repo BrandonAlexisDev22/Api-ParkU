@@ -12,6 +12,7 @@ const repo = require("../repositories/conductor.repository");
 const { CAMPOS_DE_LA_CUENTA } = repo;
 const usuarioRepo = require("../repositories/usuario.repository");
 const tipoUsuarioRepo = require("../repositories/tipoUsuario.repository");
+const { normalizarCorreo } = require("../utils/correo.util");
 const { traducirErrorTrigger } = require("../utils/dbContext.util");
 const { exigirSinOperaciones } = require("../utils/borrado.util");
 const { ROLES } = require("../config/roles");
@@ -424,7 +425,12 @@ const create = async (data) => {
   } = data;
   // correo puede reasignarse: si se vincula una cuenta existente, manda el correo de esa
   // cuenta (ver más abajo).
-  let { usuario_id, correo, numero_telefonico } = data;
+  let { usuario_id, numero_telefonico } = data;
+  // Misma forma con la que el login busca la cuenta (ver utils/correo.util.js): sin esto, un
+  // conductor creado aquí con `crear_cuenta` quedaba con el correo guardado tal cual lo
+  // escribió el administrador (con mayúsculas o espacios) y el login, que sí normaliza,
+  // nunca lo encontraba -- "Credenciales inválidas" con la contraseña correcta.
+  let correo = data.correo ? normalizarCorreo(data.correo) : data.correo;
 
   // Se decide ANTES de validar nada más: de él depende qué campos son obligatorios.
   const modoCuenta = _resolverModoCuenta(data);
@@ -672,7 +678,10 @@ const resolverOCrear = async (datos = {}, { transaction } = {}) => {
   // es lo normal cuando el vigilante registra a alguien en la barrera.
   const modoCuenta = _resolverModoCuenta(datos, { porDefecto: "SIN_CUENTA" });
   let usuarioId = null;
-  let correo = datos.correo || null;
+  // Misma normalización que create()/_crearCuentaDeConductor: sin ella, un conductor creado
+  // desde aquí con cuenta nueva quedaba con el correo tal cual, y el login (que sí normaliza)
+  // no lo encontraba.
+  let correo = datos.correo ? normalizarCorreo(datos.correo) : null;
   let telefono = datos.numero_telefonico || null;
 
   if (modoCuenta === "VINCULAR") {
@@ -802,6 +811,9 @@ const update = async (id, datosEnviados, usuarioId) => {
       message: `Tipo de documento inválido. Permitidos: ${TIPOS_DOCUMENTO.join(", ")}`,
     };
   }
+  // Misma normalización que al crear: si este conductor llega a tener cuenta más adelante,
+  // el correo debe quedar guardado en la misma forma que busca el login.
+  if (data.correo) data.correo = normalizarCorreo(data.correo);
   if (data.correo !== undefined) validarCorreo(data.correo);
 
   // Los datos de contacto de un conductor CON cuenta vinculada pertenecen a la cuenta: se
